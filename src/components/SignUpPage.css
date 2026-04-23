@@ -1,0 +1,182 @@
+.signup-page {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 3rem 2rem;
+}
+
+.content-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+.left-section {
+  padding: 2rem;
+}
+
+.logo-large {
+  margin-bottom: 2.5rem;
+}
+
+.shield-icon {
+  width: 120px;
+  height: 120px;
+  background: var(--state-btn-primary-bg);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-button);
+  box-shadow: var(--shadow-primary);
+}
+
+.shield-icon svg {
+  width: 60px;
+  height: 60px;
+}
+
+.welcome-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.welcome-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.right-section {
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 1024px) {
+  .content-wrapper {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+
+  .left-section {
+    text-align: center;
+  }
+
+  .logo-large {
+    display: flex;
+    justify-content: center;
+  }
+
+  .welcome-title {
+    font-size: 2rem;
+  }
+
+  .welcome-subtitle {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 2rem 1rem;
+  }
+
+  .welcome-title {
+    font-size: 1.75rem;
+  }
+
+  .shield-icon {
+    width: 90px;
+    height: 90px;
+  }
+
+  .shield-icon svg {
+    width: 45px;
+    height: 45px;
+  }
+}
+
+.signup-page {
+  background:
+    radial-gradient(circle at top left, rgba(109, 124, 255, 0.08) 0%, transparent 24%),
+    radial-gradient(circle at top right, rgba(67, 196, 255, 0.06) 0%, transparent 18%),
+    var(--bg-primary);
+}
+
+.main-content {
+  padding: 3.25rem 1.5rem 5rem;
+}
+
+.content-wrapper {
+  max-width: 1220px;
+  gap: 2.75rem;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+}
+
+.left-section {
+  position: relative;
+  padding: 1rem 1rem 1.25rem 0;
+  isolation: isolate;
+}
+
+.left-section > *:not(.signup-scene) {
+  position: relative;
+  z-index: 1;
+}
+
+.signup-scene {
+  position: absolute;
+  top: -1.25rem;
+  right: 0.5rem;
+  opacity: 0.82;
+}
+
+.logo-large {
+  margin-bottom: 1.9rem;
+}
+
+.shield-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+}
+
+.shield-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.welcome-title {
+  max-width: 13ch;
+  font-size: clamp(2rem, 2.9vw, 2.55rem);
+  margin-bottom: 0.75rem;
+}
+
+.welcome-subtitle {
+  max-width: 38ch;
+  font-size: 1.02rem;
+}
+
+@media (max-width: 1024px) {
+  .signup-scene {
+    display: none;
+  }
+}
+
+.signup-page {
+  background: var(--bg-primary);
+}

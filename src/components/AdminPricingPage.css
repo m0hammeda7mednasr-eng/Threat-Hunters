@@ -1,0 +1,379 @@
+.admin-pricing-page {
+  min-height: 100vh;
+  background: var(--page-gradient);
+  color: var(--text-primary);
+}
+
+.admin-pricing-main {
+  gap: 1.1rem;
+}
+
+.admin-pricing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-pricing-header h1 {
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.admin-pricing-add-btn,
+.admin-pricing-edit-btn {
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.58rem;
+  cursor: pointer;
+  transition:
+    transform var(--motion-base) ease,
+    box-shadow var(--motion-base) ease,
+    background-color var(--motion-base) ease,
+    color var(--motion-base) ease;
+}
+
+.admin-pricing-add-btn {
+  min-height: 48px;
+  padding: 0 1.25rem;
+  border-radius: 14px;
+  background: var(--button-gradient);
+  color: var(--text-button);
+  box-shadow: var(--button-shadow-sm);
+}
+
+.admin-pricing-add-btn:hover,
+.admin-pricing-edit-btn:hover {
+  transform: translateY(-1px);
+}
+
+.admin-pricing-add-btn:hover {
+  box-shadow: var(--button-shadow-strong);
+}
+
+.admin-pricing-stats,
+.admin-pricing-plan-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-pricing-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-pricing-stat-card,
+.admin-pricing-transactions {
+  padding: 1rem;
+}
+
+.admin-pricing-stat-card {
+  min-height: 104px;
+  display: grid;
+  gap: 0.92rem;
+}
+
+.admin-pricing-stat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.admin-pricing-stat-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.24rem;
+}
+
+.admin-pricing-stat-copy strong {
+  font-family: var(--font-display);
+  font-size: 1.36rem;
+  line-height: 1;
+}
+
+.admin-pricing-stat-copy p {
+  color: var(--primary-80);
+  font-size: 0.85rem;
+}
+
+.admin-pricing-stat-change {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.admin-pricing-stat-change.is-positive {
+  color: #34c759;
+}
+
+.admin-pricing-plan-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-pricing-plan-card {
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 100%;
+}
+
+.admin-pricing-plan-card.is-featured {
+  box-shadow:
+    var(--elevation-shadow-sm),
+    inset 0 0 0 1px rgba(109, 124, 255, 0.28);
+}
+
+.admin-pricing-plan-head,
+.admin-pricing-plan-titles,
+.admin-pricing-price-block,
+.admin-pricing-subscribers {
+  display: flex;
+}
+
+.admin-pricing-plan-head {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-pricing-plan-titles {
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.admin-pricing-plan-titles h2 {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.admin-pricing-popular-badge {
+  width: fit-content;
+  min-height: 28px;
+  padding: 0 0.72rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  background: rgba(255, 184, 0, 0.12);
+  color: #f0b100;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.admin-pricing-price-block {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.08rem;
+  white-space: nowrap;
+}
+
+.admin-pricing-price-block strong {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.admin-pricing-price-block span,
+.admin-pricing-plan-description,
+.admin-pricing-subscribers span {
+  color: var(--primary-80);
+}
+
+.admin-pricing-plan-description {
+  min-height: 42px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.admin-pricing-feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.68rem;
+  padding-top: 0.1rem;
+}
+
+.admin-pricing-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  color: var(--text-primary);
+  font-size: 0.87rem;
+  line-height: 1.45;
+}
+
+.admin-pricing-feature-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 0.08rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-pricing-feature-item.is-included .admin-pricing-feature-icon {
+  background: rgba(52, 199, 89, 0.12);
+  color: #34c759;
+}
+
+.admin-pricing-feature-item.is-disabled {
+  color: var(--text-secondary);
+}
+
+.admin-pricing-feature-item.is-disabled .admin-pricing-feature-icon {
+  background: rgba(251, 44, 54, 0.12);
+  color: #fb2c36;
+}
+
+.admin-pricing-plan-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.admin-pricing-subscribers {
+  flex-direction: column;
+  gap: 0.16rem;
+}
+
+.admin-pricing-subscribers strong {
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  line-height: 1;
+}
+
+.admin-pricing-edit-btn {
+  min-width: 104px;
+  height: 40px;
+  padding: 0 0.95rem;
+  border-radius: 12px;
+  background: var(--state-hover-surface);
+  color: var(--text-primary);
+}
+
+.admin-pricing-edit-btn.is-free {
+  color: #99a1af;
+}
+
+.admin-pricing-edit-btn.is-professional {
+  color: #6d7cff;
+}
+
+.admin-pricing-edit-btn.is-enterprise {
+  color: #f0b100;
+}
+
+.admin-pricing-edit-btn:hover {
+  box-shadow: var(--button-shadow-sm);
+}
+
+.admin-pricing-table-scroll {
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+.admin-pricing-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+.admin-pricing-table th,
+.admin-pricing-table td {
+  padding: 0.95rem 0.75rem;
+  border-bottom: 1px solid var(--border-secondary);
+  text-align: left;
+  font-size: 0.88rem;
+}
+
+.admin-pricing-table th {
+  color: var(--primary-80);
+  font-weight: 600;
+}
+
+.admin-pricing-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-pricing-plan-pill,
+.admin-pricing-status {
+  min-height: 28px;
+  padding: 0 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.admin-pricing-plan-pill.is-free {
+  color: #99a1af;
+  background: rgba(156, 163, 175, 0.12);
+}
+
+.admin-pricing-plan-pill.is-professional {
+  color: #6d7cff;
+  background: rgba(109, 124, 255, 0.12);
+}
+
+.admin-pricing-plan-pill.is-enterprise {
+  color: #f0b100;
+  background: rgba(255, 184, 0, 0.12);
+}
+
+.admin-pricing-status.is-completed {
+  color: #34c759;
+  background: rgba(52, 199, 89, 0.12);
+}
+
+.admin-pricing-status.is-pending {
+  color: #ffb800;
+  background: rgba(255, 184, 0, 0.12);
+}
+
+@media (max-width: 1220px) {
+  .admin-pricing-stats,
+  .admin-pricing-plan-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-pricing-header,
+  .admin-pricing-plan-head,
+  .admin-pricing-plan-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-pricing-add-btn,
+  .admin-pricing-edit-btn {
+    width: 100%;
+  }
+
+  .admin-pricing-price-block {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-pricing-stats,
+  .admin-pricing-plan-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-pricing-stat-card,
+  .admin-pricing-plan-card,
+  .admin-pricing-transactions {
+    padding: 0.9rem;
+  }
+}

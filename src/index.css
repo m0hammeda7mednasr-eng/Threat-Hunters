@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap');
+
+:root {
+  --font-body: 'Manrope', 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', 'Segoe UI', sans-serif;
+  --shell-max-width: 1328px;
+  --shell-gutter: clamp(1rem, 3vw, 2rem);
+  --section-space: clamp(3.25rem, 6vw, 5rem);
+  --section-space-tight: clamp(2rem, 4vw, 3.25rem);
+  --radius-panel: 20px;
+  --radius-card: 16px;
+  --motion-fast: 180ms;
+  --motion-base: 260ms;
+  --motion-slow: 420ms;
+  font-family: var(--font-body);
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  transition:
+    background-color var(--motion-base) ease,
+    color var(--motion-base) ease,
+    border-color var(--motion-base) ease,
+    box-shadow var(--motion-base) ease,
+    transform var(--motion-base) ease;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--canvas-bg);
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+  font-family: var(--font-body);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.logo-text,
+.auth-logo-text,
+.footer-logo span {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+svg {
+  display: block;
+}
+
+/* Fix backdrop-filter in Light Mode */
+:root[data-theme="light"] .hero-card-wrapper,
+:root[data-theme="light"] .browser-mockup,
+:root[data-theme="light"] .scan-result-box,
+:root[data-theme="light"] .process-card,
+:root[data-theme="light"] .badge,
+:root[data-theme="light"] .feature-card,
+:root[data-theme="light"] .sidebar-section,
+:root[data-theme="light"] .tip-card,
+:root[data-theme="light"] .threat-card,
+:root[data-theme="light"] .resource-card,
+:root[data-theme="light"] .download-card,
+:root[data-theme="light"] .featured-article,
+:root[data-theme="light"] .trending-card,
+:root[data-theme="light"] .article-card,
+:root[data-theme="light"] .tools-card,
+:root[data-theme="light"] .stat-card,
+:root[data-theme="light"] .signup-form-container,
+:root[data-theme="light"] .signin-form-container,
+:root[data-theme="light"] .navbar,
+:root[data-theme="light"] .footer,
+:root[data-theme="light"] .mobile-menu {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

@@ -1,0 +1,1080 @@
+.security-awareness-page {
+  --awareness-shell-width: 1313px;
+  --awareness-bg: var(--palette-background-100);
+  --awareness-surface: var(--palette-card-100);
+  --awareness-surface-soft: var(--palette-background-80);
+  --awareness-border: var(--primary-20);
+  --awareness-border-strong: var(--primary-60);
+  --awareness-text: var(--palette-text-primary);
+  --awareness-muted: var(--palette-text-secondary-2);
+  --awareness-link: var(--palette-secondary-1);
+  --awareness-shadow: 0 0 38px rgba(109, 124, 255, 0.3);
+  min-height: 100vh;
+  background: var(--page-gradient);
+  color: var(--awareness-text);
+  font-family: Arial, "Segoe UI", sans-serif;
+}
+
+.security-awareness-page button,
+.security-awareness-page input {
+  font: inherit;
+}
+
+.awareness-shell {
+  width: min(var(--awareness-shell-width), calc(100% - 127px));
+  margin: 0 auto;
+}
+
+.awareness-hero {
+  border-bottom: 1px solid var(--awareness-border);
+}
+
+.awareness-hero__shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 82px 0 83px;
+  text-align: center;
+}
+
+.awareness-hero__icon {
+  width: 82px;
+  height: 82px;
+  margin-bottom: 31px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--button-gradient);
+  color: var(--text-button);
+  box-shadow: var(--awareness-shadow);
+}
+
+.awareness-hero__icon svg {
+  width: 41px;
+  height: 41px;
+}
+
+.awareness-hero__title {
+  margin: 0;
+  font-size: 46px;
+  line-height: 1.11;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+.awareness-hero__subtitle {
+  max-width: 720px;
+  margin: 20px 0 40px;
+  font-size: 23px;
+  line-height: 1.56;
+  font-weight: 400;
+  color: var(--awareness-muted);
+}
+
+.awareness-hero__search {
+  width: min(738px, 100%);
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 0 20px;
+  border: 1px solid var(--primary-40);
+  border-radius: 18px;
+  background: var(--awareness-surface);
+  transition: border-color 0.24s ease, box-shadow 0.24s ease;
+}
+
+.awareness-hero__search:focus-within {
+  border-color: var(--primary-60);
+  box-shadow: 0 0 0 3px rgba(109, 124, 255, 0.12);
+}
+
+.awareness-hero__search svg {
+  width: 25px;
+  height: 25px;
+  flex-shrink: 0;
+  color: var(--awareness-link);
+}
+
+.awareness-hero__search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--awareness-text);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.awareness-hero__search input::placeholder {
+  color: var(--awareness-muted);
+}
+
+.awareness-section {
+  padding: 0 0 72px;
+}
+
+.awareness-section--tips {
+  padding-top: 75px;
+}
+
+.awareness-section--threats {
+  padding-top: 60px;
+}
+
+.awareness-section--resources {
+  padding-top: 72px;
+  padding-bottom: 64px;
+}
+
+.awareness-section__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  margin-bottom: 51px;
+}
+
+.awareness-section__title {
+  margin: 0;
+  font-size: 42px;
+  line-height: 0.98;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+.awareness-section__subtitle {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.54;
+  font-weight: 400;
+  color: var(--awareness-muted);
+}
+
+.tips-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 19px;
+  row-gap: 12px;
+}
+
+.tip-card {
+  min-height: 262px;
+  padding: 28px;
+  border: 1px solid var(--awareness-border);
+  border-radius: 16px;
+  background: var(--awareness-surface);
+  transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
+}
+
+.tip-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--awareness-border-strong);
+  box-shadow: 0 10px 28px rgba(2, 4, 12, 0.26);
+}
+
+.tip-card__icon-box {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  border: 1px solid var(--primary-60);
+  border-radius: 17px;
+  background: var(--primary-tint-05);
+  color: var(--awareness-link);
+}
+
+.tip-card__icon-box svg {
+  width: 28px;
+  height: 28px;
+}
+
+.tip-card__title {
+  margin: 0 0 13px;
+  font-size: 21px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.tip-card__description {
+  max-width: 336px;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--awareness-muted);
+}
+
+.awareness-marquee {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  padding: 0 0 34px;
+  overflow: hidden;
+}
+
+.awareness-marquee__row {
+  overflow: hidden;
+}
+
+.awareness-marquee__track {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  width: max-content;
+  will-change: transform;
+}
+
+.awareness-marquee__track--forward {
+  animation: awareness-marquee-forward 36s linear infinite;
+}
+
+.awareness-marquee__track--reverse {
+  transform: translateX(-50%);
+  animation: awareness-marquee-reverse 36s linear infinite;
+}
+
+.awareness-marquee__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  color: var(--awareness-text);
+  white-space: nowrap;
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.awareness-marquee__item svg {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.awareness-marquee__item--blue svg {
+  color: var(--primary-100);
+}
+
+.awareness-marquee__item--red svg {
+  color: var(--accent-coral);
+}
+
+.awareness-marquee__item--violet svg {
+  color: var(--primary-80);
+}
+
+@keyframes awareness-marquee-forward {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes awareness-marquee-reverse {
+  from {
+    transform: translateX(-50%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.threats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 17px;
+  row-gap: 29px;
+}
+
+.threat-card {
+  min-height: 365px;
+  padding: 30px;
+  border: 1px solid var(--primary-tint-05);
+  border-radius: 17px;
+  background: var(--awareness-surface);
+  transition: border-color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease;
+}
+
+.threat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--awareness-border-strong);
+  box-shadow: 0 12px 30px rgba(2, 4, 12, 0.28);
+}
+
+.threat-card__intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 19px;
+  margin-bottom: 19px;
+}
+
+.threat-card__icon-box {
+  width: 57px;
+  height: 57px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 17px;
+  flex-shrink: 0;
+}
+
+.threat-card__icon-box svg {
+  width: 29px;
+  height: 29px;
+}
+
+.threat-card--high .threat-card__icon-box {
+  background: rgba(255, 107, 107, 0.08);
+  border: 1px solid rgba(255, 107, 107, 0.5);
+  color: #ff6b6b;
+}
+
+.threat-card--critical .threat-card__icon-box {
+  background: rgba(211, 47, 47, 0.08);
+  border: 1px solid rgba(211, 47, 47, 0.5);
+  color: #d32f2f;
+}
+
+.threat-card--medium .threat-card__icon-box {
+  background: rgba(255, 184, 0, 0.08);
+  border: 1px solid rgba(255, 184, 0, 0.5);
+  color: #ffb800;
+}
+
+.threat-card--low .threat-card__icon-box {
+  background: rgba(65, 227, 146, 0.08);
+  border: 1px solid #41e392;
+  color: #41e392;
+}
+
+.threat-card__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.threat-card__heading-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.threat-card__heading h3 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.threat-card__heading p {
+  max-width: 505px;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.43;
+  color: var(--awareness-muted);
+}
+
+.threat-card__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.threat-card--high .threat-card__badge {
+  background: rgba(255, 107, 107, 0.15);
+  border-color: rgba(255, 107, 107, 0.5);
+  color: #ff6b6b;
+}
+
+.threat-card--critical .threat-card__badge {
+  background: rgba(211, 47, 47, 0.15);
+  border-color: rgba(211, 47, 47, 0.5);
+  color: #d32f2f;
+}
+
+.threat-card--medium .threat-card__badge {
+  background: rgba(255, 184, 0, 0.15);
+  border-color: rgba(255, 184, 0, 0.5);
+  color: #ffb800;
+}
+
+.threat-card--low .threat-card__badge {
+  background: rgba(65, 227, 146, 0.15);
+  border-color: #41e392;
+  color: #41e392;
+}
+
+.threat-card__details {
+  padding-top: 20px;
+  border-top: 1px solid var(--awareness-border);
+}
+
+.threat-card__details-title {
+  margin: 0 0 14px;
+  font-size: 17px;
+  line-height: 1.43;
+  color: var(--awareness-link);
+}
+
+.threat-card__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.threat-card__list li {
+  position: relative;
+  padding-left: 16px;
+  color: var(--awareness-muted);
+  font-size: 17px;
+  line-height: 1.43;
+}
+
+.threat-card__list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 11px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--awareness-link);
+}
+
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+}
+
+.resource-card {
+  min-height: 230px;
+  padding: 28px;
+  border: 1px solid var(--awareness-border);
+  border-radius: 17px;
+  background: var(--awareness-surface);
+  transition: border-color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease;
+}
+
+.resource-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--awareness-border-strong);
+  box-shadow: 0 12px 28px rgba(2, 4, 12, 0.28);
+}
+
+.resource-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 19px;
+}
+
+.resource-card__pill-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.resource-card__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  background: var(--primary-tint-20);
+  font-size: 14px;
+  line-height: 1.33;
+  font-weight: 400;
+}
+
+.resource-card__pill--type {
+  color: var(--awareness-link);
+}
+
+.resource-card__pill--type svg {
+  width: 20px;
+  height: 20px;
+}
+
+.resource-card__pill--topic {
+  color: var(--awareness-muted);
+}
+
+.resource-card__title {
+  margin: 0 0 14px;
+  font-size: 19px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.resource-card__description {
+  max-width: 354px;
+  margin: 0 0 21px;
+  color: var(--awareness-muted);
+  font-size: 17px;
+  line-height: 1.43;
+}
+
+.resource-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.resource-card__duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--awareness-link);
+  font-size: 14px;
+  line-height: 1.33;
+}
+
+.resource-card__duration svg,
+.resource-card__action svg {
+  width: 19px;
+  height: 19px;
+}
+
+.resource-card__action,
+.download-card__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--awareness-link);
+  cursor: pointer;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.resource-card__action:hover,
+.download-card__action:hover {
+  transform: translateY(-1px);
+  color: var(--text-primary);
+}
+
+.downloads-panel {
+  margin-top: 37px;
+  padding: 39px 29px 25px;
+  border: 1px solid var(--awareness-border);
+  border-radius: 17px;
+  background: var(--awareness-surface);
+}
+
+.downloads-panel__header {
+  margin-bottom: 27px;
+}
+
+.downloads-panel__title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.downloads-panel__title-wrap svg {
+  width: 29px;
+  height: 29px;
+  flex-shrink: 0;
+  color: var(--awareness-link);
+  margin-top: 14px;
+}
+
+.downloads-panel__title-wrap h3 {
+  margin: 0 0 2px;
+  font-size: 22px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.downloads-panel__title-wrap p {
+  margin: 0;
+  color: var(--awareness-muted);
+  font-size: 17px;
+  line-height: 1.43;
+}
+
+.downloads-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.download-card {
+  min-height: 132px;
+  padding: 19px;
+  border: 1px solid var(--awareness-border);
+  border-radius: 12px;
+  background: var(--awareness-surface-soft);
+  transition: border-color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease;
+}
+
+.download-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--awareness-border-strong);
+  box-shadow: 0 10px 24px rgba(2, 4, 12, 0.2);
+}
+
+.download-card__content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.download-card__heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.download-card__heading-row h4 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.43;
+  font-weight: 400;
+}
+
+.download-card__content p {
+  margin: 0 0 17px;
+  color: var(--awareness-muted);
+  font-size: 14px;
+  line-height: 1.33;
+}
+
+.download-card__meta {
+  margin-top: auto;
+  color: var(--awareness-link);
+  font-size: 14px;
+  line-height: 1.33;
+}
+
+.logged-in-page .security-awareness-page {
+  min-height: auto;
+}
+
+@media (max-width: 1360px) {
+  .awareness-shell {
+    width: min(var(--awareness-shell-width), calc(100% - 64px));
+  }
+}
+
+@media (max-width: 1120px) {
+  .awareness-hero__title {
+    font-size: 42px;
+  }
+
+  .awareness-hero__subtitle {
+    font-size: 21px;
+  }
+
+  .tips-grid,
+  .resources-grid,
+  .downloads-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .threats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .awareness-marquee__item {
+    font-size: 20px;
+  }
+
+  .awareness-marquee__item svg {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+@media (max-width: 860px) {
+  .awareness-shell {
+    width: min(var(--awareness-shell-width), calc(100% - 40px));
+  }
+
+  .awareness-hero__shell {
+    padding: 60px 0 64px;
+  }
+
+  .awareness-hero__icon {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 24px;
+  }
+
+  .awareness-hero__icon svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .awareness-hero__title,
+  .awareness-section__title {
+    font-size: 36px;
+  }
+
+  .awareness-hero__subtitle,
+  .awareness-section__subtitle {
+    font-size: 18px;
+  }
+
+  .awareness-hero__search {
+    height: 58px;
+    padding: 0 18px;
+  }
+
+  .awareness-hero__search input {
+    font-size: 18px;
+  }
+
+  .tips-grid,
+  .resources-grid,
+  .downloads-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tip-card,
+  .threat-card,
+  .resource-card,
+  .downloads-panel {
+    padding: 22px;
+  }
+
+  .awareness-marquee {
+    gap: 18px;
+    padding-bottom: 28px;
+  }
+
+  .awareness-marquee__track {
+    gap: 24px;
+  }
+
+  .awareness-marquee__item {
+    font-size: 17px;
+  }
+
+  .awareness-marquee__item svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .awareness-shell {
+    width: calc(100% - 32px);
+  }
+
+  .awareness-section--tips {
+    padding-top: 54px;
+  }
+
+  .awareness-section--threats,
+  .awareness-section--resources,
+  .awareness-section {
+    padding-bottom: 48px;
+  }
+
+  .awareness-hero__title,
+  .awareness-section__title {
+    font-size: 32px;
+    line-height: 1.08;
+  }
+
+  .awareness-hero__subtitle,
+  .awareness-section__subtitle {
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .awareness-section__header {
+    margin-bottom: 32px;
+  }
+
+  .awareness-hero__search {
+    height: 54px;
+    gap: 12px;
+    border-radius: 16px;
+  }
+
+  .awareness-hero__search svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .awareness-hero__search input {
+    font-size: 16px;
+  }
+
+  .tip-card__title,
+  .resource-card__title,
+  .downloads-panel__title-wrap h3 {
+    font-size: 20px;
+  }
+
+  .tip-card__description,
+  .threat-card__heading p,
+  .threat-card__list li,
+  .resource-card__description,
+  .downloads-panel__title-wrap p {
+    font-size: 15px;
+  }
+
+  .threat-card__intro,
+  .downloads-panel__title-wrap {
+    gap: 14px;
+  }
+
+  .threat-card__icon-box {
+    width: 50px;
+    height: 50px;
+    border-radius: 15px;
+  }
+
+  .threat-card__icon-box svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+.security-awareness-page {
+  background:
+    radial-gradient(circle at top left, rgba(109, 124, 255, 0.08) 0%, transparent 22%),
+    radial-gradient(circle at top right, rgba(67, 196, 255, 0.06) 0%, transparent 16%),
+    var(--page-gradient);
+  font-family: var(--font-body);
+}
+
+.awareness-shell {
+  width: min(var(--awareness-shell-width), calc(100% - max(2rem, 6vw)));
+}
+
+.awareness-hero__shell {
+  position: relative;
+  padding: 68px 0 70px;
+  isolation: isolate;
+}
+
+.awareness-hero__shell > *:not(.awareness-hero__scene) {
+  position: relative;
+  z-index: 1;
+}
+
+.awareness-hero__scene {
+  position: absolute;
+  top: 8px;
+  right: 10%;
+  opacity: 0.78;
+}
+
+.awareness-hero__icon {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 24px;
+  border-radius: 18px;
+}
+
+.awareness-hero__icon svg {
+  width: 34px;
+  height: 34px;
+}
+
+.awareness-hero__title {
+  font-size: clamp(2.45rem, 4vw, 3.7rem);
+}
+
+.awareness-hero__subtitle {
+  max-width: 620px;
+  margin: 16px 0 28px;
+  font-size: 18px;
+}
+
+.awareness-hero__search {
+  width: min(680px, 100%);
+  height: 58px;
+  border-radius: 16px;
+  background: rgba(26, 29, 53, 0.7);
+}
+
+.awareness-hero__search svg {
+  width: 22px;
+  height: 22px;
+}
+
+.awareness-hero__search input {
+  font-size: 17px;
+}
+
+.awareness-section {
+  padding-bottom: 56px;
+}
+
+.awareness-section--tips {
+  padding-top: 58px;
+}
+
+.awareness-section--threats,
+.awareness-section--resources {
+  padding-top: 54px;
+}
+
+.awareness-section__header {
+  gap: 8px;
+  margin-bottom: 34px;
+}
+
+.awareness-section__title {
+  font-size: clamp(2.2rem, 3.4vw, 3rem);
+}
+
+.awareness-section__subtitle {
+  font-size: 17px;
+}
+
+.tip-card,
+.threat-card,
+.resource-card,
+.downloads-panel,
+.download-card {
+  border-color: var(--primary-border-20);
+  box-shadow: 0 16px 40px rgba(2, 4, 12, 0.14);
+}
+
+.tip-card,
+.resource-card {
+  min-height: 220px;
+  padding: 22px;
+}
+
+.tip-card__title {
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.tip-card__description,
+.threat-card__heading p,
+.threat-card__list li,
+.resource-card__description,
+.downloads-panel__title-wrap p {
+  font-size: 15px;
+}
+
+.awareness-marquee {
+  gap: 20px;
+  padding-bottom: 26px;
+}
+
+.awareness-marquee__track {
+  gap: 24px;
+}
+
+.awareness-marquee__track--forward {
+  animation-duration: 42s;
+}
+
+.awareness-marquee__track--reverse {
+  animation-duration: 42s;
+}
+
+.awareness-marquee__item {
+  font-size: 20px;
+}
+
+.awareness-marquee__item svg {
+  width: 28px;
+  height: 28px;
+}
+
+.threat-card {
+  min-height: 320px;
+  padding: 24px;
+}
+
+.threat-card__intro {
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.threat-card__icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+}
+
+.threat-card__icon-box svg {
+  width: 24px;
+  height: 24px;
+}
+
+.threat-card__heading h3,
+.resource-card__title {
+  font-size: 18px;
+}
+
+.resource-card__meta {
+  margin-bottom: 14px;
+}
+
+.downloads-panel {
+  margin-top: 30px;
+  padding: 26px 24px 20px;
+}
+
+.downloads-panel__header {
+  margin-bottom: 20px;
+}
+
+.downloads-panel__title-wrap h3 {
+  font-size: 20px;
+}
+
+.download-card {
+  min-height: 120px;
+  padding: 16px;
+}
+
+@media (max-width: 860px) {
+  .awareness-hero__scene {
+    display: none;
+  }
+}
+
+.security-awareness-page {
+  background: var(--page-gradient);
+}
+
+.awareness-hero__search {
+  background: var(--awareness-surface);
+}
+
+.tip-card,
+.threat-card,
+.resource-card,
+.downloads-panel,
+.download-card {
+  border-color: var(--awareness-border);
+  box-shadow: none;
+}
