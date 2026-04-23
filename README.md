@@ -1,16 +1,139 @@
-# React + Vite
+# 🛡️ Threat Hunters
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A comprehensive cybersecurity platform for threat detection, analysis, and security awareness training.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Dashboard**: Real-time threat monitoring and analytics
+- **Security Awareness**: Interactive training modules and educational content
+- **Reports**: Detailed security reports and threat analysis
+- **Admin Panel**: Complete administrative control with user management
+- **Blog**: Latest cybersecurity news and insights
+- **Multi-tool Integration**: Various security tools and utilities
 
-## React Compiler
+## 🛠️ Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend**: React 18 + Vite
+- **Styling**: CSS3 with custom design system
+- **Icons**: SVG icons and custom graphics
+- **Routing**: React Router (ready for implementation)
+- **Theme**: Dark/Light mode support
 
-## Expanding the ESLint configuration
+## 📦 Installation
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. Clone the repository:
+
+```bash
+git clone https://github.com/m0hammeda7mednasr-eng/Threat-Hunters.git
+cd Threat-Hunters
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Start the development server:
+
+```bash
+npm run dev
+```
+
+4. Build for production:
+
+```bash
+npm run build
+```
+
+## 🎯 Pages & Components
+
+### User Pages
+
+- **Home**: Landing page with features overview
+- **Dashboard**: Main user dashboard
+- **Security Awareness**: Training and educational content
+- **Blog**: Cybersecurity articles and news
+- **Sign In/Up**: Authentication pages
+
+### Admin Pages
+
+- **Admin Dashboard**: Administrative overview
+- **User Management**: Manage platform users
+- **Reports**: Generate and view security reports
+- **Team Management**: Organize security teams
+- **Settings**: Platform configuration
+- **Pricing**: Subscription and pricing management
+- **Web Editor**: Content management system
+
+## 🎨 Design System
+
+The project uses a comprehensive design system with:
+
+- Consistent color palette (defined in `src/styles/colors.css`)
+- Responsive layouts
+- Dark/Light theme support
+- Modern UI components
+- Accessibility considerations
+
+## 🚀 Deployment
+
+The project is configured for easy deployment on various platforms:
+
+- **GitHub Pages**: Ready for static deployment
+- **Vercel**: Zero-config deployment
+- **Netlify**: Drag-and-drop deployment
+
+## 📱 Responsive Design
+
+Fully responsive design that works on:
+
+- Desktop computers
+- Tablets
+- Mobile devices
+- Various screen sizes
+
+## 🔧 Development
+
+### Project Structure
+
+```
+src/
+├── components/          # React components
+├── assets/             # Images, icons, and static files
+├── styles/             # CSS files and design system
+└── context/            # React context providers
+```
+
+### Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 👥 Team
+
+- **Mohamed Ahmed Nasr** - Lead Developer
+- **Threat Hunters Team** - Security Experts
+
+## 📞 Contact
+
+- GitHub: [@m0hammeda7mednasr-eng](https://github.com/m0hammeda7mednasr-eng)
+- Project Link: [https://github.com/m0hammeda7mednasr-eng/Threat-Hunters](https://github.com/m0hammeda7mednasr-eng/Threat-Hunters)
+
+---
+
+⭐ **Star this repository if you find it helpful!**

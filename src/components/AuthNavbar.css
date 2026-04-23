@@ -220,3 +220,45 @@
 .auth-navbar {
   box-shadow: none;
 }
+
+.auth-navbar {
+  border-bottom-color: var(--dashboard-panel-border-soft);
+}
+
+.auth-logo-icon {
+  border: 1px solid var(--dashboard-chip-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.auth-nav-link {
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+}
+
+.auth-nav-link:hover,
+.auth-nav-link.active {
+  background: var(--dashboard-chip-bg);
+  border: 1px solid var(--dashboard-chip-border);
+  color: var(--text-primary);
+}
+
+.auth-icon-btn {
+  background: var(--dashboard-chip-bg);
+  border-color: var(--dashboard-chip-border);
+}
+
+.auth-icon-btn:hover,
+.auth-icon-btn.active {
+  background: var(--state-hover-surface-active);
+  border-color: var(--dashboard-chip-border);
+  color: var(--text-primary);
+}
+
+.auth-user-btn {
+  background: var(--dashboard-sidebar-active-bg);
+  box-shadow: none;
+}
+
+.auth-user-btn.active {
+  box-shadow: var(--dashboard-sidebar-active-shadow);
+}

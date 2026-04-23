@@ -13,7 +13,6 @@ import {
   Zap,
 } from 'lucide-react';
 import './HomePage.css';
-import AmbientScene from './AmbientScene';
 import Navbar from './Navbar';
 import Footer from './Footer';
 
@@ -80,6 +79,18 @@ const marqueeItems = [
   { icon: Zap, label: 'AI Security Agent', tone: 'blue' },
 ];
 
+const heroHighlights = [
+  { value: '<2 min', label: 'average first scan' },
+  { value: 'OWASP', label: 'aligned checks' },
+  { value: 'AI fixes', label: 'guided remediation' },
+];
+
+const previewMetrics = [
+  { value: '0', label: 'Critical', tone: 'safe' },
+  { value: '3', label: 'Warnings', tone: 'warn' },
+  { value: '9', label: 'Suggested fixes', tone: 'info' },
+];
+
 const duplicatedMarqueeItems = [...marqueeItems, ...marqueeItems, ...marqueeItems];
 
 const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNavigateToAwareness, onNavigateToTools }) => {
@@ -104,7 +115,10 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
       <section className="home-hero-section">
         <div className="home-shell">
           <div className="home-hero-card">
-            <AmbientScene className="home-hero-scene" tone="primary" size="md" />
+            <div className="home-hero-badge">
+              <span className="home-hero-badge-dot" aria-hidden="true" />
+              <span>Live AI security analysis for modern web apps</span>
+            </div>
 
             <h1 className="home-hero-title">Smart AI-Powered Web Vulnerability Scanner</h1>
 
@@ -113,6 +127,15 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
             <p className="home-hero-subtext">
               Identify vulnerabilities before hackers do powered by intelligent automation.
             </p>
+
+            <div className="home-hero-highlights" aria-label="Threat Hunters highlights">
+              {heroHighlights.map((item) => (
+                <div className="home-hero-highlight" key={item.label}>
+                  <strong>{item.value}</strong>
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
 
             <div className="home-scan-shell">
               <div className="home-scan-input-row">
@@ -137,11 +160,30 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
               </div>
 
               <div className="home-scan-preview">
-                <div className="home-scan-preview-icon" aria-hidden="true">
-                  <ShieldCheck />
+                <div className="home-scan-preview-header">
+                  <span className="home-scan-preview-pill">Preview report</span>
+                  <span className="home-scan-preview-risk">Risk score 24/100</span>
                 </div>
-                <h3>Scanning results will appear here</h3>
-                <p>Enter a URL and click Scan Now to begin</p>
+
+                <div className="home-scan-preview-main">
+                  <div className="home-scan-preview-icon" aria-hidden="true">
+                    <ShieldCheck />
+                  </div>
+
+                  <div className="home-scan-preview-copy">
+                    <h3>Quick scan found a few issues worth fixing</h3>
+                    <p>Headers, public assets, and exposed routes were prioritized into one clean report.</p>
+                  </div>
+                </div>
+
+                <div className="home-scan-metrics">
+                  {previewMetrics.map((item) => (
+                    <article className={`home-scan-metric home-scan-metric--${item.tone}`} key={item.label}>
+                      <strong>{item.value}</strong>
+                      <span>{item.label}</span>
+                    </article>
+                  ))}
+                </div>
               </div>
             </div>
 

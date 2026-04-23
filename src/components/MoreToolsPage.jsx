@@ -10,6 +10,16 @@ const tabContent = {
     inputLabel: 'Enter Your Password',
     inputType: 'password',
     placeholder: 'Enter a password',
+    heroCopy: 'Check password strength, weak patterns, and common exposure signals before reuse becomes a risk.',
+    idleTitle: 'Password insights will appear here',
+    idleCopy: 'Enter a password and start a simulated security check.',
+    helperCopy: 'This preview uses a safe front-end simulation. No credentials are stored or transmitted.',
+    signalTags: ['Entropy score', 'Pattern check', 'Reuse hints'],
+    summary: [
+      { label: 'Entropy', value: 'Strong' },
+      { label: 'Reuse risk', value: 'Low' },
+      { label: 'Leaks', value: '0' },
+    ],
     successTitle: 'Password appears secure',
     successCopy: 'No obvious exposure was detected for this password in our simulated check.',
   },
@@ -18,6 +28,16 @@ const tabContent = {
     inputLabel: 'Enter Your Email',
     inputType: 'email',
     placeholder: 'you@example.com',
+    heroCopy: 'Run a quick exposure check for email addresses, domain posture, and breach-style signals in seconds.',
+    idleTitle: 'Exposure results will appear here',
+    idleCopy: 'Enter an email address and start a simulated security check.',
+    helperCopy: 'Use a test address if you want to preview the flow. This demo does not call a real breach API.',
+    signalTags: ['Breach signals', 'Domain posture', 'Alias hygiene'],
+    summary: [
+      { label: 'Exposure', value: '0' },
+      { label: 'Domain', value: 'Healthy' },
+      { label: 'Matches', value: '2' },
+    ],
     successTitle: 'Email appears secure',
     successCopy: 'No breach indicators were found for this email in our simulated scan.',
   },
@@ -25,7 +45,7 @@ const tabContent = {
 
 const statItems = [
   { value: '10+', label: 'New Tools' },
-  { value: '∞', label: 'Updates' },
+  { value: '24/7', label: 'Coverage' },
   { value: '100%', label: 'Free' },
 ];
 
@@ -83,6 +103,7 @@ const MoreToolsPage = ({
 
   const activeContent = tabContent[activeTab];
   const currentValue = activeTab === 'email' ? email : password;
+  const canScan = currentValue.trim().length > 0;
 
   return (
     <div className="more-tools-page">
@@ -99,8 +120,22 @@ const MoreToolsPage = ({
 
       <section className="more-tools-hero">
         <div className="more-tools-hero-content">
+          <div className="more-tools-hero-badge">
+            <span className="more-tools-hero-badge-dot" aria-hidden="true" />
+            <span>Fast utility checks</span>
+          </div>
+
           <h1>More Security Tools</h1>
-          <p>Advanced security tools to protect your applications and data</p>
+
+          <p>{activeContent.heroCopy}</p>
+
+          <div className="more-tools-hero-tags" aria-label={`${activeContent.label} capabilities`}>
+            {activeContent.signalTags.map((tag) => (
+              <span className="more-tools-hero-tag" key={tag}>
+                {tag}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -145,21 +180,26 @@ const MoreToolsPage = ({
 
             <button
               className="more-tools-scan-button"
-              disabled={scanState === 'checking'}
+              disabled={scanState === 'checking' || !canScan}
               onClick={handleScan}
               type="button"
             >
               <Play aria-hidden="true" fill="currentColor" />
               <span>Start scan</span>
             </button>
+
+            <div className="more-tools-helper-row">
+              <span className="more-tools-helper-badge">Demo mode</span>
+              <p>{activeContent.helperCopy}</p>
+            </div>
           </div>
 
           <div className="more-tools-output-panel">
             {scanState === 'checking' && (
               <div className="more-tools-output-state">
-                <div className="more-tools-spinner" aria-hidden="true"></div>
+                <div className="more-tools-spinner" aria-hidden="true" />
                 <p>Checking security signals...</p>
-                <span>This simulated scan will finish in a moment</span>
+                <span>This simulated scan will finish in a moment.</span>
               </div>
             )}
 
@@ -170,6 +210,15 @@ const MoreToolsPage = ({
                 </div>
                 <p>{activeContent.successTitle}</p>
                 <span>{activeContent.successCopy}</span>
+
+                <div className="more-tools-summary-grid">
+                  {activeContent.summary.map((item) => (
+                    <article className="more-tools-summary-card" key={item.label}>
+                      <strong>{item.value}</strong>
+                      <span>{item.label}</span>
+                    </article>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -178,8 +227,16 @@ const MoreToolsPage = ({
                 <div className="more-tools-output-icon" aria-hidden="true">
                   <Shield />
                 </div>
-                <p>Scanning results will appear here</p>
-                <span>Enter a URL and click Scan Now to begin</span>
+                <p>{activeContent.idleTitle}</p>
+                <span>{activeContent.idleCopy}</span>
+
+                <div className="more-tools-output-tags">
+                  {activeContent.signalTags.map((tag) => (
+                    <span className="more-tools-output-tag" key={tag}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -189,7 +246,7 @@ const MoreToolsPage = ({
       <section className="more-tools-roadmap-section">
         <div className="more-tools-roadmap">
           <div className="more-tools-roadmap-badge">
-            <span className="more-tools-roadmap-dot" aria-hidden="true"></span>
+            <span className="more-tools-roadmap-dot" aria-hidden="true" />
             <span>MORE TOOLS COMING SOON</span>
           </div>
 

@@ -44,9 +44,9 @@ const SIDEBAR_ITEMS = [
 ];
 
 const DASHBOARD_OVERVIEW_CARDS = [
-  { label: 'Total Scans', value: '1,899', subtitle: 'Completed This Month', icon: Activity },
-  { label: 'Vulnerabilities Found', value: '424', subtitle: 'Across all scans', icon: AlertTriangle },
-  { label: 'Critical Alerts', value: '352', subtitle: 'Requiring immediate action', icon: Bell },
+  { label: 'Total Scans', value: '135', subtitle: 'Completed this month', icon: Activity },
+  { label: 'Critical Issues', value: '23', subtitle: 'Need immediate remediation', icon: Bell },
+  { label: 'Vulnerabilities Found', value: '342', subtitle: 'Across latest assessments', icon: AlertTriangle },
   { label: 'Last Scan', value: '2h ago', subtitle: 'example.com', icon: Clock3 },
 ];
 
@@ -551,7 +551,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           </button>
         </div>
 
-        <div className="db-advanced-body">
+        <div className={`db-advanced-body ${advancedScanMode === 'quick' ? 'is-quick' : 'is-deep'}`}>
           <div className="db-advanced-mode-grid">
             {ADVANCED_SCAN_MODE_CARDS.map((item) => (
               <button
@@ -617,13 +617,17 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
                 </div>
               </article>
 
-              <p className="db-advanced-note db-advanced-note-warning">
-                Note: Quick Scan provides basic insights only and may miss deeper vulnerabilities.
-              </p>
+              <div className="db-advanced-note db-advanced-note-warning">
+                <AlertTriangle size={16} />
+                <div>
+                  <strong>Note:</strong>
+                  <p>Quick Scan provides basic insights only and may miss deeper vulnerabilities.</p>
+                </div>
+              </div>
             </>
           ) : (
             <>
-              <article className="db-advanced-card">
+              <article className="db-advanced-card db-advanced-card-port">
                 <div className="db-advanced-card-head">
                   <Wifi size={13} />
                   <h3>Port &amp; Network Scanning</h3>
@@ -646,7 +650,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
                 </div>
               </article>
 
-              <article className="db-advanced-card">
+              <article className="db-advanced-card db-advanced-card-web">
                 <div className="db-advanced-card-head">
                   <Globe size={13} />
                   <h3>Web Vulnerability Testing</h3>
@@ -691,9 +695,13 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
                   ))}
                 </div>
 
-                <p className="db-advanced-note db-advanced-note-danger">
-                  Warning: These checks may generate significant traffic. Use with permission.
-                </p>
+                <div className="db-advanced-note db-advanced-note-danger">
+                  <AlertTriangle size={16} />
+                  <div>
+                    <strong>Warning:</strong>
+                    <p>These checks may generate significant traffic. Use with permission.</p>
+                  </div>
+                </div>
               </article>
             </>
           )}
@@ -808,7 +816,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
 
           <button type="button" className="db-advanced-btn" onClick={() => setIsAdvancedScanOpen(true)}>
             <Settings size={14} />
-            Advanced Scan Options
+            Advanced Scan Settings
           </button>
           <p className="db-quick-copy">Comprehensive security analysis powered by AI technology</p>
         </section>
@@ -964,7 +972,10 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
                   <span className={`db-risk ${item.severity.toLowerCase()}`}>{item.severity}</span>
                 </div>
                 <p>{item.description}</p>
-                <button type="button" className="db-mini-btn db-threat-btn">View More</button>
+                <button type="button" className="db-mini-btn db-threat-btn">
+                  View More
+                  <ChevronRight size={14} />
+                </button>
               </article>
             ))}
           </div>

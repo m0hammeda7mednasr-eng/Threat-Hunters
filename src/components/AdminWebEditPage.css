@@ -258,3 +258,12 @@
     padding: 0.9rem;
   }
 }
+
+/* Final polish overrides */
+.admin-web-field input,
+.admin-web-field textarea,
+.admin-web-feature-field textarea,
+.admin-web-stat-card {
+  background: var(--surface-base);
+  border-color: var(--primary-border-20);
+}

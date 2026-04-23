@@ -1078,3 +1078,37 @@
   border-color: var(--awareness-border);
   box-shadow: none;
 }
+
+/* Final polish overrides */
+.security-awareness-page {
+  --awareness-surface: var(--surface-elevated);
+  --awareness-surface-soft: var(--surface-base);
+  --awareness-shadow: var(--button-shadow-sm);
+  background: var(--page-gradient);
+}
+
+.awareness-hero__search {
+  background: var(--surface-elevated);
+}
+
+.tip-card,
+.threat-card,
+.resource-card,
+.downloads-panel,
+.download-card {
+  background: var(--awareness-surface);
+  border: 1px solid var(--primary-border-20);
+  box-shadow: var(--elevation-shadow-sm);
+}
+
+.download-card {
+  background: var(--awareness-surface-soft);
+}
+
+:root[data-theme='light'] .tip-card,
+:root[data-theme='light'] .threat-card,
+:root[data-theme='light'] .resource-card,
+:root[data-theme='light'] .downloads-panel,
+:root[data-theme='light'] .download-card {
+  box-shadow: 0 16px 36px rgba(21, 93, 252, 0.06);
+}

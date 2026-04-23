@@ -86,18 +86,30 @@
   --primary-border-30: rgba(138, 163, 255, 0.3);
   --primary-border-35: rgba(138, 163, 255, 0.35);
 
-  --canvas-bg: #1e1e1e;
+  --canvas-bg: #070a14;
   --bg-primary: var(--palette-background-100);
   --bg-secondary: var(--palette-card-100);
   --bg-tertiary: var(--palette-card-100);
   --bg-card: var(--palette-card-100);
   --bg-image-placeholder: linear-gradient(135deg, #0b0d18 0%, #1a1d35 100%);
+  --surface-base: rgba(18, 22, 43, 0.74);
+  --surface-elevated: rgba(16, 20, 38, 0.92);
+  --surface-panel: linear-gradient(180deg, rgba(18, 22, 43, 0.98), rgba(11, 13, 24, 0.96));
+  --surface-soft: rgba(109, 124, 255, 0.08);
+  --surface-muted: rgba(255, 255, 255, 0.05);
+  --surface-glass: rgba(12, 15, 29, 0.78);
 
-  --nav-surface: rgba(11, 13, 24, 0.96);
+  --nav-surface: rgba(7, 10, 20, 0.84);
   --overlay-backdrop: rgba(2, 4, 12, 0.62);
 
-  --page-gradient: linear-gradient(180deg, #0b0d18 0%, #0b0d18 100%);
+  --page-gradient:
+    radial-gradient(circle at 12% 0%, rgba(109, 124, 255, 0.18) 0%, rgba(109, 124, 255, 0) 28%),
+    radial-gradient(circle at 86% 8%, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0) 24%),
+    linear-gradient(180deg, #0a0d1b 0%, #0b0d18 40%, #070a14 100%);
   --hero-card-bg: #1a1d35;
+  --hero-veil: linear-gradient(180deg, rgba(10, 13, 27, 0.84) 0%, rgba(10, 13, 27, 0.18) 100%);
+  --hero-shell-bg: rgba(18, 22, 43, 0.56);
+  --hero-shell-border: rgba(138, 163, 255, 0.18);
   --button-gradient: linear-gradient(135deg, #6d7cff 0%, #8aa3ff 100%);
   --icon-gradient: linear-gradient(135deg, #7384ff 0%, #8aa3ff 100%);
   --card-bg: #1a1d35;
@@ -114,6 +126,24 @@
   --text-secondary: var(--palette-text-secondary-1);
   --text-tertiary: var(--palette-text-secondary-3);
   --text-button: #ffffff;
+  --input-placeholder: rgba(205, 214, 244, 0.56);
+  --auth-panel-bg: linear-gradient(180deg, rgba(17, 21, 40, 0.98) 0%, rgba(11, 13, 24, 0.94) 100%);
+  --auth-input-bg: rgba(11, 13, 24, 0.8);
+  --auth-input-autofill-bg: rgba(11, 13, 24, 0.8);
+  --auth-divider-bg: rgba(17, 21, 40, 0.96);
+  --auth-checkbox-bg: rgba(11, 13, 24, 0.8);
+  --auth-placeholder: rgba(255, 255, 255, 0.5);
+  --stats-panel-bg: linear-gradient(180deg, rgba(26, 29, 53, 0.6) 0%, rgba(18, 20, 39, 0.58) 100%);
+  --stats-panel-border: rgba(138, 163, 255, 0.14);
+  --splash-bg:
+    radial-gradient(circle at 50% 36%, rgba(109, 124, 255, 0.22) 0%, rgba(109, 124, 255, 0) 22%),
+    linear-gradient(180deg, rgba(7, 10, 20, 0.98) 0%, rgba(11, 13, 24, 0.98) 100%);
+  --splash-orb: rgba(109, 124, 255, 0.24);
+  --splash-core: #dfe6ff;
+  --splash-core-shadow: rgba(109, 124, 255, 0.52);
+  --splash-particle: rgba(227, 234, 255, 0.82);
+  --progress-track: rgba(109, 124, 255, 0.08);
+  --progress-thumb: linear-gradient(90deg, #6d7cff 0%, #8aa3ff 100%);
 
   --hero-border: rgba(138, 163, 255, 0.3);
   --input-border: rgba(138, 163, 255, 0.24);
@@ -172,6 +202,46 @@
 
   --step-number-bg: #6d7cff;
   --step-number-border: #1a1d35;
+
+  --dashboard-panel-bg: linear-gradient(180deg, rgba(30, 35, 64, 0.96), rgba(19, 23, 44, 0.98));
+  --dashboard-sidebar-bg: linear-gradient(180deg, rgba(28, 33, 59, 0.94), rgba(17, 20, 38, 0.98));
+  --dashboard-panel-border: rgba(138, 163, 255, 0.24);
+  --dashboard-panel-border-soft: rgba(138, 163, 255, 0.16);
+  --dashboard-card-shadow: 0 20px 46px rgba(2, 4, 12, 0.3);
+  --dashboard-sidebar-active-bg: linear-gradient(135deg, #7d91ff 0%, #5d74ff 100%);
+  --dashboard-sidebar-active-shadow: 0 14px 28px rgba(69, 83, 218, 0.2);
+  --dashboard-surface-soft: rgba(11, 13, 24, 0.62);
+  --dashboard-table-head-bg: rgba(109, 124, 255, 0.08);
+  --dashboard-row-alt: rgba(109, 124, 255, 0.04);
+  --dashboard-chip-bg: rgba(109, 124, 255, 0.12);
+  --dashboard-chip-border: rgba(109, 124, 255, 0.28);
+  --dashboard-chip-fg: #dbe3ff;
+
+  --dashboard-modal-overlay: rgba(3, 7, 24, 0.7);
+  --dashboard-modal-bg: linear-gradient(180deg, rgba(20, 28, 70, 0.96), rgba(12, 17, 50, 0.98));
+  --dashboard-modal-surface: rgba(6, 10, 31, 0.82);
+  --dashboard-modal-border: rgba(138, 163, 255, 0.28);
+  --dashboard-modal-border-soft: rgba(138, 163, 255, 0.16);
+  --dashboard-modal-shadow: 0 28px 56px rgba(0, 0, 0, 0.48);
+  --dashboard-modal-card-bg: rgba(24, 34, 83, 0.46);
+  --dashboard-modal-card-hover: rgba(24, 35, 88, 0.62);
+  --dashboard-modal-card-active: rgba(32, 48, 110, 0.68);
+  --dashboard-modal-icon-bg: rgba(100, 123, 255, 0.22);
+  --dashboard-modal-icon-text: #d0d9ff;
+  --dashboard-modal-copy: #b8c1ea;
+  --dashboard-check-bg: rgba(10, 16, 44, 0.72);
+  --dashboard-switch-bg: rgba(61, 74, 129, 0.66);
+  --dashboard-switch-thumb: #dce3ff;
+  --dashboard-modal-secondary-bg: rgba(24, 35, 89, 0.5);
+  --dashboard-modal-footer-bg: rgba(8, 12, 30, 0.38);
+  --dashboard-note-warning-bg: rgba(124, 91, 13, 0.34);
+  --dashboard-note-warning-border: rgba(203, 146, 13, 0.56);
+  --dashboard-note-warning-text: #f2cc6d;
+  --dashboard-danger-card-bg: linear-gradient(180deg, rgba(83, 28, 39, 0.52), rgba(48, 16, 24, 0.56));
+  --dashboard-danger-card-border: rgba(255, 98, 113, 0.26);
+  --dashboard-note-danger-bg: rgba(120, 36, 52, 0.44);
+  --dashboard-note-danger-border: rgba(218, 83, 104, 0.5);
+  --dashboard-note-danger-text: #ffb8c2;
 }
 
 :root[data-theme="light"] {
@@ -186,10 +256,10 @@
   --palette-secondary-2: #5c6fff;
   --palette-secondary-3: #7d8dff;
 
-  --palette-background-100: #ededed;
-  --palette-background-80: rgba(229, 229, 229, 0.8);
+  --palette-background-100: #f5f7fd;
+  --palette-background-80: rgba(245, 247, 253, 0.86);
   --palette-card-100: #ffffff;
-  --palette-card-40: #e2e4e8;
+  --palette-card-40: #eef2fb;
 
   --palette-risk-high: #ff5a63;
   --palette-risk-critical: #d32f2f;
@@ -255,18 +325,30 @@
   --primary-border-30: rgba(21, 93, 252, 0.3);
   --primary-border-35: rgba(21, 93, 252, 0.35);
 
-  --canvas-bg: #f1f2f6;
+  --canvas-bg: #f4f7ff;
   --bg-primary: var(--palette-background-100);
   --bg-secondary: var(--palette-card-40);
   --bg-tertiary: var(--palette-card-40);
   --bg-card: var(--palette-card-100);
   --bg-image-placeholder: linear-gradient(135deg, #dfe6ff 0%, #cfd9ff 100%);
+  --surface-base: rgba(255, 255, 255, 0.86);
+  --surface-elevated: rgba(255, 255, 255, 0.96);
+  --surface-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 248, 255, 0.96));
+  --surface-soft: rgba(21, 93, 252, 0.06);
+  --surface-muted: rgba(21, 93, 252, 0.04);
+  --surface-glass: rgba(255, 255, 255, 0.72);
 
-  --nav-surface: rgba(237, 237, 237, 0.96);
+  --nav-surface: rgba(249, 251, 255, 0.8);
   --overlay-backdrop: rgba(15, 23, 42, 0.45);
 
-  --page-gradient: linear-gradient(180deg, #ededed 0%, #ededed 100%);
+  --page-gradient:
+    radial-gradient(circle at 12% 0%, rgba(21, 93, 252, 0.14) 0%, rgba(21, 93, 252, 0) 28%),
+    radial-gradient(circle at 88% 10%, rgba(56, 189, 248, 0.1) 0%, rgba(56, 189, 248, 0) 20%),
+    linear-gradient(180deg, #f9fbff 0%, #eef3ff 45%, #f7f9fd 100%);
   --hero-card-bg: #ffffff;
+  --hero-veil: linear-gradient(180deg, rgba(248, 250, 255, 0.92) 0%, rgba(248, 250, 255, 0.34) 100%);
+  --hero-shell-bg: rgba(255, 255, 255, 0.72);
+  --hero-shell-border: rgba(21, 93, 252, 0.12);
   --button-gradient: linear-gradient(135deg, #155dfc 0%, #4077ef 100%);
   --icon-gradient: linear-gradient(135deg, #5c8aff 0%, #8aa3ff 100%);
   --card-bg: #ffffff;
@@ -283,6 +365,24 @@
   --text-secondary: var(--palette-text-secondary-1);
   --text-tertiary: var(--palette-text-secondary-2);
   --text-button: #ffffff;
+  --input-placeholder: rgba(82, 96, 122, 0.72);
+  --auth-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 248, 255, 0.96) 100%);
+  --auth-input-bg: rgba(244, 247, 255, 0.95);
+  --auth-input-autofill-bg: rgba(244, 247, 255, 0.95);
+  --auth-divider-bg: rgba(255, 255, 255, 0.96);
+  --auth-checkbox-bg: rgba(244, 247, 255, 0.95);
+  --auth-placeholder: rgba(74, 85, 101, 0.7);
+  --stats-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(237, 243, 255, 0.9) 100%);
+  --stats-panel-border: rgba(21, 93, 252, 0.12);
+  --splash-bg:
+    radial-gradient(circle at 50% 32%, rgba(21, 93, 252, 0.16) 0%, rgba(21, 93, 252, 0) 22%),
+    linear-gradient(180deg, rgba(248, 250, 255, 0.98) 0%, rgba(238, 243, 255, 0.98) 100%);
+  --splash-orb: rgba(21, 93, 252, 0.18);
+  --splash-core: #3565f6;
+  --splash-core-shadow: rgba(21, 93, 252, 0.3);
+  --splash-particle: rgba(53, 101, 246, 0.76);
+  --progress-track: rgba(21, 93, 252, 0.08);
+  --progress-thumb: linear-gradient(90deg, #155dfc 0%, #6b86ff 100%);
 
   --hero-border: #ccd4ea;
   --input-border: #d7ddee;
@@ -341,4 +441,44 @@
 
   --step-number-bg: #155dfc;
   --step-number-border: #ffffff;
+
+  --dashboard-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 255, 0.98));
+  --dashboard-sidebar-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 249, 255, 0.98));
+  --dashboard-panel-border: rgba(21, 93, 252, 0.16);
+  --dashboard-panel-border-soft: rgba(21, 93, 252, 0.1);
+  --dashboard-card-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+  --dashboard-sidebar-active-bg: linear-gradient(135deg, #6b86ff 0%, #3565f6 100%);
+  --dashboard-sidebar-active-shadow: 0 14px 28px rgba(21, 93, 252, 0.18);
+  --dashboard-surface-soft: rgba(21, 93, 252, 0.05);
+  --dashboard-table-head-bg: rgba(21, 93, 252, 0.06);
+  --dashboard-row-alt: rgba(21, 93, 252, 0.03);
+  --dashboard-chip-bg: rgba(21, 93, 252, 0.08);
+  --dashboard-chip-border: rgba(21, 93, 252, 0.18);
+  --dashboard-chip-fg: #1f3f93;
+
+  --dashboard-modal-overlay: rgba(15, 23, 42, 0.38);
+  --dashboard-modal-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 248, 255, 0.98));
+  --dashboard-modal-surface: rgba(248, 250, 255, 0.95);
+  --dashboard-modal-border: rgba(21, 93, 252, 0.22);
+  --dashboard-modal-border-soft: rgba(21, 93, 252, 0.12);
+  --dashboard-modal-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+  --dashboard-modal-card-bg: rgba(21, 93, 252, 0.05);
+  --dashboard-modal-card-hover: rgba(21, 93, 252, 0.08);
+  --dashboard-modal-card-active: rgba(21, 93, 252, 0.12);
+  --dashboard-modal-icon-bg: rgba(21, 93, 252, 0.12);
+  --dashboard-modal-icon-text: #1f3f93;
+  --dashboard-modal-copy: #4a5c85;
+  --dashboard-check-bg: rgba(255, 255, 255, 0.92);
+  --dashboard-switch-bg: rgba(21, 93, 252, 0.12);
+  --dashboard-switch-thumb: #ffffff;
+  --dashboard-modal-secondary-bg: rgba(21, 93, 252, 0.08);
+  --dashboard-modal-footer-bg: rgba(21, 93, 252, 0.04);
+  --dashboard-note-warning-bg: rgba(255, 184, 0, 0.12);
+  --dashboard-note-warning-border: rgba(255, 184, 0, 0.28);
+  --dashboard-note-warning-text: #9c6200;
+  --dashboard-danger-card-bg: linear-gradient(180deg, rgba(255, 243, 245, 0.96), rgba(255, 233, 237, 0.95));
+  --dashboard-danger-card-border: rgba(255, 90, 99, 0.35);
+  --dashboard-note-danger-bg: rgba(255, 90, 99, 0.08);
+  --dashboard-note-danger-border: rgba(255, 90, 99, 0.24);
+  --dashboard-note-danger-text: #b83243;
 }

@@ -27,6 +27,7 @@ const SignInPage = ({
       <main className="signin-main">
         <div className="signin-shell">
           <section className="signin-intro">
+            <span className="signin-intro-kicker">Access your security workspace</span>
             <div className="signin-intro-icon" aria-hidden="true">
               <Shield />
             </div>

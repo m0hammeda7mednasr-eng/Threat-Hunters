@@ -288,3 +288,13 @@
     padding: 0.9rem;
   }
 }
+
+/* Final polish overrides */
+.admin-users-search {
+  background: var(--surface-base);
+  border-color: var(--primary-border-20);
+}
+
+.admin-users-search input::placeholder {
+  color: var(--input-placeholder);
+}

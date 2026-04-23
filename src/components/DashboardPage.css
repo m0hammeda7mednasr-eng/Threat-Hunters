@@ -4,6 +4,258 @@
   color: var(--text-primary);
 }
 
+
+/* End-of-file dashboard overrides */
+.user-dashboard-sidebar,
+.db-overview-card,
+.db-risk-card,
+.db-panel {
+  background: var(--dashboard-panel-bg) !important;
+  border-color: var(--dashboard-panel-border) !important;
+  box-shadow: var(--dashboard-card-shadow) !important;
+}
+
+.user-dashboard-sidebar {
+  background: var(--dashboard-sidebar-bg) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.user-sidebar-btn.active {
+  background: var(--dashboard-sidebar-active-bg) !important;
+  color: var(--text-button) !important;
+  box-shadow: var(--dashboard-sidebar-active-shadow) !important;
+}
+
+.db-overview-icon,
+.db-head-icon,
+.db-awareness-icon {
+  background: var(--dashboard-chip-bg) !important;
+  border-color: var(--dashboard-chip-border) !important;
+  color: var(--dashboard-chip-fg) !important;
+}
+
+.db-table {
+  background: var(--dashboard-surface-soft) !important;
+  border-color: var(--dashboard-panel-border-soft) !important;
+}
+
+.db-table-head {
+  background: var(--dashboard-table-head-bg) !important;
+}
+
+.db-table-row:nth-child(even) {
+  background: var(--dashboard-row-alt) !important;
+}
+
+.db-insight-item,
+.db-insight-copy,
+.db-summary-body,
+.db-recommend-item,
+.db-threat-item,
+.db-awareness-item,
+.db-donut-hole,
+.db-line-chart-wrap,
+.db-line-stats article {
+  background: var(--dashboard-surface-soft) !important;
+  border-color: var(--dashboard-panel-border-soft) !important;
+}
+
+.db-advanced-overlay {
+  background: var(--dashboard-modal-overlay) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
+.db-advanced-modal {
+  width: min(890px, calc(100vw - 2rem));
+  border-radius: 24px !important;
+  border-color: var(--dashboard-modal-border) !important;
+  background: var(--dashboard-modal-bg) !important;
+  box-shadow: var(--dashboard-modal-shadow) !important;
+  overflow: hidden;
+}
+
+.db-advanced-head {
+  padding: 1.32rem 1.4rem 1rem !important;
+}
+
+.db-advanced-head p,
+.db-advanced-mode-copy small,
+.db-advanced-switch-row p {
+  color: var(--dashboard-modal-copy) !important;
+}
+
+.db-advanced-close {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 14px !important;
+  background: var(--dashboard-sidebar-active-bg) !important;
+  color: var(--text-button) !important;
+}
+
+.db-advanced-body {
+  margin: 0 1.36rem !important;
+  padding: 1rem !important;
+  border-radius: 18px !important;
+  border-color: var(--dashboard-modal-border-soft) !important;
+  background: var(--dashboard-modal-surface) !important;
+}
+
+.db-advanced-mode-card,
+.db-advanced-card {
+  border-radius: 16px !important;
+  border-color: var(--dashboard-modal-border-soft) !important;
+  background: var(--dashboard-modal-card-bg) !important;
+}
+
+.db-advanced-mode-card:hover {
+  border-color: var(--dashboard-modal-border) !important;
+  background: var(--dashboard-modal-card-hover) !important;
+}
+
+.db-advanced-mode-card.active {
+  border-color: var(--dashboard-modal-border) !important;
+  background: var(--dashboard-modal-card-active) !important;
+  box-shadow: inset 0 0 0 1px var(--dashboard-modal-border) !important;
+}
+
+.db-advanced-body.is-deep {
+  gap: 0.92rem;
+}
+
+.db-advanced-body.is-deep .db-advanced-card {
+  display: grid;
+  gap: 0.76rem;
+}
+
+.db-advanced-body.is-deep .db-advanced-card-port {
+  min-height: 198px;
+}
+
+.db-advanced-body.is-deep .db-advanced-card-web {
+  min-height: 280px;
+}
+
+.db-advanced-card.danger,
+.db-advanced-note-danger {
+  border-color: var(--dashboard-note-danger-border) !important;
+  background: var(--dashboard-note-danger-bg) !important;
+  color: var(--dashboard-note-danger-text) !important;
+}
+
+.db-advanced-card.danger {
+  border-color: var(--dashboard-danger-card-border) !important;
+  background: var(--dashboard-danger-card-bg) !important;
+}
+
+.db-advanced-mode-icon {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 12px !important;
+  background: var(--dashboard-modal-icon-bg) !important;
+  color: var(--dashboard-modal-icon-text) !important;
+}
+
+.db-advanced-card-head,
+.db-advanced-check-label svg {
+  color: var(--dashboard-modal-icon-text) !important;
+}
+
+.db-advanced-check {
+  color: var(--text-primary) !important;
+}
+
+.db-advanced-check.danger {
+  color: var(--text-primary) !important;
+}
+
+.db-advanced-checkmark {
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 6px !important;
+  border-color: var(--dashboard-modal-border) !important;
+  background: var(--dashboard-check-bg) !important;
+}
+
+.db-advanced-check input:checked + .db-advanced-checkmark {
+  background: var(--dashboard-sidebar-active-bg) !important;
+}
+
+.db-advanced-card.danger .db-advanced-checkmark {
+  border-color: var(--dashboard-note-danger-border) !important;
+}
+
+.db-advanced-switch {
+  width: 50px !important;
+  height: 26px !important;
+}
+
+.db-advanced-switch-track {
+  border-color: var(--dashboard-modal-border) !important;
+  background: var(--dashboard-switch-bg) !important;
+}
+
+.db-advanced-switch-track::before {
+  top: 2px !important;
+  left: 2px !important;
+  width: 20px !important;
+  height: 20px !important;
+  background: var(--dashboard-switch-thumb) !important;
+}
+
+.db-advanced-switch input:checked + .db-advanced-switch-track {
+  border-color: transparent !important;
+  background: var(--dashboard-sidebar-active-bg) !important;
+}
+
+.db-advanced-switch input:checked + .db-advanced-switch-track::before {
+  transform: translateX(24px) !important;
+}
+
+.db-advanced-note {
+  border-radius: 16px !important;
+}
+
+.db-advanced-note-warning {
+  border-color: var(--dashboard-note-warning-border) !important;
+  background: var(--dashboard-note-warning-bg) !important;
+  color: var(--dashboard-note-warning-text) !important;
+}
+
+.db-advanced-note-danger {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.72rem;
+  margin-top: 0.18rem;
+}
+
+.db-advanced-note-danger svg {
+  flex-shrink: 0;
+  margin-top: 0.08rem;
+}
+
+.db-advanced-note-danger strong {
+  display: block;
+  margin-bottom: 0.12rem;
+  font-size: 0.82rem;
+}
+
+.db-advanced-note-danger p {
+  margin: 0;
+}
+
+.db-advanced-actions {
+  border-top-color: var(--dashboard-modal-border-soft) !important;
+  background: linear-gradient(180deg, transparent, var(--dashboard-modal-footer-bg)) !important;
+}
+
+.db-advanced-cancel {
+  background: var(--dashboard-modal-secondary-bg) !important;
+  border-color: var(--dashboard-modal-border-soft) !important;
+  color: var(--text-primary) !important;
+}
+
 .user-dashboard-shell {
   max-width: 1312px;
   margin: 0 auto;
@@ -4504,4 +4756,74 @@
   .db-advanced-apply {
     width: 100%;
   }
+}
+
+/* Final polish overrides */
+.db-settings-select,
+.db-settings-mode-card,
+.db-settings-toggle-card,
+.db-settings-check-card,
+.db-user-profile-card-icon,
+.db-user-profile-input,
+.db-user-profile-security-subcard,
+.db-user-profile-twofactor-card,
+.db-user-profile-stat-card {
+  background: var(--surface-base) !important;
+  border-color: var(--dashboard-panel-border) !important;
+}
+
+.db-settings-select:focus,
+.db-user-profile-input:focus {
+  box-shadow: var(--state-focus-ring) !important;
+}
+
+.db-settings-mode-card.active {
+  background: var(--state-hover-surface) !important;
+}
+
+.db-user-profile-avatar {
+  border-color: var(--dashboard-panel-border) !important;
+  background:
+    radial-gradient(circle at 30% 20%, var(--surface-soft), transparent 58%),
+    var(--surface-panel) !important;
+}
+
+.db-user-profile-input {
+  color: var(--text-primary) !important;
+}
+
+.db-user-profile-input::placeholder {
+  color: var(--input-placeholder) !important;
+}
+
+.db-user-profile-table {
+  border-color: var(--dashboard-panel-border-soft) !important;
+}
+
+.db-user-profile-table-head {
+  background: var(--dashboard-table-head-bg) !important;
+}
+
+.db-user-profile-table-row {
+  border-top-color: var(--dashboard-panel-border-soft) !important;
+}
+
+.db-user-profile-delete-card {
+  border-color: var(--dashboard-note-danger-border) !important;
+}
+
+:root[data-theme='light'] .db-user-profile-delete-card {
+  background: linear-gradient(180deg, rgba(255, 243, 245, 0.96), rgba(255, 233, 237, 0.94)) !important;
+}
+
+:root[data-theme='light'] .db-user-profile-delete-head {
+  color: #c84255 !important;
+}
+
+:root[data-theme='light'] .db-user-profile-delete-card p {
+  color: #7b4a53 !important;
+}
+
+:root[data-theme='light'] .db-user-profile-delete-btn {
+  background: linear-gradient(135deg, #ff6b76, #e34d5d) !important;
 }

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 import AuthNavbar from './components/AuthNavbar';
+import BootSplash from './components/BootSplash';
 import Footer from './components/Footer';
 
 const HomePage = lazy(() => import('./components/HomePage'));
@@ -20,6 +21,10 @@ const AdminSettingsPage = lazy(() => import('./components/AdminSettingsPage'));
 
 const STORAGE_KEYS = Object.freeze({
   loginState: 'isLoggedIn',
+});
+
+const SESSION_KEYS = Object.freeze({
+  splashSeen: 'threatHuntersSplashSeen',
 });
 
 const PUBLIC_PAGES = new Set(['home', 'signin', 'signup', 'blog', 'awareness', 'tools']);
@@ -50,7 +55,25 @@ const safeStorage = {
   },
 };
 
+const safeSessionStorage = {
+  get(key) {
+    try {
+      return window.sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  set(key, value) {
+    try {
+      window.sessionStorage.setItem(key, value);
+    } catch {
+      // Ignore storage access errors.
+    }
+  },
+};
+
 const getInitialLoginState = () => safeStorage.get(STORAGE_KEYS.loginState) === 'true';
+const getInitialSplashState = () => safeSessionStorage.get(SESSION_KEYS.splashSeen) !== 'true';
 
 const normalizeHash = (hashValue) => {
   const rawHash = typeof hashValue === 'string' ? hashValue : '';
@@ -125,6 +148,8 @@ const createHash = (page, section = 'dashboard') => {
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(getInitialLoginState);
+  const [showBootSplash, setShowBootSplash] = useState(getInitialSplashState);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const [currentPage, setCurrentPage] = useState(() => parseRouteFromHash(window.location.hash).page);
   const [dashboardSection, setDashboardSection] = useState(
     () => parseRouteFromHash(window.location.hash).section,
@@ -143,6 +168,21 @@ function App() {
 
     safeStorage.remove(STORAGE_KEYS.loginState);
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!showBootSplash) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShowBootSplash(false);
+      safeSessionStorage.set(SESSION_KEYS.splashSeen, 'true');
+    }, 1900);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [showBootSplash]);
 
   useEffect(() => {
     const syncRouteFromHash = () => {
@@ -190,6 +230,38 @@ function App() {
   }, [currentPage, dashboardSection, isLoggedIn]);
 
   useEffect(() => {
+    let frameId = null;
+
+    const syncProgress = () => {
+      const scrollRoot = document.documentElement;
+      const maxScroll = Math.max(scrollRoot.scrollHeight - window.innerHeight, 0);
+      setScrollProgress(maxScroll ? Math.min(window.scrollY / maxScroll, 1) : 0);
+      frameId = null;
+    };
+
+    const handleScroll = () => {
+      if (frameId !== null) {
+        return;
+      }
+
+      frameId = window.requestAnimationFrame(syncProgress);
+    };
+
+    syncProgress();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [routeTransitionKey]);
+
+  useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       return undefined;
     }
@@ -210,7 +282,7 @@ function App() {
       '.more-tools-stat',
       '.signin-intro',
       '.signin-form-container',
-      '.left-section',
+      '.signup-intro',
       '.signup-form-container',
       '.db-panel',
       '.db-user-profile-card',
@@ -419,7 +491,20 @@ function App() {
 
   return (
     <div className="App">
-      <Suspense fallback={<div className="route-loading" />}>
+      <div className="app-progress" aria-hidden="true">
+        <span style={{ transform: `scaleX(${showBootSplash ? 0 : scrollProgress})` }} />
+      </div>
+
+      {showBootSplash && <BootSplash />}
+
+      <Suspense
+        fallback={(
+          <div className="route-loading" role="status" aria-live="polite">
+            <div className="route-loading__bar" />
+            <p>Loading secure workspace...</p>
+          </div>
+        )}
+      >
         <div key={routeTransitionKey} className="route-transition">
           {currentPage === 'dashboard' && isLoggedIn && (
             <>

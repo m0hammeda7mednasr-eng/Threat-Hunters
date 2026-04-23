@@ -674,3 +674,209 @@
     padding: 1.1rem;
   }
 }
+
+/* Final polish overrides */
+.more-tools-page {
+  --more-tools-shell: min(100% - (var(--shell-gutter) * 2), 1080px);
+  --more-tools-body-surface: var(--surface-base);
+  --more-tools-body-border: var(--primary-border-20);
+  --more-tools-input-border: var(--primary-border-20);
+  background: var(--page-gradient);
+}
+
+.more-tools-hero {
+  padding: clamp(5.6rem, 10vw, 6.8rem) var(--shell-gutter) 2.75rem;
+}
+
+.more-tools-hero-content {
+  max-width: 860px;
+  padding: 0;
+}
+
+.more-tools-workbench {
+  background: var(--surface-panel);
+  border: 1px solid var(--primary-border-20);
+  box-shadow: var(--shadow-lg);
+}
+
+.more-tools-tabbar,
+.more-tools-form-panel,
+.more-tools-output-panel {
+  background: var(--more-tools-body-surface);
+}
+
+.more-tools-tab.is-active {
+  background: var(--state-hover-surface-strong);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--primary-border-20);
+}
+
+.more-tools-input {
+  background: var(--surface-elevated);
+}
+
+.more-tools-input::placeholder {
+  color: var(--input-placeholder);
+}
+
+.more-tools-input:focus {
+  box-shadow: var(--state-focus-ring);
+}
+
+.more-tools-scan-button {
+  box-shadow: var(--button-shadow);
+}
+
+.more-tools-scan-button:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.more-tools-output-state {
+  max-width: 34ch;
+  gap: 0.2rem;
+}
+
+.more-tools-output-state span {
+  opacity: 1;
+}
+
+.more-tools-output-icon {
+  background: var(--surface-soft);
+}
+
+.more-tools-stats-panel {
+  background: var(--stats-panel-bg);
+  border: 1px solid var(--stats-panel-border);
+  box-shadow: var(--elevation-shadow-sm);
+}
+
+:root[data-theme='light'] .more-tools-workbench {
+  box-shadow: 0 24px 56px rgba(21, 93, 252, 0.08);
+}
+
+.more-tools-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 38px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--primary-border-20);
+  background: var(--surface-soft);
+  color: var(--primary-80);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.more-tools-hero-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 0 6px var(--accent-green-bg);
+}
+
+.more-tools-hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.2rem;
+}
+
+.more-tools-hero-tag,
+.more-tools-output-tag {
+  min-height: 34px;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-soft);
+  color: var(--primary-80);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.more-tools-helper-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: var(--surface-muted);
+  border: 1px solid var(--primary-border-12);
+}
+
+.more-tools-helper-badge {
+  flex-shrink: 0;
+  min-height: 28px;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface-soft);
+  color: var(--primary-80);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.more-tools-helper-row p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.more-tools-output-tags,
+.more-tools-summary-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.more-tools-summary-grid {
+  width: 100%;
+}
+
+.more-tools-summary-card {
+  min-width: 118px;
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+  border: 1px solid var(--primary-border-20);
+  background: var(--surface-base);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.more-tools-summary-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.more-tools-summary-card span {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .more-tools-helper-row {
+    flex-direction: column;
+  }
+
+  .more-tools-hero-badge {
+    width: 100%;
+    justify-content: center;
+  }
+}

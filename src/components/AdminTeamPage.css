@@ -310,3 +310,9 @@
     align-items: flex-start;
   }
 }
+
+/* Final polish overrides */
+.admin-team-member-card {
+  background: var(--surface-base);
+  border-color: var(--primary-border-20);
+}

@@ -288,3 +288,30 @@
     padding: 1rem;
   }
 }
+
+/* Final polish overrides */
+.admin-settings-tab.is-active,
+.admin-settings-tab:hover {
+  background: var(--state-hover-surface);
+}
+
+.admin-settings-tab.is-active {
+  box-shadow: inset 0 0 0 1px var(--primary-border-20);
+}
+
+.admin-settings-panel {
+  background: var(--surface-elevated);
+  border-color: var(--primary-border-20);
+}
+
+.admin-settings-field input,
+.admin-settings-field textarea,
+.admin-settings-select-wrap select,
+.admin-settings-toggle-card {
+  background: var(--surface-base);
+  border-color: var(--primary-border-20);
+}
+
+.admin-settings-toggle {
+  background: var(--surface-soft);
+}

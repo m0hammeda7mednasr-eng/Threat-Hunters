@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from 'react';
-import { Chrome, Eye, Github, Lock, Mail } from 'lucide-react';
+import { Chrome, Eye, EyeOff, Github, Lock, Mail } from 'lucide-react';
 import './SignInForm.css';
 
 const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
@@ -36,17 +36,17 @@ const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
   return (
     <div className="signin-form-container">
       <div className="signin-form-tabs" role="tablist" aria-label="Authentication">
-        <button className="signin-form-tab is-active" role="tab" type="button">
+        <button aria-selected="true" className="signin-form-tab is-active" role="tab" type="button">
           Sign In
         </button>
         <button
+          aria-selected="false"
           className="signin-form-tab"
           onClick={() => {
-            if (onSwitchToSignUp) {
-              onSwitchToSignUp();
-            }
+            onSwitchToSignUp?.();
           }}
           role="tab"
+          tabIndex={-1}
           type="button"
         >
           Sign Up
@@ -92,7 +92,7 @@ const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
               onClick={() => setShowPassword((current) => !current)}
               type="button"
             >
-              <Eye />
+              {showPassword ? <EyeOff /> : <Eye />}
             </button>
           </div>
         </label>

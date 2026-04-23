@@ -36,7 +36,7 @@ function AuthNavbar({ onNavigate, currentPage, activeSection = 'dashboard' }) {
             className={`auth-nav-link ${isConsoleActive ? 'active' : ''}`}
             onClick={() => handleNavigation('dashboard')}
           >
-            User console
+            User Console
           </button>
           <button 
             className={`auth-nav-link ${currentPage === 'tools' ? 'active' : ''}`}

@@ -274,3 +274,9 @@
     padding: 0.9rem;
   }
 }
+
+/* Final polish overrides */
+.admin-reports-list-item {
+  background: var(--surface-base);
+  border-color: var(--primary-border-20);
+}

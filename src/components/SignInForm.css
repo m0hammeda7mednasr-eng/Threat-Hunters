@@ -1,11 +1,11 @@
 .signin-form-container {
-  width: 100%;
-  max-width: 572px;
+  width: min(100%, 572px);
   padding: 43.6px;
   border-radius: 25.65px;
   border: 1px solid var(--primary-20);
-  background: #0f1122;
-  box-shadow: 0 0 64px rgba(109, 124, 255, 0.15);
+  background: var(--auth-panel-bg);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(16px);
 }
 
 .signin-form-tabs {
@@ -25,13 +25,13 @@
   background: transparent;
   color: var(--text-secondary);
   font-size: 0.95rem;
-  font-weight: 400;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .signin-form-tab:hover {
   color: var(--text-primary);
+  background: rgba(109, 124, 255, 0.06);
 }
 
 .signin-form-tab.is-active {
@@ -65,13 +65,13 @@
   min-height: 53px;
   border-radius: 14.96px;
   border: 1px solid var(--primary-40);
-  background: rgba(11, 13, 24, 0.8);
+  background: var(--auth-input-bg);
   overflow: hidden;
 }
 
 .signin-input-shell:focus-within {
   border-color: var(--primary-80);
-  box-shadow: 0 0 0 3px rgba(109, 124, 255, 0.1);
+  box-shadow: var(--state-focus-ring);
 }
 
 .signin-input-icon {
@@ -92,11 +92,18 @@
   outline: none;
   background: transparent;
   color: var(--text-primary);
-  font-size: 17.1px;
+  font-size: 16px;
 }
 
 .signin-input-shell input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--auth-placeholder);
+}
+
+.signin-input-shell input:-webkit-autofill,
+.signin-input-shell input:-webkit-autofill:hover,
+.signin-input-shell input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--auth-input-autofill-bg) inset;
 }
 
 .signin-password-toggle {
@@ -111,6 +118,10 @@
   background: transparent;
   color: var(--primary-80);
   cursor: pointer;
+}
+
+.signin-password-toggle:hover {
+  color: var(--text-primary);
 }
 
 .signin-password-toggle svg {
@@ -140,10 +151,15 @@
   margin: 0;
   appearance: none;
   border-radius: 5px;
-  border: 1px solid #7583ff;
-  background: rgba(11, 13, 24, 0.8);
+  border: 1px solid var(--primary-60);
+  background: var(--auth-checkbox-bg);
   cursor: pointer;
   position: relative;
+}
+
+.signin-remember input:checked {
+  background: var(--primary-100);
+  border-color: var(--primary-100);
 }
 
 .signin-remember input:checked::after {
@@ -185,12 +201,11 @@
   font-size: 17.1px;
   line-height: 25.65px;
   cursor: pointer;
-  box-shadow: 0 0 21px rgba(109, 124, 255, 0.08);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  box-shadow: var(--button-shadow-sm);
 }
 
 .signin-submit-button:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: var(--button-shadow-hover);
 }
 
@@ -216,48 +231,48 @@
   position: relative;
   z-index: 1;
   padding: 0 17.1px;
-  background: #0f1122;
+  background: var(--auth-divider-bg);
   color: var(--text-secondary);
   font-size: 14.96px;
   line-height: 21.37px;
 }
 
 .signin-socials {
-  margin-top: 1.35rem;
-  display: flex;
-  justify-content: center;
-  gap: 34px;
+  width: min(100%, 348px);
+  margin: 1.35rem auto 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .signin-social-button {
-  width: 157px;
   min-height: 49px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 14.96px;
   border: 1px solid var(--primary-40);
-  background: rgba(109, 124, 255, 0.05);
+  background: var(--surface-soft);
   color: var(--primary-80);
   cursor: pointer;
-  transition: background-color 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
 }
 
 .signin-social-button:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: var(--primary-60);
-  background: rgba(109, 124, 255, 0.1);
+  background: var(--state-hover-surface);
 }
 
 .signin-social-button svg {
   width: 21.37px;
   height: 21.37px;
-  stroke-width: 2;
+  stroke-width: 1.9;
 }
 
 @media (max-width: 768px) {
   .signin-form-container {
     padding: 1.5rem;
+    border-radius: 22px;
   }
 
   .signin-form {
@@ -270,119 +285,42 @@
   }
 
   .signin-socials {
+    width: 100%;
     gap: 1rem;
-  }
-
-  .signin-social-button {
-    flex: 1;
-    width: auto;
   }
 }
 
 @media (max-width: 480px) {
   .signin-form-container {
-    padding: 1rem;
+    padding: 1.1rem;
     border-radius: 20px;
   }
 
   .signin-form-tabs {
-    gap: 0.45rem;
+    gap: 0.4rem;
+    padding: 0.25rem;
   }
 
   .signin-form-tab,
+  .signin-submit-button {
+    min-height: 44px;
+    font-size: 0.92rem;
+  }
+
   .signin-field > span,
   .signin-remember span,
   .signin-forgot-link,
   .signin-divider span {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
   }
 
+  .signin-input-shell,
   .signin-input-shell input,
   .signin-submit-button {
-    font-size: 1rem;
+    min-height: 50px;
   }
 
   .signin-socials {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
-}
-
-.signin-form-container {
-  max-width: 540px;
-  padding: 2rem;
-  border-radius: 22px;
-  border: 1px solid var(--primary-border-20);
-  background:
-    linear-gradient(180deg, rgba(15, 17, 34, 0.96) 0%, rgba(11, 13, 24, 0.94) 100%);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 24px 60px rgba(2, 4, 12, 0.26);
-}
-
-.signin-form-tabs {
-  min-height: 48px;
-  padding: 0.35rem;
-  border-radius: 16px;
-}
-
-.signin-form-tab,
-.signin-submit-button {
-  min-height: 46px;
-  border-radius: 12px;
-}
-
-.signin-form {
-  margin-top: 1.8rem;
-  gap: 1.1rem;
-}
-
-.signin-field {
-  gap: 0.55rem;
-}
-
-.signin-field > span,
-.signin-remember span,
-.signin-forgot-link,
-.signin-divider span {
-  font-size: 0.88rem;
-  line-height: 1.45;
-}
-
-.signin-input-shell,
-.signin-input-shell input {
-  min-height: 52px;
-  border-radius: 14px;
-}
-
-.signin-input-shell input,
-.signin-submit-button {
-  font-size: 1rem;
-}
-
-.signin-input-icon,
-.signin-password-toggle,
-.signin-password-toggle svg {
-  width: 19px;
-  height: 19px;
-}
-
-.signin-submit-button {
-  margin-top: 0.15rem;
-}
-
-.signin-socials {
-  gap: 1rem;
-}
-
-.signin-social-button {
-  width: 100%;
-  max-width: 172px;
-  min-height: 46px;
-  border-radius: 12px;
-}
-
-.signin-form-container {
-  background: #0f1122;
-  border-color: var(--primary-20);
-  box-shadow: 0 0 64px rgba(109, 124, 255, 0.15);
-  backdrop-filter: none;
 }

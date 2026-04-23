@@ -31,7 +31,7 @@ export const useTheme = () => {
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    return getStoredTheme() || 'dark';
+    return getStoredTheme() || 'light';
   });
 
   useEffect(() => {

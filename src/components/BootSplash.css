@@ -1,0 +1,241 @@
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1.4rem;
+  padding: 2rem;
+  background: var(--splash-bg);
+  overflow: hidden;
+}
+
+.boot-splash__backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 35%, var(--splash-orb) 0%, transparent 24%),
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.04) 50%, transparent 100%);
+  opacity: 0.82;
+  animation: boot-splash-backdrop 2s ease-out both;
+}
+
+.boot-splash__virus {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 0 26px var(--splash-core-shadow));
+}
+
+.boot-splash__virus-arm {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 54px;
+  margin: -27px 0 0 -8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), var(--splash-particle));
+  transform: rotate(var(--arm-angle)) translateY(-44px);
+  transform-origin: center 44px;
+  animation: boot-splash-arm 1.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.boot-splash__virus-core {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4) 0%, transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 100%),
+    rgba(12, 18, 38, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  animation: boot-splash-core 1.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.boot-splash__virus-core-ring {
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.boot-splash__virus-core-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--splash-core);
+  box-shadow: 0 0 20px var(--splash-core-shadow);
+}
+
+.boot-splash__particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: var(--splash-particle);
+  opacity: 0;
+  transform: rotate(var(--particle-angle)) translateY(-12px) scale(0.2);
+  animation: boot-splash-particle 1.55s ease-out var(--particle-delay) forwards;
+}
+
+.boot-splash__copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.45rem;
+  text-align: center;
+  max-width: 440px;
+  animation: boot-splash-copy 680ms ease-out both;
+}
+
+.boot-splash__eyebrow {
+  color: var(--primary-80);
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.boot-splash__copy strong {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3.1rem);
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+}
+
+.boot-splash__copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.boot-splash__progress {
+  position: relative;
+  z-index: 1;
+  width: min(280px, calc(100vw - 4rem));
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--progress-track);
+}
+
+.boot-splash__progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  background: var(--progress-thumb);
+  animation: boot-splash-progress 1.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes boot-splash-backdrop {
+  0% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+
+  100% {
+    opacity: 0.82;
+    transform: scale(1);
+  }
+}
+
+@keyframes boot-splash-arm {
+  0% {
+    opacity: 0.9;
+    transform: rotate(var(--arm-angle)) translateY(-18px) scaleY(0.3);
+  }
+
+  36% {
+    opacity: 1;
+    transform: rotate(var(--arm-angle)) translateY(-44px) scaleY(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(var(--arm-angle)) translateY(-84px) scaleY(0.18);
+  }
+}
+
+@keyframes boot-splash-core {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+
+  26% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0.08;
+    transform: scale(0.42);
+    filter: blur(6px);
+  }
+}
+
+@keyframes boot-splash-particle {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--particle-angle)) translateY(-12px) scale(0.2);
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(var(--particle-angle)) translateY(calc(-1 * var(--particle-distance))) scale(1);
+  }
+}
+
+@keyframes boot-splash-copy {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes boot-splash-progress {
+  0% {
+    transform: scaleX(0);
+  }
+
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-splash__backdrop,
+  .boot-splash__virus-arm,
+  .boot-splash__virus-core,
+  .boot-splash__particle,
+  .boot-splash__copy,
+  .boot-splash__progress span {
+    animation: none;
+  }
+
+  .boot-splash__particle {
+    opacity: 0;
+  }
+}
