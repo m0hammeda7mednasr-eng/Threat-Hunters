@@ -28,9 +28,10 @@ const previewSecurityHeaders = {
 };
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: "/Threat-Hunters/", // GitHub Pages base path
+  // Keep GitHub Pages assets under the project path, but serve locally from root.
+  base: command === "serve" ? "/" : "/Threat-Hunters/",
   server: {
     headers: baseSecurityHeaders,
   },
@@ -66,4 +67,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
