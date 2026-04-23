@@ -27,11 +27,13 @@ const previewSecurityHeaders = {
   ].join("; "),
 };
 
+const isGithubPagesBuild = process.env.GITHUB_ACTIONS === "true";
+
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
   plugins: [react()],
-  // Keep GitHub Pages assets under the project path, but serve locally from root.
-  base: command === "serve" ? "/" : "/Threat-Hunters/",
+  // Use a sub-path only for GitHub Pages builds; keep root paths for Vercel and local runs.
+  base: command === "serve" ? "/" : isGithubPagesBuild ? "/Threat-Hunters/" : "/",
   server: {
     headers: baseSecurityHeaders,
   },
