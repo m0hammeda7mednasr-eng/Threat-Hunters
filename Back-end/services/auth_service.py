@@ -38,6 +38,7 @@ def register_user(data):
         "last_name": last_name,
         "email": email,
         "password": hashed,
+        "role": "user",
         "created_at": datetime.datetime.utcnow(),
         "failed_attempts": 0,
         "lock_until": None
@@ -99,11 +100,13 @@ def login_user(data):
     # 🎟️ التوكن
     token = jwt.encode({
         "user_id": str(user["_id"]),
+        "role": user.get("role", "user"),
         "iat": datetime.datetime.utcnow(),
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=Config.JWT_EXPIRATION_HOURS)
     }, Config.SECRET_KEY, algorithm="HS256")
 
     return jsonify({
-        "message": "Login successful",
-        "token": token
-    }), 200
+    "message": "Login successful",
+    "token": token,
+    "role": user.get("role", "user")
+}), 200

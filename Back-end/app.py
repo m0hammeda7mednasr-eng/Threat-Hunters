@@ -8,6 +8,9 @@ from database.db import mongo
 from routes.user_routes import user_bp
 from routes.auth_routes import auth_bp
 from routes.blog_routes import blog_bp
+from routes.security_routes import security_bp
+from routes.security_routes import security_bp
+
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -18,6 +21,7 @@ mongo.init_app(app)
 app.register_blueprint(auth_bp, url_prefix="/api")
 app.register_blueprint(user_bp, url_prefix="/api")
 app.register_blueprint(blog_bp, url_prefix="/api")
+app.register_blueprint(security_bp,url_prefix="/api/security")
 #print("SECRET:", os.getenv("SECRET_KEY"))
 
 
