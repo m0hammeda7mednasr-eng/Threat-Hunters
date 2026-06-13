@@ -5,6 +5,7 @@ def get_exploited_vulnerabilities():
 
     url = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 
+
     try:
 
         response = requests.get(url, timeout=10)

@@ -10,7 +10,8 @@ from routes.auth_routes import auth_bp
 from routes.blog_routes import blog_bp
 from routes.security_routes import security_bp
 from routes.security_routes import security_bp
-
+from routes.comment_routes import comment_bp
+from routes.like_routes import like_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -22,6 +23,8 @@ app.register_blueprint(auth_bp, url_prefix="/api")
 app.register_blueprint(user_bp, url_prefix="/api")
 app.register_blueprint(blog_bp, url_prefix="/api")
 app.register_blueprint(security_bp,url_prefix="/api/security")
+app.register_blueprint(comment_bp,url_prefix="/api")
+app.register_blueprint(like_bp,url_prefix="/api")
 #print("SECRET:", os.getenv("SECRET_KEY"))
 
 

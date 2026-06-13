@@ -1,6 +1,7 @@
 from flask import jsonify
 from datetime import datetime
 from database.db import mongo
+from bson import ObjectId
 import re
 
 
@@ -11,21 +12,24 @@ def generate_slug(title):
     return slug
 
 
-def create_blog(data):
+def create_blog(data, user_id, username):
 
     title = data.get("title", "").strip()
     content = data.get("content", "").strip()
     category = data.get("category", "General").strip()
 
     if not title:
-        return jsonify({"message": "Title is required"}), 400
+        return jsonify({
+            "message": "Title is required"
+        }), 400
 
     if not content:
-        return jsonify({"message": "Content is required"}), 400
+        return jsonify({
+            "message": "Content is required"
+        }), 400
 
     slug = generate_slug(title)
 
-    # منع تكرار نفس الـ slug
     existing_blog = mongo.db.blogs.find_one({
         "slug": slug
     })
@@ -41,17 +45,16 @@ def create_blog(data):
         "content": content,
         "category": category,
 
-        # Future Ready
-        "author": "Admin",
+        "author_id": str(user_id),
+        "author_name": username,
+
         "status": "published",
         "tags": [],
 
-        # Statistics
         "views": 0,
         "likes": 0,
         "comments_count": 0,
 
-        # Dates
         "createdAt": datetime.utcnow(),
         "updatedAt": datetime.utcnow()
     }
@@ -69,7 +72,9 @@ def get_blogs():
 
     blogs = []
 
-    cursor = mongo.db.blogs.find().sort(
+    cursor = mongo.db.blogs.find({
+        "status": "published"
+    }).sort(
         "createdAt",
         -1
     )
@@ -81,7 +86,7 @@ def get_blogs():
             "title": blog.get("title"),
             "slug": blog.get("slug"),
             "category": blog.get("category"),
-            "author": blog.get("author"),
+            "author": blog.get("author_name"),
             "views": blog.get("views", 0),
             "likes": blog.get("likes", 0),
             "comments_count": blog.get("comments_count", 0),
@@ -91,14 +96,13 @@ def get_blogs():
     return jsonify(blogs), 200
 
 
-def get_blog_by_id(blog_id):
-
-    from bson import ObjectId
+def get_blog_by_id(blog_id, current_user):
 
     try:
 
         blog = mongo.db.blogs.find_one({
-            "_id": ObjectId(blog_id)
+            "_id": ObjectId(blog_id),
+            "status": "published"
         })
 
         if not blog:
@@ -106,11 +110,27 @@ def get_blog_by_id(blog_id):
                 "message": "Blog not found"
             }), 404
 
-        # زيادة المشاهدات تلقائياً
-        mongo.db.blogs.update_one(
-            {"_id": blog["_id"]},
-            {"$inc": {"views": 1}}
-        )
+        if current_user:
+
+            existing_view = mongo.db.blog_views.find_one({
+                "blog_id": blog_id,
+                "user_id": str(current_user["_id"])
+            })
+
+            if not existing_view:
+
+                mongo.db.blog_views.insert_one({
+                    "blog_id": blog_id,
+                    "user_id": str(current_user["_id"]),
+                    "viewedAt": datetime.utcnow()
+                })
+
+                mongo.db.blogs.update_one(
+                    {"_id": blog["_id"]},
+                    {"$inc": {"views": 1}}
+                )
+
+                blog["views"] = blog.get("views", 0) + 1
 
         return jsonify({
             "id": str(blog["_id"]),
@@ -118,15 +138,18 @@ def get_blog_by_id(blog_id):
             "slug": blog["slug"],
             "content": blog["content"],
             "category": blog["category"],
-            "author": blog["author"],
-            "views": blog.get("views", 0) + 1,
+            "author": blog["author_name"],
+            "views": blog.get("views", 0),
             "likes": blog.get("likes", 0),
             "comments_count": blog.get("comments_count", 0),
             "createdAt": blog["createdAt"],
             "updatedAt": blog["updatedAt"]
         }), 200
 
-    except Exception:
+    except Exception as e:
+
+        print("BLOG ERROR:", e)
+
         return jsonify({
             "message": "Invalid blog id"
         }), 400
