@@ -9,7 +9,6 @@ from routes.user_routes import user_bp
 from routes.auth_routes import auth_bp
 from routes.blog_routes import blog_bp
 from routes.security_routes import security_bp
-from routes.security_routes import security_bp
 from routes.comment_routes import comment_bp
 from routes.like_routes import like_bp
 

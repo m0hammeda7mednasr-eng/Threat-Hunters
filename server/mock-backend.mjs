@@ -11,6 +11,28 @@ const dataFile = path.join(dataDir, 'mock-db.json');
 const port = Number(process.env.API_PORT || 5000);
 
 const baseNow = new Date('2026-06-14T12:00:00.000Z');
+const demoUsers = [
+  {
+    id: 'u-admin',
+    firstName: 'Mohamed',
+    lastName: 'Nasr',
+    email: 'admin@threathunters.com',
+    password: 'Admin@12345',
+    role: 'admin',
+    phone: '+20 100 000 0000',
+    bio: 'Platform administrator and security lead.',
+  },
+  {
+    id: 'u-user',
+    firstName: 'Amina',
+    lastName: 'Hassan',
+    email: 'user@threathunters.com',
+    password: 'User@12345',
+    role: 'user',
+    phone: '+20 111 222 3333',
+    bio: 'Security analyst focused on awareness and reporting.',
+  },
+];
 
 const seedDb = () => ({
   users: [
@@ -55,6 +77,7 @@ const seedDb = () => ({
       imageTone: 'blue',
       publishedAt: '2026-05-28T10:30:00.000Z',
       updatedAt: '2026-06-01T11:45:00.000Z',
+      status: 'published',
       views: 15240,
       likes: 128,
       shares: 41,
@@ -93,6 +116,7 @@ const seedDb = () => ({
       imageTone: 'pink',
       publishedAt: '2026-06-05T12:00:00.000Z',
       updatedAt: '2026-06-06T09:00:00.000Z',
+      status: 'published',
       views: 23880,
       likes: 206,
       shares: 63,
@@ -114,6 +138,7 @@ const seedDb = () => ({
       imageTone: 'blue',
       publishedAt: '2026-06-10T14:10:00.000Z',
       updatedAt: '2026-06-11T16:20:00.000Z',
+      status: 'published',
       views: 8802,
       likes: 84,
       shares: 22,
@@ -228,11 +253,16 @@ function sanitizeUser(user) {
 function serializePost(post) {
   return {
     ...post,
+    status: post.status || 'published',
     publishedAt: post.publishedAt,
     updatedAt: post.updatedAt,
     comments: post.comments.map((comment) => ({
       ...comment,
-      replies: comment.replies ?? [],
+      content: comment.content || comment.text || '',
+      replies: (comment.replies ?? []).map((reply) => ({
+        ...reply,
+        content: reply.content || reply.text || '',
+      })),
     })),
   };
 }
@@ -247,10 +277,89 @@ async function ensureDataFile() {
   }
 }
 
+function reconcileDemoAuth(db) {
+  let changed = false;
+
+  for (const demoUser of demoUsers) {
+    const existingUser = db.users.find((user) => user.email?.toLowerCase() === demoUser.email.toLowerCase());
+
+    if (!existingUser) {
+      db.users.push({
+        id: demoUser.id,
+        firstName: demoUser.firstName,
+        lastName: demoUser.lastName,
+        email: demoUser.email,
+        passwordHash: hashPassword(demoUser.password),
+        role: demoUser.role,
+        phone: demoUser.phone,
+        bio: demoUser.bio,
+        createdAt: baseNow.toISOString(),
+      });
+      changed = true;
+      continue;
+    }
+
+    const expectedHash = hashPassword(demoUser.password);
+    if (existingUser.passwordHash !== expectedHash) {
+      existingUser.passwordHash = expectedHash;
+      changed = true;
+    }
+
+    if (!existingUser.role) {
+      existingUser.role = demoUser.role;
+      changed = true;
+    }
+
+    if (!existingUser.phone) {
+      existingUser.phone = demoUser.phone;
+      changed = true;
+    }
+
+    if (!existingUser.bio) {
+      existingUser.bio = demoUser.bio;
+      changed = true;
+    }
+  }
+
+  if (!Array.isArray(db.sessions)) {
+    db.sessions = [];
+    changed = true;
+  }
+
+  if (!Array.isArray(db.resetTokens)) {
+    db.resetTokens = [];
+    changed = true;
+  }
+
+  if (!Array.isArray(db.posts)) {
+    db.posts = seedDb().posts;
+    changed = true;
+  }
+
+  if (!db.webContent) {
+    db.webContent = seedDb().webContent;
+    changed = true;
+  }
+
+  if (!Array.isArray(db.passwordResetRequests)) {
+    db.passwordResetRequests = [];
+    changed = true;
+  }
+
+  return changed;
+}
+
 async function loadDb() {
   await ensureDataFile();
   const raw = await readFile(dataFile, 'utf8');
-  return JSON.parse(raw);
+  const db = JSON.parse(raw);
+  const changed = reconcileDemoAuth(db);
+
+  if (changed) {
+    await saveDb(db);
+  }
+
+  return db;
 }
 
 async function saveDb(db) {
@@ -354,8 +463,13 @@ function buildSecurityMetrics() {
   ];
 }
 
-function latestBlogsPayload(db) {
-  const posts = db.posts.map(serializePost);
+function latestBlogsPayload(db, includeHidden = false) {
+  const posts = db.posts.map((post) => {
+    if (!post.status) {
+      post.status = 'published';
+    }
+    return serializePost(post);
+  }).filter((post) => includeHidden || post.status === 'published');
   const featured = posts[0] || null;
   const categories = Array.from(new Set(posts.map((post) => post.category)));
   const trending = [...posts].sort((a, b) => (b.views + b.likes * 4 + b.shares * 2) - (a.views + a.likes * 4 + a.shares * 2));
@@ -373,7 +487,7 @@ async function handleRequest(req, res) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
     });
     res.end();
     return;
@@ -556,12 +670,14 @@ async function handleRequest(req, res) {
     return;
   }
 
-  if (pathname === '/api/blog' && req.method === 'GET') {
-    send(200, latestBlogsPayload(db));
+  if ((pathname === '/api/blog' || pathname === '/api/blogs') && req.method === 'GET') {
+    const user = requireUser(db, req);
+    const includeHidden = url.searchParams.get('include_hidden') === 'true' && isAdmin(user);
+    send(200, latestBlogsPayload(db, includeHidden));
     return;
   }
 
-  if (pathname === '/api/blog' && req.method === 'POST') {
+  if ((pathname === '/api/blog' || pathname === '/api/blogs') && req.method === 'POST') {
     const user = requireUser(db, req);
     if (!user) {
       sendError(401, 'Unauthorized.');
@@ -590,6 +706,7 @@ async function handleRequest(req, res) {
       imageTone: body.imageTone ? String(body.imageTone) : 'blue',
       publishedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      status: ['published', 'hidden'].includes(body.status) ? body.status : 'published',
       views: 0,
       likes: 0,
       shares: 0,
@@ -603,14 +720,15 @@ async function handleRequest(req, res) {
     return;
   }
 
-  const postMatch = pathname.match(/^\/api\/blog\/([^/]+)$/);
-  const likeMatch = pathname.match(/^\/api\/blog\/([^/]+)\/like$/);
-  const shareMatch = pathname.match(/^\/api\/blog\/([^/]+)\/share$/);
-  const commentMatch = pathname.match(/^\/api\/blog\/([^/]+)\/comments$/);
-  const replyMatch = pathname.match(/^\/api\/blog\/([^/]+)\/comments\/([^/]+)\/replies$/);
+  const postMatch = pathname.match(/^\/api\/blogs?\/([^/]+)$/);
+  const likeMatch = pathname.match(/^\/api\/blogs?\/([^/]+)\/like$/);
+  const shareMatch = pathname.match(/^\/api\/blogs?\/([^/]+)\/share$/);
+  const statusMatch = pathname.match(/^\/api\/blogs?\/([^/]+)\/status$/);
+  const commentMatch = pathname.match(/^\/api\/blogs?\/([^/]+)\/comments$/);
+  const replyMatch = pathname.match(/^\/api\/blogs?\/([^/]+)\/comments\/([^/]+)\/replies$/);
 
-  if (postMatch || likeMatch || shareMatch || commentMatch || replyMatch) {
-    const postId = postMatch?.[1] || likeMatch?.[1] || shareMatch?.[1] || commentMatch?.[1] || replyMatch?.[1];
+  if (postMatch || likeMatch || shareMatch || statusMatch || commentMatch || replyMatch) {
+    const postId = postMatch?.[1] || likeMatch?.[1] || shareMatch?.[1] || statusMatch?.[1] || commentMatch?.[1] || replyMatch?.[1];
     const post = db.posts.find((item) => item.id === postId);
     if (!post) {
       sendError(404, 'Post not found.');
@@ -618,6 +736,11 @@ async function handleRequest(req, res) {
     }
 
     if (postMatch && req.method === 'GET') {
+      const user = requireUser(db, req);
+      if ((post.status || 'published') === 'hidden' && !isAdmin(user)) {
+        sendError(404, 'Post not found.');
+        return;
+      }
       send(200, serializePost(post));
       return;
     }
@@ -635,6 +758,26 @@ async function handleRequest(req, res) {
       post.category = String(body.category || post.category).trim();
       post.tags = Array.isArray(body.tags) ? body.tags.filter(Boolean).map(String) : post.tags;
       post.badge = body.badge ? String(body.badge) : post.badge;
+      post.status = ['published', 'hidden'].includes(body.status) ? body.status : (post.status || 'published');
+      post.updatedAt = new Date().toISOString();
+      await saveDb(db);
+      send(200, serializePost(post));
+      return;
+    }
+
+    if (statusMatch && req.method === 'PATCH') {
+      const user = requireUser(db, req);
+      if (!isAdmin(user)) {
+        sendError(403, 'Admin access required.');
+        return;
+      }
+      const body = await readBody(req);
+      const nextStatus = String(body.status || '').trim();
+      if (!['published', 'hidden'].includes(nextStatus)) {
+        sendError(400, 'Status must be published or hidden.');
+        return;
+      }
+      post.status = nextStatus;
       post.updatedAt = new Date().toISOString();
       await saveDb(db);
       send(200, serializePost(post));
@@ -683,7 +826,7 @@ async function handleRequest(req, res) {
         return;
       }
       const body = await readBody(req);
-      const textValue = String(body.text || '').trim();
+      const textValue = String(body.text || body.content || '').trim();
       if (!textValue) {
         sendError(400, 'Comment text is required.');
         return;
@@ -692,7 +835,7 @@ async function handleRequest(req, res) {
         id: `c-${crypto.randomUUID()}`,
         author: `${user.firstName} ${user.lastName}`.trim(),
         authorEmail: user.email,
-        text: textValue,
+        content: textValue,
         createdAt: new Date().toISOString(),
         replies: [],
       };
@@ -715,7 +858,7 @@ async function handleRequest(req, res) {
         return;
       }
       const body = await readBody(req);
-      const textValue = String(body.text || '').trim();
+      const textValue = String(body.text || body.content || '').trim();
       if (!textValue) {
         sendError(400, 'Reply text is required.');
         return;
@@ -725,7 +868,7 @@ async function handleRequest(req, res) {
         id: `r-${crypto.randomUUID()}`,
         author: `${user.firstName} ${user.lastName}`.trim(),
         authorEmail: user.email,
-        text: textValue,
+        content: textValue,
         createdAt: new Date().toISOString(),
       });
       await saveDb(db);

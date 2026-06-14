@@ -222,6 +222,18 @@ function App() {
         return;
       }
 
+      if ((page === 'signin' || page === 'signup') && isLoggedIn) {
+        const landingPage = userRole === 'admin' ? 'admin-dashboard' : 'dashboard';
+        setCurrentPage(landingPage);
+        setDashboardSection('dashboard');
+
+        if (window.location.hash !== `#${landingPage}`) {
+          window.location.hash = `#${landingPage}`;
+        }
+
+        return;
+      }
+
       if (page === 'home' && isLoggedIn) {
         const landingPage = userRole === 'admin' ? 'admin-dashboard' : 'dashboard';
         setCurrentPage(landingPage);

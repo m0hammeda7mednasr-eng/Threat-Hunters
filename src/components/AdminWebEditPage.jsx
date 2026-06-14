@@ -2,21 +2,25 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ChevronDown,
   DollarSign,
+  Eye,
+  EyeOff,
   FileText,
   LayoutDashboard,
   LogOut,
   Moon,
   PenSquare,
   Plus,
+  RefreshCw,
   Settings,
   Shield,
   Sparkles,
   Sun,
+  Trash2,
   Trophy,
   Users,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import { contentAPI } from '../services/api';
+import { blogAPI, contentAPI } from '../services/api';
 import './AdminDashboardPage.css';
 import './AdminWebEditPage.css';
 
@@ -139,6 +143,8 @@ function AdminWebEditPage({ onNavigate }) {
   const [selectedPage, setSelectedPage] = useState('blog');
   const [content, setContent] = useState(getInitialEditorContent);
   const [saveStatus, setSaveStatus] = useState('');
+  const [blogPosts, setBlogPosts] = useState([]);
+  const [blogPostStatus, setBlogPostStatus] = useState('');
 
   const pageContent = useMemo(() => content[selectedPage], [content, selectedPage]);
 
@@ -170,6 +176,35 @@ function AdminWebEditPage({ onNavigate }) {
     }
   }, [content]);
 
+  useEffect(() => {
+    if (selectedPage !== 'blog') {
+      return;
+    }
+
+    let isMounted = true;
+    const loadBlogPosts = async () => {
+      try {
+        setBlogPostStatus('Loading posts...');
+        const payload = await blogAPI.getPosts({ includeHidden: true });
+        const nextPosts = Array.isArray(payload) ? payload : payload?.posts || [];
+        if (isMounted) {
+          setBlogPosts(nextPosts);
+          setBlogPostStatus('');
+        }
+      } catch (error) {
+        if (isMounted) {
+          setBlogPostStatus(error.message || 'Unable to load blog posts.');
+        }
+      }
+    };
+
+    loadBlogPosts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedPage]);
+
   const handlePublish = async () => {
     try {
       setSaveStatus('Saving to backend...');
@@ -177,6 +212,41 @@ function AdminWebEditPage({ onNavigate }) {
       setSaveStatus('Changes saved to backend.');
     } catch (error) {
       setSaveStatus(error.message || 'Unable to publish changes.');
+    }
+  };
+
+  const reloadBlogPosts = async () => {
+    try {
+      setBlogPostStatus('Refreshing posts...');
+      const payload = await blogAPI.getPosts({ includeHidden: true });
+      setBlogPosts(Array.isArray(payload) ? payload : payload?.posts || []);
+      setBlogPostStatus('');
+    } catch (error) {
+      setBlogPostStatus(error.message || 'Unable to refresh blog posts.');
+    }
+  };
+
+  const togglePostVisibility = async (post) => {
+    const nextStatus = post.status === 'hidden' ? 'published' : 'hidden';
+
+    try {
+      setBlogPostStatus(nextStatus === 'hidden' ? 'Hiding post...' : 'Publishing post...');
+      await blogAPI.setPostStatus(post.id, nextStatus);
+      await reloadBlogPosts();
+      setBlogPostStatus(nextStatus === 'hidden' ? 'Post hidden from public blog.' : 'Post published successfully.');
+    } catch (error) {
+      setBlogPostStatus(error.message || 'Unable to update post visibility.');
+    }
+  };
+
+  const deleteBlogPost = async (postId) => {
+    try {
+      setBlogPostStatus('Deleting post...');
+      await blogAPI.deletePost(postId);
+      await reloadBlogPosts();
+      setBlogPostStatus('Post deleted.');
+    } catch (error) {
+      setBlogPostStatus(error.message || 'Unable to delete post.');
     }
   };
 
@@ -461,6 +531,69 @@ function AdminWebEditPage({ onNavigate }) {
                     <input value={pageContent.postsToDisplay} onChange={(event) => updateField('postsToDisplay', event.target.value)} />
                   </label>
                 </div>
+              </section>
+
+              <section className="admin-web-panel admin-card">
+                <div className="admin-web-panel-head admin-web-panel-head-between">
+                  <div className="admin-web-panel-head-main">
+                    <span className="admin-web-panel-icon">
+                      <PenSquare size={14} />
+                    </span>
+                    <h2>Post Moderation</h2>
+                  </div>
+
+                  <button type="button" className="admin-web-mini-btn" onClick={reloadBlogPosts}>
+                    <RefreshCw size={13} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+
+                <div className="admin-web-post-list">
+                  {blogPosts.map((post) => {
+                    const isHidden = (post.status || 'published') === 'hidden';
+
+                    return (
+                      <article key={post.id} className={`admin-web-post-row ${isHidden ? 'is-hidden' : ''}`}>
+                        <div className="admin-web-post-copy">
+                          <div className="admin-web-post-title-line">
+                            <strong>{post.title}</strong>
+                            <span className={`admin-web-post-status ${isHidden ? 'is-hidden' : 'is-published'}`}>
+                              {isHidden ? 'Hidden' : 'Published'}
+                            </span>
+                          </div>
+                          <p>{post.description || post.content || 'No description yet.'}</p>
+                        </div>
+
+                        <div className="admin-web-post-actions">
+                          <button
+                            type="button"
+                            className="admin-web-icon-btn"
+                            onClick={() => togglePostVisibility(post)}
+                            aria-label={isHidden ? `Publish ${post.title}` : `Hide ${post.title}`}
+                          >
+                            {isHidden ? <Eye size={15} /> : <EyeOff size={15} />}
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-web-icon-btn is-danger"
+                            onClick={() => deleteBlogPost(post.id)}
+                            aria-label={`Delete ${post.title}`}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+
+                  {!blogPosts.length && (
+                    <div className="admin-web-empty-posts">
+                      No posts found yet.
+                    </div>
+                  )}
+                </div>
+
+                {blogPostStatus && <div className="admin-web-save-status">{blogPostStatus}</div>}
               </section>
             </>
           )}

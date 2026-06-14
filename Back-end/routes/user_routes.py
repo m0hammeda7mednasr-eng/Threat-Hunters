@@ -1,11 +1,12 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from middleware.auth_middleware import token_required
 
 user_bp = Blueprint("user", __name__)
 
 @user_bp.route("/dashboard", methods=["GET"])
 @token_required
-def dashboard(current_user):
+def dashboard():
+    current_user = request.current_user
     return jsonify({
         "user": {
             "id": str(current_user["_id"]),

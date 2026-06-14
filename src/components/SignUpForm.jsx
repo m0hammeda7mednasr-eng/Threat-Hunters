@@ -194,7 +194,7 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
               minLength={8}
               name="password"
               onChange={handleChange}
-              placeholder="••••••••"
+              placeholder="Enter password"
               required
               type={showPassword ? "text" : "password"}
               value={formData.password}
@@ -220,7 +220,7 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
               minLength={8}
               name="confirmPassword"
               onChange={handleChange}
-              placeholder="••••••••"
+              placeholder="Confirm password"
               required
               type="password"
               value={formData.confirmPassword}

@@ -1,25 +1,94 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Bookmark,
   Calendar,
   Edit3,
   Eye,
+  EyeOff,
   Filter,
   MessageSquare,
-  Plus,
   Search,
   Share2,
   ShieldCheck,
   ThumbsUp,
   Trash2,
-  X,
   TrendingUp,
 } from "lucide-react";
 import { blogAPI } from "../services/api";
 import "./BlogPage.css";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+
+const emptyComposer = {
+  title: "",
+  description: "",
+  content: "",
+  category: "web-security",
+  tagsText: "",
+  badge: "New",
+};
+
+const formatDate = (value) => {
+  if (!value) return "Today";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Today"
+    : date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+};
+
+const formatReadTime = (content = "") => {
+  const words = String(content).trim().split(/\s+/).filter(Boolean).length;
+  const minutes = Math.max(1, Math.round(words / 180));
+  return `${minutes} min read`;
+};
+
+const normalizePosts = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.posts)) return payload.posts;
+  return [];
+};
+
+const normalizeComments = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.comments)) return payload.comments;
+  return [];
+};
+
+const buildTopics = (posts) => {
+  const counts = new Map();
+  posts.forEach((post) => {
+    (post.tags || []).forEach((tag) => {
+      counts.set(tag, (counts.get(tag) || 0) + 1);
+    });
+  });
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([tag, count]) => ({
+      tag,
+      label: `#${tag}`,
+      count,
+    }));
+};
+
+const ImagePlaceholder = ({ badge, tone = "blue", compact = false }) => (
+  <div className={`blog-image-placeholder ${compact ? "blog-image-placeholder--compact" : ""}`}>
+    {badge ? <span className={`blog-image-placeholder__badge blog-image-placeholder__badge--${tone}`}>{badge}</span> : null}
+    <div className="blog-image-placeholder__canvas" aria-hidden="true">
+      <div className="blog-cyber-visual">
+        <span className="blog-cyber-visual__line blog-cyber-visual__line--top" />
+        <span className="blog-cyber-visual__line blog-cyber-visual__line--mid" />
+        <span className="blog-cyber-visual__line blog-cyber-visual__line--bottom" />
+        <ShieldCheck strokeWidth={1.8} />
+      </div>
+    </div>
+  </div>
+);
 
 const MetaRow = ({ author, authorInitial, date, readTime, views, compact = false }) => (
   <div className={`blog-meta-row ${compact ? "blog-meta-row--compact" : ""}`}>
@@ -49,60 +118,6 @@ const MetaRow = ({ author, authorInitial, date, readTime, views, compact = false
   </div>
 );
 
-const ImagePlaceholder = ({ badge, tone = "blue", compact = false }) => (
-  <div className={`blog-image-placeholder ${compact ? "blog-image-placeholder--compact" : ""}`}>
-    {badge ? <span className={`blog-image-placeholder__badge blog-image-placeholder__badge--${tone}`}>{badge}</span> : null}
-    <div className="blog-image-placeholder__canvas" aria-hidden="true">
-      <div className="blog-cyber-visual">
-        <span className="blog-cyber-visual__line blog-cyber-visual__line--top" />
-        <span className="blog-cyber-visual__line blog-cyber-visual__line--mid" />
-        <span className="blog-cyber-visual__line blog-cyber-visual__line--bottom" />
-        <ShieldCheck strokeWidth={1.8} />
-      </div>
-    </div>
-  </div>
-);
-
-const emptyForm = {
-  title: "",
-  description: "",
-  content: "",
-  category: "web-security",
-  tagsText: "",
-  badge: "New",
-};
-
-const formatDate = (value) => {
-  if (!value) return "Today";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "Today"
-    : date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-};
-
-const formatReadTime = (content = "") => {
-  const words = String(content).trim().split(/\s+/).filter(Boolean).length;
-  const minutes = Math.max(1, Math.round(words / 180));
-  return `${minutes} min read`;
-};
-
-const buildTopics = (posts) => {
-  const counts = new Map();
-  posts.forEach((post) => {
-    (post.tags || []).forEach((tag) => {
-      counts.set(tag, (counts.get(tag) || 0) + 1);
-    });
-  });
-  return Array.from(counts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([tag]) => `#${tag}`);
-};
-
 const BlogPage = ({
   onNavigateToSignUp,
   onNavigateToHome,
@@ -111,202 +126,295 @@ const BlogPage = ({
   isLoggedIn,
   userRole = "user",
 }) => {
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [posts, setPosts] = useState([]);
+  const [selectedPostId, setSelectedPostId] = useState("");
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [selectedComments, setSelectedComments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeTag, setActiveTag] = useState("all");
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [subscribeStatus, setSubscribeStatus] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [blogData, setBlogData] = useState({
-    featured: null,
-    trending: [],
-    categories: [],
-    posts: [],
-  });
-  const [likeBusy, setLikeBusy] = useState(null);
-  const [shareBusy, setShareBusy] = useState(null);
-  const [commentDrafts, setCommentDrafts] = useState({});
+  const [composerMode, setComposerMode] = useState("create");
+  const [editingPostId, setEditingPostId] = useState("");
+  const [composer, setComposer] = useState(emptyComposer);
+  const [composerStatus, setComposerStatus] = useState("");
+  const [commentDraft, setCommentDraft] = useState("");
   const [replyDrafts, setReplyDrafts] = useState({});
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editorStatus, setEditorStatus] = useState("");
-  const [editingPostId, setEditingPostId] = useState(null);
-  const [editorForm, setEditorForm] = useState(emptyForm);
+  const [busyAction, setBusyAction] = useState({ type: "", id: "" });
 
   const isAdmin = userRole === "admin";
-
-  const loadPosts = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await blogAPI.getPosts();
-      setBlogData(response);
-    } catch (err) {
-      setError(err.message || "Failed to load blog posts.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPosts();
-  }, []);
-
-  const posts = useMemo(() => blogData.posts ?? [], [blogData.posts]);
-  const featuredArticle = blogData.featured || posts[0] || null;
+  const topics = useMemo(() => buildTopics(posts), [posts]);
 
   const categories = useMemo(() => {
-    const base = [{ id: "all", label: "All Posts", count: posts.length }];
-    const categoryCounts = posts.reduce((acc, post) => {
+    const counts = posts.reduce((acc, post) => {
       acc[post.category] = (acc[post.category] || 0) + 1;
       return acc;
     }, {});
 
-    return base.concat(
-      Object.entries(categoryCounts).map(([id, count]) => ({
+    return [
+      { id: "all", label: "All Posts", count: posts.length },
+      ...Object.entries(counts).map(([id, count]) => ({
         id,
-        label: id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        label: id.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()),
         count,
       })),
-    );
+    ];
   }, [posts]);
 
-  const trendingTopics = useMemo(() => buildTopics(posts), [posts]);
+  const filteredPosts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return posts.filter((post) => {
+      const haystack = `${post.title} ${post.description || ""} ${post.content || ""} ${(post.tags || []).join(" ")}`.toLowerCase();
+      const matchesSearch = !query || haystack.includes(query);
+      const matchesCategory = activeCategory === "all" || post.category === activeCategory;
+      const matchesTag = activeTag === "all" || (post.tags || []).includes(activeTag);
+      return matchesSearch && matchesCategory && matchesTag;
+    });
+  }, [activeCategory, activeTag, posts, searchQuery]);
 
-  const trendingNowArticles = useMemo(() => {
+  const activeFilterLabel = useMemo(() => {
+    if (activeTag !== "all") {
+      return `Tag: #${activeTag}`;
+    }
+
+    if (activeCategory !== "all") {
+      return `Category: ${activeCategory.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())}`;
+    }
+
+    return "All posts";
+  }, [activeCategory, activeTag]);
+
+  const trendingPosts = useMemo(() => {
     return [...posts]
       .sort((a, b) => (b.views + (b.likes || 0) * 4 + (b.shares || 0) * 2) - (a.views + (a.likes || 0) * 4 + (a.shares || 0) * 2))
       .slice(0, 4);
   }, [posts]);
 
-  const filteredLatestArticles = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return posts.filter((article) => {
-      const haystack = `${article.title} ${article.description} ${article.content} ${(article.tags || []).join(" ")}`.toLowerCase();
-      const matchesSearch = !query || haystack.includes(query);
-      const matchesCategory = activeCategory === "all" || article.category === activeCategory;
-      return matchesSearch && matchesCategory;
-    });
-  }, [activeCategory, posts, searchQuery]);
+  const loadPostDetail = useCallback(async (postId) => {
+    if (!postId) return;
+    setDetailLoading(true);
+    try {
+      const [postPayload, commentsPayload] = await Promise.all([
+        blogAPI.getPost(postId),
+        blogAPI.getComments(postId).catch(() => []),
+      ]);
 
-  const openEditor = (post = null) => {
-    if (post) {
-      setEditingPostId(post.id);
-      setEditorForm({
-        title: post.title || "",
-        description: post.description || "",
-        content: post.content || "",
-        category: post.category || "web-security",
-        tagsText: (post.tags || []).join(", "),
-        badge: post.badge || "New",
-      });
-    } else {
-      setEditingPostId(null);
-      setEditorForm(emptyForm);
+      const detail = Array.isArray(postPayload) ? postPayload[0] : postPayload;
+      setSelectedPost(detail || null);
+      setSelectedComments(normalizeComments(commentsPayload));
+    } catch (err) {
+      setError(err.message || "Failed to load post details.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
+  const loadPosts = useCallback(async (preferredId = "") => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await blogAPI.getPosts({ includeHidden: isAdmin });
+      const nextPosts = normalizePosts(response);
+      setPosts(nextPosts);
+      const nextSelectedId = preferredId || nextPosts[0]?.id || "";
+      setSelectedPostId(nextSelectedId);
+      if (!nextSelectedId) {
+        setSelectedPost(null);
+        setSelectedComments([]);
+      }
+    } catch (err) {
+      setError(err.message || "Failed to load blog posts.");
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
+
+  useEffect(() => {
+    if (selectedPostId) {
+      loadPostDetail(selectedPostId);
+    }
+  }, [selectedPostId, loadPostDetail]);
+
+  useEffect(() => {
+    if (!posts.length) {
+      return;
+    }
+    if (!selectedPostId || !posts.some((post) => post.id === selectedPostId)) {
+      setSelectedPostId(posts[0].id);
+    }
+  }, [posts, selectedPostId]);
+
+  useEffect(() => {
+    if (!selectedPost || composerMode !== "edit") {
+      return;
     }
 
-    setEditorStatus("");
-    setEditorOpen(true);
+    setComposer({
+      title: selectedPost.title || "",
+      description: selectedPost.description || "",
+      content: selectedPost.content || "",
+      category: selectedPost.category || "web-security",
+      tagsText: (selectedPost.tags || []).join(", "),
+      badge: selectedPost.badge || "New",
+    });
+  }, [composerMode, selectedPost]);
+
+  const openCreateMode = () => {
+    setComposerMode("create");
+    setEditingPostId("");
+    setComposer(emptyComposer);
+    setComposerStatus("");
   };
 
-  const closeEditor = () => {
-    setEditorOpen(false);
-    setEditorStatus("");
+  const openEditMode = () => {
+    if (!selectedPost) return;
+    setComposerMode("edit");
+    setEditingPostId(selectedPost.id);
+    setComposer({
+      title: selectedPost.title || "",
+      description: selectedPost.description || "",
+      content: selectedPost.content || "",
+      category: selectedPost.category || "web-security",
+      tagsText: (selectedPost.tags || []).join(", "),
+      badge: selectedPost.badge || "New",
+    });
+    setComposerStatus("");
   };
 
-  const handleEditorSubmit = async () => {
-    if (!editorForm.title.trim() || !editorForm.description.trim()) {
-      setEditorStatus("Title and description are required.");
+  const submitComposer = async () => {
+    if (!composer.title.trim() || !composer.description.trim() || !composer.content.trim()) {
+      setComposerStatus("Fill title, description, and content first.");
       return;
     }
 
     const payload = {
-      title: editorForm.title.trim(),
-      description: editorForm.description.trim(),
-      content: editorForm.content.trim() || editorForm.description.trim(),
-      category: editorForm.category,
-      tags: editorForm.tagsText
+      title: composer.title.trim(),
+      description: composer.description.trim(),
+      content: composer.content.trim(),
+      category: composer.category.trim() || "web-security",
+      tags: composer.tagsText
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean),
-      badge: editorForm.badge.trim() || "New",
+      badge: composer.badge.trim() || "New",
     };
 
     try {
-      if (editingPostId) {
-        await blogAPI.updatePost(editingPostId, payload);
-        setEditorStatus("Post updated successfully.");
-      } else {
-        await blogAPI.createPost(payload);
-        setEditorStatus("Post created successfully.");
+      setComposerStatus(composerMode === "edit" ? "Updating post..." : "Publishing post...");
+      const result = composerMode === "edit" && editingPostId
+        ? await blogAPI.updatePost(editingPostId, payload)
+        : await blogAPI.createPost(payload);
+
+      const nextId = result?.id || result?.blog_id || editingPostId;
+      await loadPosts(nextId);
+      setComposerStatus(composerMode === "edit" ? "Post updated successfully." : "Post published successfully.");
+      if (composerMode !== "edit") {
+        setComposer(emptyComposer);
       }
-      await loadPosts();
-      closeEditor();
     } catch (err) {
-      setEditorStatus(err.message || "Unable to save post.");
+      setComposerStatus(err.message || "Unable to save post.");
     }
   };
 
   const handleDeletePost = async (id) => {
     try {
       await blogAPI.deletePost(id);
+      setComposerMode("create");
+      setEditingPostId("");
       await loadPosts();
     } catch (err) {
       setError(err.message || "Unable to delete post.");
     }
   };
 
-  const handleLike = async (id) => {
-    setLikeBusy(id);
+  const handleTogglePostStatus = async (post) => {
+    if (!post?.id) return;
+    const nextStatus = post.status === "hidden" ? "published" : "hidden";
+
+    setBusyAction({ type: "status", id: post.id });
     try {
-      await blogAPI.toggleLike(id);
-      await loadPosts();
+      await blogAPI.setPostStatus(post.id, nextStatus);
+      await loadPosts(post.id);
+      setComposerStatus(nextStatus === "hidden" ? "Post hidden from public blog." : "Post published again.");
     } catch (err) {
-      setError(err.message || "Unable to update like count.");
+      setError(err.message || "Unable to update post visibility.");
     } finally {
-      setLikeBusy(null);
+      setBusyAction({ type: "", id: "" });
     }
   };
 
-  const handleShare = async (id) => {
-    setShareBusy(id);
+  const handleSelectPost = (postId) => {
+    setSelectedPostId(postId);
+  };
+
+  const handleSelectTag = (tag) => {
+    setActiveTag((current) => (current === tag ? "all" : tag));
+  };
+
+  const clearFilters = () => {
+    setActiveCategory("all");
+    setActiveTag("all");
+    setSearchQuery("");
+  };
+
+  const handleLike = async (postId) => {
+    setBusyAction({ type: "like", id: postId });
     try {
-      const result = await blogAPI.sharePost(id);
-      if (navigator.share) {
-        const article = posts.find((item) => item.id === id);
+      await blogAPI.toggleLike(postId);
+      await loadPosts(postId);
+    } catch (err) {
+      setError(err.message || "Unable to update like count.");
+    } finally {
+      setBusyAction({ type: "", id: "" });
+    }
+  };
+
+  const handleShare = async (postId) => {
+    setBusyAction({ type: "share", id: postId });
+    try {
+      await blogAPI.sharePost(postId);
+      await loadPosts(postId);
+      const article = posts.find((item) => item.id === postId);
+      if (navigator.share && article) {
         await navigator.share({
-          title: article?.title || "Threat Hunters article",
-          text: article?.description || "Cybersecurity insight from Threat Hunters",
+          title: article.title,
+          text: article.description || article.content || "Threat Hunters article",
           url: window.location.href,
         });
-      }
-      if (result?.shares !== undefined) {
-        await loadPosts();
       }
     } catch (err) {
       setError(err.message || "Unable to share post.");
     } finally {
-      setShareBusy(null);
+      setBusyAction({ type: "", id: "" });
     }
   };
 
-  const handleCommentSubmit = async (postId) => {
-    const text = (commentDrafts[postId] || "").trim();
-    if (!text) {
+  const handleCommentSubmit = async () => {
+    if (!commentDraft.trim()) {
       setError("Write a comment first.");
       return;
     }
 
     try {
-      await blogAPI.addComment(postId, { text });
-      setCommentDrafts((current) => ({ ...current, [postId]: "" }));
-      await loadPosts();
+      await blogAPI.addComment(selectedPostId, { content: commentDraft.trim() });
+      setCommentDraft("");
+      await loadPostDetail(selectedPostId);
+      await loadPosts(selectedPostId);
     } catch (err) {
       setError(err.message || "Unable to add comment.");
     }
   };
 
-  const handleReplySubmit = async (postId, commentId) => {
-    const key = `${postId}:${commentId}`;
+  const handleReplySubmit = async (commentId) => {
+    const key = `${selectedPostId}:${commentId}`;
     const text = (replyDrafts[key] || "").trim();
     if (!text) {
       setError("Write a reply first.");
@@ -314,9 +422,10 @@ const BlogPage = ({
     }
 
     try {
-      await blogAPI.addReply(postId, commentId, { text });
+      await blogAPI.addReply(selectedPostId, commentId, { content: text });
       setReplyDrafts((current) => ({ ...current, [key]: "" }));
-      await loadPosts();
+      await loadPostDetail(selectedPostId);
+      await loadPosts(selectedPostId);
     } catch (err) {
       setError(err.message || "Unable to add reply.");
     }
@@ -333,157 +442,7 @@ const BlogPage = ({
     setSubscribeEmail("");
   };
 
-  const renderPostCard = (article, compact = false) => {
-    const readTime = formatReadTime(article.content || article.description || "");
-    const commentsCount = (article.comments || []).reduce((sum, comment) => sum + 1 + (comment.replies?.length || 0), 0);
-
-    return (
-      <article key={article.id} className={compact ? "blog-trending-card" : "blog-list-card"}>
-        <ImagePlaceholder badge={article.badge} tone={article.imageTone || "blue"} compact={compact} />
-
-        <div className={compact ? "blog-trending-card__content" : "blog-list-card__content"}>
-          <MetaRow
-            author={article.author}
-            authorInitial={article.authorInitial}
-            date={formatDate(article.publishedAt)}
-            readTime={readTime}
-            views={`${Number(article.views || 0).toLocaleString()} views`}
-            compact={compact}
-          />
-          <h3>{article.title}</h3>
-          <p>{article.description}</p>
-
-          {!compact && (
-            <div className="blog-tag-row">
-              {(article.tags || []).map((tag) => (
-                <span key={tag} className="blog-tag-pill">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-
-          <footer className={compact ? "blog-trending-card__footer" : "blog-list-card__footer"}>
-            <button
-              type="button"
-              className="blog-link-button blog-link-button--small"
-              onClick={() => handleLike(article.id)}
-              disabled={likeBusy === article.id}
-            >
-              <ThumbsUp strokeWidth={1.9} />
-              <span>{likeBusy === article.id ? "Saving..." : `Like ${article.likes || 0}`}</span>
-            </button>
-
-            <button
-              type="button"
-              className="blog-link-button blog-link-button--small"
-              onClick={() => handleShare(article.id)}
-              disabled={shareBusy === article.id}
-            >
-              <Share2 strokeWidth={1.9} />
-              <span>{shareBusy === article.id ? "Sharing..." : `Share ${article.shares || 0}`}</span>
-            </button>
-
-            <button type="button" className="blog-link-button blog-link-button--small" aria-label="Comments">
-              <MessageSquare strokeWidth={1.9} />
-              <span>{commentsCount}</span>
-            </button>
-
-            <div className="blog-action-row">
-              <button type="button" className="blog-icon-button" aria-label="Save article">
-                <Bookmark strokeWidth={1.8} />
-              </button>
-              {isAdmin && !compact && (
-                <>
-                  <button type="button" className="blog-icon-button" aria-label="Edit article" onClick={() => openEditor(article)}>
-                    <Edit3 strokeWidth={1.8} />
-                  </button>
-                  <button type="button" className="blog-icon-button" aria-label="Delete article" onClick={() => handleDeletePost(article.id)}>
-                    <Trash2 strokeWidth={1.8} />
-                  </button>
-                </>
-              )}
-            </div>
-          </footer>
-
-          {!compact && (
-            <div className="blog-comments">
-              <div className="blog-comments__composer">
-                <textarea
-                  className="blog-comments__input"
-                  rows={3}
-                  placeholder={isLoggedIn ? "Write a comment..." : "Sign in to add comments"}
-                  disabled={!isLoggedIn}
-                  value={commentDrafts[article.id] || ""}
-                  onChange={(event) =>
-                    setCommentDrafts((current) => ({ ...current, [article.id]: event.target.value }))
-                  }
-                />
-                <button
-                  type="button"
-                  className="blog-comments__button"
-                  onClick={() => handleCommentSubmit(article.id)}
-                  disabled={!isLoggedIn}
-                >
-                  Post Comment
-                </button>
-              </div>
-
-              <div className="blog-comments__list">
-                {(article.comments || []).map((comment) => {
-                  const replyKey = `${article.id}:${comment.id}`;
-                  return (
-                    <div key={comment.id} className="blog-comment">
-                      <div className="blog-comment__head">
-                        <strong>{comment.author}</strong>
-                        <span>{formatDate(comment.createdAt)}</span>
-                      </div>
-                      <p>{comment.text}</p>
-
-                      <div className="blog-comment__replies">
-                        {(comment.replies || []).map((reply) => (
-                          <div key={reply.id} className="blog-comment blog-comment--reply">
-                            <div className="blog-comment__head">
-                              <strong>{reply.author}</strong>
-                              <span>{formatDate(reply.createdAt)}</span>
-                            </div>
-                            <p>{reply.text}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="blog-comment__reply-box">
-                        <input
-                          type="text"
-                          placeholder={isLoggedIn ? "Write a reply..." : "Sign in to reply"}
-                          disabled={!isLoggedIn}
-                          value={replyDrafts[replyKey] || ""}
-                          onChange={(event) =>
-                            setReplyDrafts((current) => ({
-                              ...current,
-                              [replyKey]: event.target.value,
-                            }))
-                          }
-                        />
-                        <button
-                          type="button"
-                          className="blog-comment__reply-button"
-                          onClick={() => handleReplySubmit(article.id, comment.id)}
-                          disabled={!isLoggedIn}
-                        >
-                          Reply
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      </article>
-    );
-  };
+  const currentPost = selectedPost || filteredPosts.find((post) => post.id === selectedPostId) || filteredPosts[0] || posts[0] || null;
 
   return (
     <div className="blog-page">
@@ -527,24 +486,27 @@ const BlogPage = ({
             </header>
 
             <div className="blog-topic-grid">
-              {trendingTopics.map((topic) => (
-                <span key={topic} className="blog-topic-pill">
-                  {topic}
-                </span>
+              <button
+                type="button"
+                className={`blog-topic-pill ${activeTag === "all" ? "active" : ""}`}
+                onClick={() => setActiveTag("all")}
+              >
+                <span>All Topics</span>
+              </button>
+              {topics.map((topic) => (
+                <button
+                  key={topic.tag}
+                  type="button"
+                  className={`blog-topic-pill ${activeTag === topic.tag ? "active" : ""}`}
+                  onClick={() => handleSelectTag(topic.tag)}
+                  title={`Filter by #${topic.tag}`}
+                >
+                  <span>{topic.label}</span>
+                  <span>{topic.count}</span>
+                </button>
               ))}
             </div>
           </section>
-
-          {isAdmin && (
-            <section className="blog-sidebar-card blog-sidebar-card--subscribe">
-              <h3>Blog Editor</h3>
-              <p>Write and publish a new post or open an existing one for editing.</p>
-              <button type="button" className="blog-subscribe-button" onClick={() => openEditor()}>
-                <Plus size={16} />
-                Create Post
-              </button>
-            </section>
-          )}
 
           <section className="blog-sidebar-card blog-sidebar-card--subscribe">
             <h3>Stay Updated</h3>
@@ -582,176 +544,433 @@ const BlogPage = ({
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
             </label>
+
+            <div className="blog-filter-summary">
+              <span>{activeFilterLabel}</span>
+              <button type="button" className="blog-filter-clear" onClick={clearFilters}>
+                Clear filters
+              </button>
+            </div>
           </header>
+
+          {isLoggedIn && (
+            <section className="blog-creation-panel">
+              <div className="blog-creation-panel__head">
+                <div>
+                  <p className="blog-creation-panel__eyebrow">Post Studio</p>
+                  <h2>{composerMode === "edit" ? "Edit this post" : "Create a new post"}</h2>
+                </div>
+
+                <div className="blog-creation-panel__actions">
+                  <button type="button" className={`blog-mini-toggle ${composerMode === "create" ? "active" : ""}`} onClick={openCreateMode}>
+                    New Post
+                  </button>
+                  <button
+                    type="button"
+                    className={`blog-mini-toggle ${composerMode === "edit" ? "active" : ""}`}
+                    onClick={openEditMode}
+                    disabled={!selectedPost}
+                  >
+                    Edit Selected
+                  </button>
+                </div>
+              </div>
+
+              <div className="blog-creation-grid">
+                <label className="blog-editor-field">
+                  <span>Title</span>
+                  <input
+                    value={composer.title}
+                    onChange={(event) => setComposer((current) => ({ ...current, title: event.target.value }))}
+                    placeholder="Write a strong title"
+                    maxLength={120}
+                    required
+                  />
+                </label>
+
+                <label className="blog-editor-field">
+                  <span>Category</span>
+                  <input
+                    value={composer.category}
+                    onChange={(event) => setComposer((current) => ({ ...current, category: event.target.value }))}
+                    placeholder="web-security"
+                    maxLength={48}
+                    required
+                  />
+                </label>
+
+                <label className="blog-editor-field blog-editor-field--full">
+                  <span>Short Description</span>
+                  <textarea
+                    rows={3}
+                    value={composer.description}
+                    onChange={(event) => setComposer((current) => ({ ...current, description: event.target.value }))}
+                    placeholder="Write the quick summary shown in cards"
+                    maxLength={260}
+                    required
+                  />
+                </label>
+
+                <label className="blog-editor-field blog-editor-field--full">
+                  <span>Details</span>
+                  <textarea
+                    rows={6}
+                    value={composer.content}
+                    onChange={(event) => setComposer((current) => ({ ...current, content: event.target.value }))}
+                    placeholder="Full post body and deeper details"
+                    maxLength={6000}
+                    required
+                  />
+                </label>
+
+                <label className="blog-editor-field">
+                  <span>Tags</span>
+                  <input
+                    value={composer.tagsText}
+                    onChange={(event) => setComposer((current) => ({ ...current, tagsText: event.target.value }))}
+                    placeholder="OWASP, Zero Trust, API Security"
+                    maxLength={180}
+                  />
+                </label>
+
+                <label className="blog-editor-field">
+                  <span>Badge</span>
+                  <input
+                    value={composer.badge}
+                    onChange={(event) => setComposer((current) => ({ ...current, badge: event.target.value }))}
+                    placeholder="New"
+                    maxLength={24}
+                  />
+                </label>
+              </div>
+
+              <div className="blog-creation-panel__footer">
+                <button type="button" className="blog-comments__button" onClick={submitComposer}>
+                  {composerMode === "edit" ? "Save Changes" : "Publish Post"}
+                </button>
+                {composerMode === "edit" && (
+                  <button type="button" className="blog-comment__reply-button" onClick={openCreateMode}>
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+
+              {composerStatus && <p className="blog-editor-status">{composerStatus}</p>}
+            </section>
+          )}
+
+          {loading && !posts.length ? (
+            <div className="blog-empty-state">Loading blog posts...</div>
+          ) : null}
 
           {error && <div className="blog-empty-state">{error}</div>}
 
-          {loading ? (
-            <div className="blog-empty-state">Loading blog posts...</div>
-          ) : (
-            <>
-              <section className="blog-section">
-                <header className="blog-section__label">
-                  <TrendingUp strokeWidth={1.85} />
-                  <h2>Featured Article</h2>
-                </header>
-
-                {featuredArticle ? (
-                  <article className="blog-featured-card">
-                    <ImagePlaceholder badge={featuredArticle.badge} tone={featuredArticle.imageTone || "blue"} />
-
-                    <div className="blog-featured-card__content">
-                      <MetaRow
-                        author={featuredArticle.author}
-                        authorInitial={featuredArticle.authorInitial}
-                        date={formatDate(featuredArticle.publishedAt)}
-                        readTime={formatReadTime(featuredArticle.content || featuredArticle.description)}
-                        views={`${Number(featuredArticle.views || 0).toLocaleString()} views`}
-                      />
-
-                      <h3>{featuredArticle.title}</h3>
-                      <p>{featuredArticle.description}</p>
-
-                      <div className="blog-tag-row">
-                        {(featuredArticle.tags || []).map((tag) => (
-                          <span key={tag} className="blog-tag-pill">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-
-                      <footer className="blog-featured-card__footer">
-                        <button type="button" className="blog-link-button">
-                          <span>Read Full Article</span>
-                          <ArrowRight strokeWidth={1.9} />
-                        </button>
-
-                        <div className="blog-action-row">
-                          <button
-                            type="button"
-                            className="blog-icon-button"
-                            aria-label="Save featured article"
-                            onClick={() => handleLike(featuredArticle.id)}
-                          >
-                            <ThumbsUp strokeWidth={1.8} />
-                          </button>
-                          <button
-                            type="button"
-                            className="blog-icon-button"
-                            aria-label="Share featured article"
-                            onClick={() => handleShare(featuredArticle.id)}
-                          >
-                            <Share2 strokeWidth={1.8} />
-                          </button>
-                        </div>
-                      </footer>
-                    </div>
-                  </article>
-                ) : (
-                  <div className="blog-empty-state">No featured article yet.</div>
-                )}
-              </section>
-
-              <section className="blog-section">
-                <header className="blog-section__label">
-                  <TrendingUp strokeWidth={1.85} />
-                  <h2>Trending Now</h2>
-                </header>
-
-                <div className="blog-trending-grid">
-                  {trendingNowArticles.map((article) => renderPostCard(article, true))}
-                </div>
-              </section>
-
-              <section className="blog-list">
-                {filteredLatestArticles.map((article) => renderPostCard(article, false))}
-                {!filteredLatestArticles.length && (
-                  <div className="blog-empty-state">No articles match this filter.</div>
-                )}
-              </section>
-
-              <div className="blog-load-more">
-                <button type="button" className="blog-load-more__button" onClick={loadPosts}>
-                  <span>Refresh Articles</span>
-                  <ArrowRight strokeWidth={1.9} />
-                </button>
-              </div>
-            </>
-          )}
-        </main>
-      </div>
-
-      {editorOpen && isAdmin && (
-        <div className="blog-editor-backdrop" role="dialog" aria-modal="true" aria-label="Blog editor">
-          <div className="blog-editor-panel">
-            <header className="blog-editor-panel__head">
-              <div>
-                <p className="blog-editor-panel__kicker">{editingPostId ? "Edit Post" : "Create Post"}</p>
-                <h2>{editingPostId ? "Update blog entry" : "Publish a new security article"}</h2>
-              </div>
-              <button type="button" className="blog-icon-button" onClick={closeEditor} aria-label="Close editor">
-                <X />
-              </button>
-            </header>
-
-            <div className="blog-editor-grid">
-              <label className="blog-editor-field">
-                <span>Title</span>
-                <input
-                  value={editorForm.title}
-                  onChange={(event) => setEditorForm((current) => ({ ...current, title: event.target.value }))}
-                />
-              </label>
-              <label className="blog-editor-field">
-                <span>Category</span>
-                <input
-                  value={editorForm.category}
-                  onChange={(event) => setEditorForm((current) => ({ ...current, category: event.target.value }))}
-                />
-              </label>
-              <label className="blog-editor-field blog-editor-field--full">
-                <span>Description</span>
-                <textarea
-                  rows={3}
-                  value={editorForm.description}
-                  onChange={(event) => setEditorForm((current) => ({ ...current, description: event.target.value }))}
-                />
-              </label>
-              <label className="blog-editor-field blog-editor-field--full">
-                <span>Content</span>
-                <textarea
-                  rows={6}
-                  value={editorForm.content}
-                  onChange={(event) => setEditorForm((current) => ({ ...current, content: event.target.value }))}
-                />
-              </label>
-              <label className="blog-editor-field blog-editor-field--full">
-                <span>Tags</span>
-                <input
-                  value={editorForm.tagsText}
-                  onChange={(event) => setEditorForm((current) => ({ ...current, tagsText: event.target.value }))}
-                  placeholder="OWASP, Zero Trust, API Security"
-                />
-              </label>
-              <label className="blog-editor-field">
-                <span>Badge</span>
-                <input
-                  value={editorForm.badge}
-                  onChange={(event) => setEditorForm((current) => ({ ...current, badge: event.target.value }))}
-                />
-              </label>
+          <section className="blog-detail-panel">
+            <div className="blog-section__label">
+              <TrendingUp strokeWidth={1.85} />
+              <h2>Post Details</h2>
             </div>
 
-            {editorStatus && <p className="blog-editor-status">{editorStatus}</p>}
+            {currentPost ? (
+              <article className="blog-detail-card">
+                <ImagePlaceholder badge={currentPost.badge} tone={currentPost.imageTone || "blue"} />
 
-            <footer className="blog-editor-actions">
-              <button type="button" className="blog-comments__button" onClick={handleEditorSubmit}>
-                {editingPostId ? "Save Changes" : "Publish Post"}
-              </button>
-            </footer>
-          </div>
-        </div>
-      )}
+                <div className="blog-detail-card__content">
+                  <MetaRow
+                    author={currentPost.author}
+                    authorInitial={currentPost.authorInitial}
+                    date={formatDate(currentPost.publishedAt)}
+                    readTime={formatReadTime(currentPost.content || currentPost.description)}
+                    views={`${Number(currentPost.views || 0).toLocaleString()} views`}
+                  />
+
+                  <h3>{currentPost.title}</h3>
+                  {isAdmin && (
+                    <span className={`blog-status-pill is-${currentPost.status || "published"}`}>
+                      {(currentPost.status || "published") === "hidden" ? "Hidden" : "Published"}
+                    </span>
+                  )}
+                  <p>{currentPost.description || currentPost.content}</p>
+
+                  <div className="blog-tag-row">
+                    {(currentPost.tags || []).map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        className={`blog-tag-pill ${activeTag === tag ? "active" : ""}`}
+                        onClick={() => handleSelectTag(tag)}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="blog-detail-stats">
+                    <span>{currentPost.likes || 0} likes</span>
+                    <span>{currentPost.shares || 0} shares</span>
+                    <span>{currentPost.comments_count || selectedComments.length || 0} comments</span>
+                  </div>
+
+                  <div className="blog-detail-body">
+                    <p>{currentPost.content}</p>
+                  </div>
+
+                  <footer className="blog-featured-card__footer">
+                    <div className="blog-action-row">
+                      <button
+                        type="button"
+                        className="blog-icon-button"
+                        onClick={() => handleLike(currentPost.id)}
+                        disabled={busyAction.type === "like" && busyAction.id === currentPost.id}
+                        aria-label="Like post"
+                      >
+                        <ThumbsUp strokeWidth={1.8} />
+                      </button>
+                      <button
+                        type="button"
+                        className="blog-icon-button"
+                        onClick={() => handleShare(currentPost.id)}
+                        disabled={busyAction.type === "share" && busyAction.id === currentPost.id}
+                        aria-label="Share post"
+                      >
+                        <Share2 strokeWidth={1.8} />
+                      </button>
+                      <button
+                        type="button"
+                        className="blog-icon-button"
+                        onClick={() => handleSelectPost(currentPost.id)}
+                        aria-label="Focus post"
+                      >
+                        <Bookmark strokeWidth={1.8} />
+                      </button>
+                      {isAdmin && (
+                        <>
+                          <button
+                            type="button"
+                            className="blog-icon-button"
+                            onClick={() => handleTogglePostStatus(currentPost)}
+                            disabled={busyAction.type === "status" && busyAction.id === currentPost.id}
+                            aria-label={(currentPost.status || "published") === "hidden" ? "Publish post" : "Hide post"}
+                          >
+                            {(currentPost.status || "published") === "hidden" ? <Eye strokeWidth={1.8} /> : <EyeOff strokeWidth={1.8} />}
+                          </button>
+                          <button type="button" className="blog-icon-button" onClick={openEditMode} aria-label="Edit post">
+                            <Edit3 strokeWidth={1.8} />
+                          </button>
+                          <button
+                            type="button"
+                            className="blog-icon-button"
+                            onClick={() => handleDeletePost(currentPost.id)}
+                            aria-label="Delete post"
+                          >
+                            <Trash2 strokeWidth={1.8} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </footer>
+                </div>
+              </article>
+            ) : (
+              <div className="blog-empty-state">No post selected yet.</div>
+            )}
+          </section>
+
+          <section className="blog-detail-comments">
+            <div className="blog-section__label">
+              <MessageSquare strokeWidth={1.85} />
+              <h2>Comments & Replies</h2>
+            </div>
+
+            {detailLoading ? (
+              <div className="blog-empty-state">Loading post details...</div>
+            ) : (
+              <>
+                <div className="blog-comments__composer">
+                  <textarea
+                    className="blog-comments__input"
+                    rows={4}
+                    placeholder={isLoggedIn ? "Write a comment..." : "Sign in to add comments"}
+                    disabled={!isLoggedIn || !selectedPostId}
+                    value={commentDraft}
+                    onChange={(event) => setCommentDraft(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="blog-comments__button"
+                    onClick={handleCommentSubmit}
+                    disabled={!isLoggedIn || !selectedPostId}
+                  >
+                    Post Comment
+                  </button>
+                </div>
+
+                <div className="blog-comments__list">
+                  {selectedComments.map((comment) => {
+                    const replyKey = `${selectedPostId}:${comment.id}`;
+                    return (
+                      <div key={comment.id} className="blog-comment">
+                        <div className="blog-comment__head">
+                          <strong>{comment.author}</strong>
+                          <span>{formatDate(comment.createdAt)}</span>
+                        </div>
+                        <p>{comment.content}</p>
+
+                        {Array.isArray(comment.replies) && comment.replies.length > 0 && (
+                          <div className="blog-comment__replies">
+                            {comment.replies.map((reply) => (
+                              <div key={reply.id} className="blog-comment blog-comment--reply">
+                                <div className="blog-comment__head">
+                                  <strong>{reply.author}</strong>
+                                  <span>{formatDate(reply.createdAt)}</span>
+                                </div>
+                                <p>{reply.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="blog-comment__reply-box">
+                          <input
+                            type="text"
+                            placeholder={isLoggedIn ? "Write a reply..." : "Sign in to reply"}
+                            disabled={!isLoggedIn || !selectedPostId}
+                            value={replyDrafts[replyKey] || ""}
+                            onChange={(event) =>
+                              setReplyDrafts((current) => ({
+                                ...current,
+                                [replyKey]: event.target.value,
+                              }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="blog-comment__reply-button"
+                            onClick={() => handleReplySubmit(comment.id)}
+                            disabled={!isLoggedIn || !selectedPostId}
+                          >
+                            Reply
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {!selectedComments.length && <div className="blog-empty-state compact">No comments yet. Be the first to reply.</div>}
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="blog-section">
+            <div className="blog-section__label">
+              <TrendingUp strokeWidth={1.85} />
+              <h2>Trending Now</h2>
+            </div>
+
+            <div className="blog-trending-grid">
+              {trendingPosts.map((article) => (
+                <article
+                  key={article.id}
+                  className={`blog-trending-card ${selectedPostId === article.id ? "is-selected" : ""}`}
+                  onClick={() => handleSelectPost(article.id)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <ImagePlaceholder badge={article.badge} tone={article.imageTone || "blue"} compact />
+                  <div className="blog-trending-card__content">
+                    <MetaRow
+                      author={article.author}
+                      authorInitial={article.authorInitial}
+                      date={formatDate(article.publishedAt)}
+                      readTime={formatReadTime(article.content || article.description)}
+                      views={`${Number(article.views || 0).toLocaleString()} views`}
+                      compact
+                    />
+                    <h3>{article.title}</h3>
+
+                    <footer className="blog-trending-card__footer">
+                      <span className="blog-trending-card__views">
+                        <Eye strokeWidth={1.9} />
+                        <span>{article.views}</span>
+                      </span>
+                      <button type="button" className="blog-icon-button blog-icon-button--ghost" aria-label="Select post">
+                        <ArrowRight strokeWidth={1.8} />
+                      </button>
+                    </footer>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="blog-list">
+            {filteredPosts.map((article) => (
+              <article
+                key={article.id}
+                className={`blog-list-card ${selectedPostId === article.id ? "is-selected" : ""} ${(article.status || "published") === "hidden" ? "is-hidden-post" : ""}`}
+                onClick={() => handleSelectPost(article.id)}
+                role="button"
+                tabIndex={0}
+              >
+                <div className="blog-list-card__media">
+                  <ImagePlaceholder badge={article.badge} tone={article.imageTone || "blue"} compact />
+                </div>
+
+                <div className="blog-list-card__content">
+                  <div className="blog-list-card__main">
+                    <MetaRow
+                      author={article.author}
+                      authorInitial={article.authorInitial}
+                      date={formatDate(article.publishedAt)}
+                      readTime={formatReadTime(article.content || article.description)}
+                      views={`${Number(article.views || 0).toLocaleString()} views`}
+                    />
+
+                    <h3>{article.title}</h3>
+                    {isAdmin && (
+                      <span className={`blog-status-pill blog-status-pill--compact is-${article.status || "published"}`}>
+                        {(article.status || "published") === "hidden" ? "Hidden" : "Published"}
+                      </span>
+                    )}
+                    <p>{article.description || article.content}</p>
+
+                    <div className="blog-tag-row">
+                      {(article.tags || []).map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          className={`blog-tag-pill ${activeTag === tag ? "active" : ""}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleSelectTag(tag);
+                          }}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <footer className="blog-list-card__footer">
+                    <button type="button" className="blog-link-button blog-link-button--small">
+                      <span>View details</span>
+                      <ArrowRight strokeWidth={1.9} />
+                    </button>
+
+                    <div className="blog-action-row">
+                      <button type="button" className="blog-icon-button" aria-label="Save article">
+                        <Bookmark strokeWidth={1.8} />
+                      </button>
+                    </div>
+                  </footer>
+                </div>
+              </article>
+            ))}
+
+            {!filteredPosts.length && <div className="blog-empty-state">No articles match this filter.</div>}
+          </section>
+        </main>
+      </div>
 
       {!isLoggedIn && <Footer />}
     </div>

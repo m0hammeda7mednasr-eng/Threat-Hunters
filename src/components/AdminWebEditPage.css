@@ -267,6 +267,99 @@
   font-size: 13px;
 }
 
+.admin-web-post-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-web-post-row {
+  padding: 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(109, 124, 255, 0.26);
+  background: rgba(14, 17, 32, 0.72);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.admin-web-post-row.is-hidden {
+  border-style: dashed;
+  border-color: rgba(255, 211, 122, 0.38);
+  opacity: 0.82;
+}
+
+.admin-web-post-copy {
+  min-width: 0;
+}
+
+.admin-web-post-title-line,
+.admin-web-post-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.admin-web-post-title-line {
+  flex-wrap: wrap;
+}
+
+.admin-web-post-title-line strong {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.admin-web-post-copy p {
+  margin: 0.35rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.admin-web-post-status {
+  min-height: 24px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.admin-web-post-status.is-published {
+  background: rgba(57, 217, 138, 0.13);
+  color: #71f0ad;
+}
+
+.admin-web-post-status.is-hidden {
+  background: rgba(255, 194, 87, 0.13);
+  color: #ffd37a;
+}
+
+.admin-web-icon-btn {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--state-hover-surface);
+  color: var(--primary-80);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.admin-web-icon-btn.is-danger {
+  background: rgba(251, 44, 54, 0.15);
+  color: #ff6570;
+}
+
+.admin-web-empty-posts {
+  padding: 0.9rem;
+  border-radius: 10px;
+  background: rgba(14, 17, 32, 0.56);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
 @media (max-width: 980px) {
   .admin-web-header {
     flex-direction: column;
@@ -284,6 +377,10 @@
 
   .admin-web-form-grid,
   .admin-web-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-web-post-row {
     grid-template-columns: 1fr;
   }
 }
@@ -316,7 +413,9 @@
 :root[data-theme="light"] .admin-web-feature-field textarea,
 :root[data-theme="light"] .admin-web-removable-row input,
 :root[data-theme="light"] .admin-web-owasp-row input,
-:root[data-theme="light"] .admin-web-stat-card {
+:root[data-theme="light"] .admin-web-stat-card,
+:root[data-theme="light"] .admin-web-post-row,
+:root[data-theme="light"] .admin-web-empty-posts {
   background: #ffffff;
   border-color: rgba(21, 93, 252, 0.22);
   color: #0b0d18;

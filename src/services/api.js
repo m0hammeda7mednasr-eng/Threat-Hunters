@@ -130,18 +130,24 @@ export const securityAPI = {
 // Blog API calls
 export const blogAPI = {
   // Get all blog posts
-  getPosts: async () => {
-    return apiRequest("/blog");
+  getPosts: async (options = {}) => {
+    const params = new URLSearchParams();
+    if (options.includeHidden) {
+      params.set("include_hidden", "true");
+    }
+
+    const query = params.toString();
+    return apiRequest(`/blogs${query ? `?${query}` : ""}`);
   },
 
   // Get single blog post
   getPost: async (id) => {
-    return apiRequest(`/blog/${id}`);
+    return apiRequest(`/blogs/${id}`);
   },
 
   // Create new blog post (requires authentication)
   createPost: async (postData) => {
-    return apiRequest("/blog", {
+    return apiRequest("/blogs", {
       method: "POST",
       body: postData,
     });
@@ -149,7 +155,7 @@ export const blogAPI = {
 
   // Update blog post (requires authentication)
   updatePost: async (id, postData) => {
-    return apiRequest(`/blog/${id}`, {
+    return apiRequest(`/blogs/${id}`, {
       method: "PUT",
       body: postData,
     });
@@ -157,28 +163,36 @@ export const blogAPI = {
 
   // Delete blog post (requires authentication)
   deletePost: async (id) => {
-    return apiRequest(`/blog/${id}`, {
+    return apiRequest(`/blogs/${id}`, {
       method: "DELETE",
+    });
+  },
+
+  // Hide or publish a post (admin only)
+  setPostStatus: async (id, status) => {
+    return apiRequest(`/blogs/${id}/status`, {
+      method: "PATCH",
+      body: { status },
     });
   },
 
   // Toggle likes on a post
   toggleLike: async (id) => {
-    return apiRequest(`/blog/${id}/like`, {
+    return apiRequest(`/blogs/${id}/like`, {
       method: "POST",
     });
   },
 
   // Track shares on a post
   sharePost: async (id) => {
-    return apiRequest(`/blog/${id}/share`, {
+    return apiRequest(`/blogs/${id}/share`, {
       method: "POST",
     });
   },
 
   // Add a comment to a post
   addComment: async (id, commentData) => {
-    return apiRequest(`/blog/${id}/comments`, {
+    return apiRequest(`/blogs/${id}/comments`, {
       method: "POST",
       body: commentData,
     });
@@ -186,10 +200,15 @@ export const blogAPI = {
 
   // Reply to an existing comment
   addReply: async (id, commentId, replyData) => {
-    return apiRequest(`/blog/${id}/comments/${commentId}/replies`, {
+    return apiRequest(`/blogs/${id}/comments/${commentId}/replies`, {
       method: "POST",
       body: replyData,
     });
+  },
+
+  // Get comments for a post
+  getComments: async (id) => {
+    return apiRequest(`/blogs/${id}/comments`);
   },
 };
 
