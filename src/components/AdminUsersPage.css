@@ -229,6 +229,17 @@
   background: rgba(142, 142, 147, 0.12);
 }
 
+.admin-users-status.is-disabled {
+  color: #ff6570;
+  background: rgba(251, 44, 54, 0.12);
+}
+
+.admin-users-notice {
+  padding: 0.85rem 1rem;
+  color: var(--primary-80);
+  font-size: 0.86rem;
+}
+
 .admin-users-actions {
   display: inline-flex;
   align-items: center;

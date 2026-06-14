@@ -1,11 +1,18 @@
-import bcrypt
 import re
 
+import bcrypt
+
+
 def hash_password(password):
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt())  # ❌ شيل decode
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+
 
 def check_password(hashed, password):
-    return bcrypt.checkpw(password.encode(), hashed)  # ❌ شيل encode هنا
+    if isinstance(hashed, str):
+        hashed = hashed.encode()
+
+    return bcrypt.checkpw(password.encode(), hashed)
+
 
 def validate_password(password):
     if len(password) < 8:

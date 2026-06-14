@@ -34,6 +34,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import AuthNavbar from './AuthNavbar';
 import './DashboardPage.css';
 
@@ -433,6 +434,7 @@ const getLinePoints = (values, width, height, padding = 16) => {
 };
 
 function DashboardPage({ onNavigate, currentPage, initialSection }) {
+  const { user, getProfile, updateProfile, changePassword } = useAuth();
   const [activeSection, setActiveSection] = useState(initialSection || 'dashboard');
   const [scanUrl, setScanUrl] = useState('');
   const [isScanning, setIsScanning] = useState(false);
@@ -472,6 +474,33 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
     autoPdf: false,
   });
   const scanTimerRef = useRef(null);
+  const profileLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (profileLoadedRef.current) {
+      return;
+    }
+
+    profileLoadedRef.current = true;
+
+    const loadProfile = async () => {
+      const result = await getProfile();
+      const profile = result.success ? result.data : user;
+
+      if (!profile) return;
+
+      setProfileForm((current) => ({
+        ...current,
+        username: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.email || current.username,
+        email: profile.email || current.email,
+        phone: profile.phone || '',
+        lastLogin: profile.lastLogin || profile.loginTime || 'Current session',
+        bio: profile.bio || '',
+      }));
+    };
+
+    loadProfile();
+  }, [getProfile, user]);
 
   useEffect(
     () => () => {
@@ -541,7 +570,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
 
   const updateProfileForm = (key, value) => {
     setProfileForm((prev) => ({ ...prev, [key]: value }));
-    setProfileNotice('Profile changes saved for this demo session.');
+    setProfileNotice('');
   };
 
   const updatePasswordForm = (key, value) => {
@@ -549,7 +578,21 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
     setProfileNotice('');
   };
 
-  const handlePasswordUpdate = () => {
+  const handleProfileUpdate = async () => {
+    const [firstName = '', ...restName] = profileForm.username.trim().split(/\s+/);
+    const lastName = restName.join(' ');
+
+    const result = await updateProfile({
+      firstName,
+      lastName,
+      phone: profileForm.phone,
+      bio: profileForm.bio,
+    });
+
+    setProfileNotice(result.success ? 'Profile saved to backend.' : result.error);
+  };
+
+  const handlePasswordUpdate = async () => {
     if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
       setProfileNotice('Fill all password fields first.');
       return;
@@ -560,8 +603,18 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
       return;
     }
 
+    const result = await changePassword({
+      currentPassword: passwordForm.current,
+      newPassword: passwordForm.next,
+    });
+
+    if (!result.success) {
+      setProfileNotice(result.error);
+      return;
+    }
+
     setPasswordForm({ current: '', next: '', confirm: '' });
-    setProfileNotice('Password updated for this demo session.');
+    setProfileNotice('Password updated successfully.');
   };
 
   const renderAdvancedScanModal = () => (
@@ -1476,9 +1529,9 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
             </div>
           </div>
 
-          <button type="button" className="db-user-profile-action-btn">
+          <button type="button" className="db-user-profile-action-btn" onClick={handleProfileUpdate}>
             <Pencil size={13} />
-            Edit Info
+            Save Info
           </button>
         </div>
 

@@ -13,6 +13,7 @@ from utils.email_service import send_email
 import datetime
 import jwt
 import random
+import secrets
 
 from config import Config
 
@@ -160,6 +161,12 @@ def login_user(data):
         return jsonify({
             "message": "Invalid email or password"
         }), 401
+
+    if user.get("disabled"):
+
+        return jsonify({
+            "message": "Account disabled by administrator"
+        }), 403
     
     if not user.get(
     "is_verified",
@@ -347,15 +354,12 @@ def verify_email(data):
         "message": "Email verified successfully"
     }), 200
 
-def forgot_password(data):
 
-    email = data.get(
-        "email",
-        ""
-    ).strip().lower()
+def request_password_reset(data):
+
+    email = data.get("email", "").strip().lower()
 
     if not email:
-
         return jsonify({
             "message": "Email is required"
         }), 400
@@ -365,31 +369,31 @@ def forgot_password(data):
     })
 
     if not user:
-
         return jsonify({
-            "message": "User not found"
+            "message": "No account found for that email"
         }), 404
 
+    token = secrets.token_hex(16)
     reset_code = generate_otp()
+    expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=20)
+
+    mongo.db.password_reset_tokens.update_one(
+        {"email": email},
+        {"$set": {
+            "email": email,
+            "token": token,
+            "code": reset_code,
+            "expires_at": expires_at
+        }},
+        upsert=True
+    )
 
     mongo.db.users.update_one(
-        {
-            "_id": user["_id"]
-        },
-        {
-            "$set": {
-
-                "reset_code":
-                reset_code,
-
-                "reset_expires":
-                datetime.datetime.utcnow()
-                +
-                datetime.timedelta(
-                    minutes=10
-                )
-            }
-        }
+        {"_id": user["_id"]},
+        {"$set": {
+            "reset_code": reset_code,
+            "reset_expires": expires_at
+        }}
     )
 
     send_email(
@@ -399,83 +403,76 @@ def forgot_password(data):
     )
 
     return jsonify({
-        "message":
-        "Password reset code sent"
+        "message": "Password reset token prepared",
+        "email": email,
+        "resetToken": token,
+        "resetCode": reset_code
     }), 200
+
+
+def forgot_password(data):
+    return request_password_reset(data)
+
 
 def reset_password(data):
 
-    email = data.get(
-        "email",
-        ""
-    ).strip().lower()
+    email = data.get("email", "").strip().lower()
+    token = data.get("token", "").strip()
+    code = data.get("code", "").strip()
+    new_password = data.get("newPassword") or data.get("new_password", "")
 
-    code = data.get(
-        "code",
-        ""
-    ).strip()
-
-    new_password = data.get(
-        "new_password",
-        ""
-    )
-
-    if not email or not code or not new_password:
-
+    if not email or not new_password or (not token and not code):
         return jsonify({
-            "message": "Missing fields"
+            "message": "Email, reset code, and new password are required"
         }), 400
+
+    password_error = validate_password(new_password)
+    if password_error:
+        return jsonify({
+            "message": password_error
+        }), 400
+
+    reset_record = mongo.db.password_reset_tokens.find_one({
+        "email": email,
+        "$or": [
+            {"token": token},
+            {"code": code}
+        ]
+    })
 
     user = mongo.db.users.find_one({
         "email": email
     })
 
     if not user:
-
         return jsonify({
-            "message": "User not found"
+            "message": "Account not found"
         }), 404
 
-    if code != user.get(
-        "reset_code"
-    ):
-
-        return jsonify({
-            "message": "Invalid reset code"
-        }), 400
-
-    if (
-        user.get("reset_expires")
-        and
-        user["reset_expires"]
-        < datetime.datetime.utcnow()
-    ):
-
-        return jsonify({
-            "message": "Reset code expired"
-        }), 400
-
-    password_error = validate_password(
-        new_password
+    legacy_code_matches = code and code == user.get("reset_code")
+    legacy_valid = (
+        legacy_code_matches
+        and user.get("reset_expires")
+        and user["reset_expires"] >= datetime.datetime.utcnow()
     )
 
-    if password_error:
-
-        return jsonify({
-            "message": password_error
-        }), 400
-
-    hashed_password = hash_password(
-        new_password
+    token_valid = (
+        reset_record
+        and reset_record.get("expires_at") >= datetime.datetime.utcnow()
     )
+
+    if not token_valid and not legacy_valid:
+        return jsonify({
+            "message": "Invalid or expired reset token"
+        }), 400
 
     mongo.db.users.update_one(
-        {
-            "_id": user["_id"]
-        },
+        {"email": email},
         {
             "$set": {
-                "password": hashed_password
+                "password": hash_password(new_password),
+                "failed_attempts": 0,
+                "lock_until": None
             },
             "$unset": {
                 "reset_code": "",
@@ -483,6 +480,10 @@ def reset_password(data):
             }
         }
     )
+
+    mongo.db.password_reset_tokens.delete_many({
+        "email": email
+    })
 
     return jsonify({
         "message": "Password updated successfully"
