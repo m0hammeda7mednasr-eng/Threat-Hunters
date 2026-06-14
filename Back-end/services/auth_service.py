@@ -1,16 +1,30 @@
 from database.db import mongo
 from flask import jsonify
+
 from utils.password_utils import (
     hash_password,
     check_password,
     validate_password
 )
+
 from utils.validators import validate_email_format
+from utils.email_service import send_email
 
 import datetime
 import jwt
+import random
 
 from config import Config
+
+
+def generate_otp():
+
+    return str(
+        random.randint(
+            100000,
+            999999
+        )
+    )
 
 
 def register_user(data):
@@ -71,9 +85,12 @@ def register_user(data):
         password
     )
 
+    otp = generate_otp()
+
     mongo.db.users.insert_one({
 
         "first_name": first_name,
+
         "last_name": last_name,
 
         "email": email,
@@ -82,7 +99,19 @@ def register_user(data):
 
         "role": "user",
 
-        "created_at": datetime.datetime.utcnow(),
+        "is_verified": False,
+
+        "verification_code": otp,
+
+        "verification_expires":
+        datetime.datetime.utcnow()
+        +
+        datetime.timedelta(
+            minutes=10
+        ),
+
+        "created_at":
+        datetime.datetime.utcnow(),
 
         "failed_attempts": 0,
 
@@ -90,8 +119,17 @@ def register_user(data):
 
     })
 
+    send_email(
+        email,
+        "Threat Hunters Verification Code",
+        f"Your verification code is: {otp}"
+    )
+
     return jsonify({
-        "message": "User created successfully"
+
+        "message":
+        "Verification code sent to your email"
+
     }), 201
 
 
@@ -122,6 +160,15 @@ def login_user(data):
         return jsonify({
             "message": "Invalid email or password"
         }), 401
+    
+    if not user.get(
+    "is_verified",
+    False
+        ):
+
+        return jsonify({
+            "message": "Please verify your email first"
+        }), 403
 
     if (
         user.get("lock_until")
@@ -224,4 +271,78 @@ def login_user(data):
             "user"
         )
 
+    }), 200
+def verify_email(data):
+
+    email = data.get(
+        "email",
+        ""
+    ).strip().lower()
+
+    code = data.get(
+        "code",
+        ""
+    ).strip()
+
+    if not email or not code:
+
+        return jsonify({
+            "message": "Email and code are required"
+        }), 400
+
+    user = mongo.db.users.find_one({
+        "email": email
+    })
+
+    if not user:
+
+        return jsonify({
+            "message": "User not found"
+        }), 404
+
+    if user.get(
+        "is_verified",
+        False
+    ):
+
+        return jsonify({
+            "message": "Account already verified"
+        }), 400
+
+    if (
+        user.get("verification_expires")
+        and
+        user["verification_expires"]
+        < datetime.datetime.utcnow()
+    ):
+
+        return jsonify({
+            "message": "Verification code expired"
+        }), 400
+
+    if code != user.get(
+        "verification_code"
+    ):
+
+        return jsonify({
+            "message": "Invalid verification code"
+        }), 400
+
+    mongo.db.users.update_one(
+        {
+            "_id": user["_id"]
+        },
+        {
+            "$set": {
+                "is_verified": True
+            },
+            "$unset": {
+                "verification_code": "",
+                "verification_expires": ""
+            }
+        }
+    )
+
+    return jsonify({
+        "message": "Email verified successfully"
     }), 200
