@@ -1,63 +1,115 @@
-import { memo, useCallback, useState } from 'react';
-import { Chrome, Eye, EyeOff, Github, Lock, Mail } from 'lucide-react';
-import './SignUpForm.css';
+import { memo, useCallback, useState } from "react";
+import { Chrome, Eye, EyeOff, Github, Lock, Mail } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import "./SignUpForm.css";
 
-const SignUpForm = ({ onSwitchToSignIn, onLogin }) => {
+const SignUpForm = ({ onSwitchToSignIn }) => {
+  const { register, loading, error: authError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
     agreeToTerms: false,
   });
 
-  const handleChange = useCallback((event) => {
-    const { name, value, type, checked } = event.target;
+  const handleChange = useCallback(
+    (event) => {
+      const { name, value, type, checked } = event.target;
 
-    setFormData((current) => ({
-      ...current,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
-  }, []);
+      setFormData((current) => ({
+        ...current,
+        [name]: type === "checkbox" ? checked : value,
+      }));
+
+      // Clear errors when user starts typing
+      if (error || authError) {
+        setError("");
+      }
+      if (success) {
+        setSuccess("");
+      }
+    },
+    [error, authError, success],
+  );
 
   const handleSubmit = useCallback(
-    (event) => {
+    async (event) => {
       event.preventDefault();
-
-      if (!onLogin) {
-        return;
-      }
 
       const sanitizedEmail = formData.email.trim();
       const sanitizedFirstName = formData.firstName.trim();
       const sanitizedLastName = formData.lastName.trim();
 
+      // Client-side validation
       if (!sanitizedFirstName || !sanitizedLastName || !sanitizedEmail) {
+        setError("Please fill in all required fields.");
         return;
       }
 
       if (!formData.password || formData.password.length < 8) {
+        setError("Password must be at least 8 characters long.");
         return;
       }
 
       if (formData.password !== formData.confirmPassword) {
+        setError("Passwords do not match.");
         return;
       }
 
       if (!formData.agreeToTerms) {
+        setError("Please agree to the terms and conditions.");
         return;
       }
 
-      onLogin();
+      try {
+        const result = await register({
+          firstName: sanitizedFirstName,
+          lastName: sanitizedLastName,
+          email: sanitizedEmail,
+          password: formData.password,
+        });
+
+        if (result.success) {
+          setError("");
+          setSuccess("Account created successfully! Please sign in.");
+
+          // Reset form
+          setFormData({
+            firstName: "",
+            lastName: "",
+            email: "",
+            password: "",
+            confirmPassword: "",
+            agreeToTerms: false,
+          });
+
+          // Optionally auto-switch to sign in after a delay
+          setTimeout(() => {
+            onSwitchToSignIn?.();
+          }, 2000);
+        } else {
+          setError(result.error || "Registration failed. Please try again.");
+        }
+      } catch (err) {
+        setError("An unexpected error occurred. Please try again.");
+        console.error("Registration error:", err);
+      }
     },
-    [formData, onLogin],
+    [formData, register, onSwitchToSignIn],
   );
 
   return (
     <div className="signup-form-container">
-      <div className="signup-form-tabs" role="tablist" aria-label="Authentication">
+      <div
+        className="signup-form-tabs"
+        role="tablist"
+        aria-label="Authentication"
+      >
         <button
           aria-selected="false"
           className="signup-form-tab"
@@ -70,7 +122,12 @@ const SignUpForm = ({ onSwitchToSignIn, onLogin }) => {
         >
           Sign In
         </button>
-        <button aria-selected="true" className="signup-form-tab is-active" role="tab" type="button">
+        <button
+          aria-selected="true"
+          className="signup-form-tab is-active"
+          role="tab"
+          type="button"
+        >
           Sign Up
         </button>
       </div>
@@ -139,11 +196,11 @@ const SignUpForm = ({ onSwitchToSignIn, onLogin }) => {
               onChange={handleChange}
               placeholder="••••••••"
               required
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               value={formData.password}
             />
             <button
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-label={showPassword ? "Hide password" : "Show password"}
               className="signup-password-toggle"
               onClick={() => setShowPassword((current) => !current)}
               type="button"
@@ -181,23 +238,48 @@ const SignUpForm = ({ onSwitchToSignIn, onLogin }) => {
             type="checkbox"
           />
           <span>
-            I agree to the <a href="#signup">Terms of Service</a> and <a href="#signup">Privacy Policy</a>
+            I agree to the <a href="#signup">Terms of Service</a> and{" "}
+            <a href="#signup">Privacy Policy</a>
           </span>
         </label>
 
-        <button className="signup-submit-button" type="submit">
-          Create Account
+        <button
+          className="signup-submit-button"
+          type="submit"
+          disabled={loading}
+        >
+          {loading ? "Creating Account..." : "Create Account"}
         </button>
+
+        {(error || authError) && (
+          <p className="signup-error" role="alert">
+            {error || authError}
+          </p>
+        )}
+
+        {success && (
+          <p className="signup-success" role="alert">
+            {success}
+          </p>
+        )}
 
         <div className="signup-divider">
           <span>Or sign up with</span>
         </div>
 
         <div className="signup-socials">
-          <button aria-label="Sign up with Chrome" className="signup-social-button" type="button">
+          <button
+            aria-label="Sign up with Chrome"
+            className="signup-social-button"
+            type="button"
+          >
             <Chrome />
           </button>
-          <button aria-label="Sign up with GitHub" className="signup-social-button" type="button">
+          <button
+            aria-label="Sign up with GitHub"
+            className="signup-social-button"
+            type="button"
+          >
             <Github />
           </button>
         </div>

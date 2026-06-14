@@ -673,6 +673,16 @@
   line-height: 1.33;
 }
 
+.awareness-empty-state {
+  grid-column: 1 / -1;
+  border: 1px solid var(--awareness-border);
+  border-radius: 8px;
+  padding: 1.1rem;
+  color: var(--awareness-muted);
+  background: var(--awareness-surface);
+  text-align: center;
+}
+
 .logged-in-page .security-awareness-page {
   min-height: auto;
 }
@@ -1111,4 +1121,102 @@
 :root[data-theme='light'] .downloads-panel,
 :root[data-theme='light'] .download-card {
   box-shadow: 0 16px 36px rgba(21, 93, 252, 0.06);
+}
+
+/* Prompt pack trial polish */
+.awareness-hero__search {
+  position: relative;
+  overflow: hidden;
+}
+
+.awareness-hero__search::after {
+  content: '';
+  position: absolute;
+  inset: auto 18px 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary-80), transparent);
+  opacity: 0;
+  transition: opacity 0.24s ease;
+}
+
+.awareness-hero__search:hover,
+.awareness-hero__search:focus-within {
+  border-color: var(--primary-border-35);
+  box-shadow:
+    var(--state-focus-ring-lg),
+    inset 0 0 22px var(--primary-tint-06);
+}
+
+.awareness-hero__search:hover::after,
+.awareness-hero__search:focus-within::after {
+  opacity: 1;
+}
+
+.tip-card__icon-box {
+  animation: awareness-icon-float 3.6s ease-in-out infinite;
+}
+
+.tip-card:nth-child(2n) .tip-card__icon-box {
+  animation-delay: 0.35s;
+}
+
+.tip-card:nth-child(3n) .tip-card__icon-box {
+  animation-delay: 0.7s;
+}
+
+.threat-card__badge {
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.threat-card--critical .threat-card__badge,
+.threat-card--high .threat-card__badge {
+  animation: awareness-risk-pulse 1.9s ease-in-out infinite;
+}
+
+.threat-card--critical {
+  box-shadow:
+    var(--elevation-shadow-sm),
+    inset 0 0 0 1px rgba(211, 47, 47, 0.14);
+}
+
+.threat-card--high {
+  box-shadow:
+    var(--elevation-shadow-sm),
+    inset 0 0 0 1px rgba(251, 44, 54, 0.12);
+}
+
+@keyframes awareness-icon-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes awareness-risk-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 44, 54, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(251, 44, 54, 0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tip-card__icon-box,
+  .threat-card--critical .threat-card__badge,
+  .threat-card--high .threat-card__badge {
+    animation: none;
+  }
 }

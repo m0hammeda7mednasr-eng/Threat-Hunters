@@ -1,42 +1,159 @@
-import { memo, useCallback, useState } from 'react';
-import { Chrome, Eye, EyeOff, Github, Lock, Mail } from 'lucide-react';
-import './SignInForm.css';
+import { memo, useCallback, useState } from "react";
+import { Chrome, Eye, EyeOff, Github, Lock, Mail } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import "./SignInForm.css";
 
 const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
+  const { login, loading, error: authError, requestPasswordReset, resetPassword } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotStatus, setForgotStatus] = useState("");
+  const [forgotStep, setForgotStep] = useState("request");
+  const [forgotForm, setForgotForm] = useState({
+    email: "",
+    token: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: "",
+    password: "",
     rememberMe: false,
   });
 
-  const handleChange = useCallback((event) => {
-    const { name, value, type, checked } = event.target;
+  const handleChange = useCallback(
+    (event) => {
+      const { name, value, type, checked } = event.target;
 
-    setFormData((current) => ({
-      ...current,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
-  }, []);
+      setFormData((current) => ({
+        ...current,
+        [name]: type === "checkbox" ? checked : value,
+      }));
+
+      if (error || authError) {
+        setError("");
+      }
+    },
+    [error, authError],
+  );
+
+  const handleForgotChange = useCallback(
+    (event) => {
+      const { name, value } = event.target;
+      setForgotForm((current) => ({
+        ...current,
+        [name]: value,
+      }));
+
+      if (forgotStatus) {
+        setForgotStatus("");
+      }
+    },
+    [forgotStatus],
+  );
 
   const handleSubmit = useCallback(
-    (event) => {
+    async (event) => {
       event.preventDefault();
 
       const sanitizedEmail = formData.email.trim();
-      if (!sanitizedEmail || !formData.password || !onLogin) {
+      if (!sanitizedEmail || !formData.password) {
+        setError("Please fill in all fields.");
         return;
       }
 
-      onLogin();
+      try {
+        const result = await login({
+          email: sanitizedEmail,
+          password: formData.password,
+        });
+
+        if (result.success) {
+          setError("");
+          if (onLogin) {
+            onLogin({
+              email: sanitizedEmail,
+              role: result.data.role || "user",
+            });
+          }
+        } else {
+          setError(result.error || "Login failed. Please try again.");
+        }
+      } catch (err) {
+        setError("An unexpected error occurred. Please try again.");
+        console.error("Login error:", err);
+      }
     },
-    [formData.email, formData.password, onLogin],
+    [formData.email, formData.password, login, onLogin],
   );
+
+  const handleForgotRequest = useCallback(async () => {
+    const email = forgotForm.email.trim();
+    if (!email) {
+      setForgotStatus("Enter the email tied to your account.");
+      return;
+    }
+
+    const result = await requestPasswordReset({ email });
+    if (result.success) {
+      setForgotStep("reset");
+      setForgotStatus(`Reset token prepared for ${result.data.email}.`);
+      setForgotForm((current) => ({
+        ...current,
+        token: result.data.resetToken || current.token,
+      }));
+    } else {
+      setForgotStatus(result.error || "Unable to prepare password reset.");
+    }
+  }, [forgotForm.email, requestPasswordReset]);
+
+  const handleForgotReset = useCallback(async () => {
+    if (!forgotForm.email.trim() || !forgotForm.token.trim()) {
+      setForgotStatus("Email and reset token are required.");
+      return;
+    }
+
+    if (!forgotForm.newPassword || forgotForm.newPassword.length < 8) {
+      setForgotStatus("New password must be at least 8 characters.");
+      return;
+    }
+
+    if (forgotForm.newPassword !== forgotForm.confirmPassword) {
+      setForgotStatus("Passwords do not match.");
+      return;
+    }
+
+    const result = await resetPassword({
+      email: forgotForm.email.trim(),
+      token: forgotForm.token.trim(),
+      newPassword: forgotForm.newPassword,
+    });
+
+    if (result.success) {
+      setForgotStatus("Password reset successfully. You can sign in now.");
+      setForgotOpen(false);
+      setForgotStep("request");
+      setForgotForm({
+        email: "",
+        token: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } else {
+      setForgotStatus(result.error || "Unable to reset password.");
+    }
+  }, [forgotForm, resetPassword]);
 
   return (
     <div className="signin-form-container">
       <div className="signin-form-tabs" role="tablist" aria-label="Authentication">
-        <button aria-selected="true" className="signin-form-tab is-active" role="tab" type="button">
+        <button
+          aria-selected="true"
+          className="signin-form-tab is-active"
+          role="tab"
+          type="button"
+        >
           Sign In
         </button>
         <button
@@ -54,6 +171,11 @@ const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
       </div>
 
       <form className="signin-form" onSubmit={handleSubmit}>
+        <div className="signin-admin-access" aria-label="Admin test credentials">
+          <strong>Admin access</strong>
+          <span>admin@threathunters.com / Admin@12345</span>
+        </div>
+
         <label className="signin-field">
           <span>Email Address</span>
           <div className="signin-input-shell">
@@ -83,11 +205,11 @@ const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
               onChange={handleChange}
               placeholder="••••••••"
               required
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               value={formData.password}
             />
             <button
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-label={showPassword ? "Hide password" : "Show password"}
               className="signin-password-toggle"
               onClick={() => setShowPassword((current) => !current)}
               type="button"
@@ -108,24 +230,125 @@ const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
             <span>Remember me</span>
           </label>
 
-          <a className="signin-forgot-link" href="#signin">
+          <button
+            type="button"
+            className="signin-forgot-link"
+            onClick={() => setForgotOpen((current) => !current)}
+          >
             Forgot Password?
-          </a>
+          </button>
         </div>
 
-        <button className="signin-submit-button" type="submit">
-          Sign In
+        {forgotOpen && (
+          <div className="signin-forgot-panel" aria-live="polite">
+            <p className="signin-forgot-panel__title">Password recovery</p>
+            <p className="signin-forgot-panel__copy">
+              1. Request a reset token for your email.
+              <br />
+              2. Paste the token below, choose a new password, and confirm it.
+            </p>
+
+            <label className="signin-field">
+              <span>Recovery Email</span>
+              <div className="signin-input-shell">
+                <Mail aria-hidden="true" className="signin-input-icon" />
+                <input
+                  autoComplete="email"
+                  name="email"
+                  onChange={handleForgotChange}
+                  placeholder="you@example.com"
+                  type="email"
+                  value={forgotForm.email}
+                />
+              </div>
+            </label>
+
+            {forgotStep === "reset" && (
+              <>
+                <label className="signin-field">
+                  <span>Reset Token</span>
+                  <div className="signin-input-shell">
+                    <Lock aria-hidden="true" className="signin-input-icon" />
+                    <input
+                      name="token"
+                      onChange={handleForgotChange}
+                      placeholder="Paste the reset token"
+                      type="text"
+                      value={forgotForm.token}
+                    />
+                  </div>
+                </label>
+
+                <label className="signin-field">
+                  <span>New Password</span>
+                  <div className="signin-input-shell">
+                    <Lock aria-hidden="true" className="signin-input-icon" />
+                    <input
+                      name="newPassword"
+                      onChange={handleForgotChange}
+                      placeholder="Enter a new password"
+                      type="password"
+                      value={forgotForm.newPassword}
+                    />
+                  </div>
+                </label>
+
+                <label className="signin-field">
+                  <span>Confirm New Password</span>
+                  <div className="signin-input-shell">
+                    <Lock aria-hidden="true" className="signin-input-icon" />
+                    <input
+                      name="confirmPassword"
+                      onChange={handleForgotChange}
+                      placeholder="Confirm new password"
+                      type="password"
+                      value={forgotForm.confirmPassword}
+                    />
+                  </div>
+                </label>
+              </>
+            )}
+
+            <div className="signin-forgot-actions">
+              <button type="button" className="signin-forgot-action" onClick={handleForgotRequest}>
+                Send reset token
+              </button>
+              <button type="button" className="signin-forgot-action primary" onClick={handleForgotReset}>
+                Reset password
+              </button>
+            </div>
+
+            {forgotStatus && <p className="signin-forgot-status">{forgotStatus}</p>}
+          </div>
+        )}
+
+        <button className="signin-submit-button" type="submit" disabled={loading}>
+          {loading ? "Signing In..." : "Sign In"}
         </button>
+
+        {(error || authError) && (
+          <p className="signin-error" role="alert">
+            {error || authError}
+          </p>
+        )}
 
         <div className="signin-divider">
           <span>Or continue with</span>
         </div>
 
         <div className="signin-socials">
-          <button aria-label="Continue with Chrome" className="signin-social-button" type="button">
+          <button
+            aria-label="Continue with Chrome"
+            className="signin-social-button"
+            type="button"
+          >
             <Chrome />
           </button>
-          <button aria-label="Continue with GitHub" className="signin-social-button" type="button">
+          <button
+            aria-label="Continue with GitHub"
+            className="signin-social-button"
+            type="button"
+          >
             <Github />
           </button>
         </div>

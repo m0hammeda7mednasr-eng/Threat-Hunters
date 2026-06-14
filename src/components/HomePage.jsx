@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { createElement, memo, useCallback, useState } from 'react';
 import {
   Activity,
   ArrowRight,
@@ -91,15 +91,33 @@ const previewMetrics = [
   { value: '9', label: 'Suggested fixes', tone: 'info' },
 ];
 
+const scanActivity = [
+  { label: 'Headers', status: 'hardened' },
+  { label: 'Routes', status: 'reviewed' },
+  { label: 'Assets', status: 'clean' },
+];
+
 const duplicatedMarqueeItems = [...marqueeItems, ...marqueeItems, ...marqueeItems];
 
 const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNavigateToAwareness, onNavigateToTools }) => {
+  const [scanUrl, setScanUrl] = useState('');
+
   const handleExploreFeatures = useCallback(() => {
     const featuresSection = document.querySelector('.home-benefits-section');
     if (featuresSection) {
       featuresSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, []);
+
+  const handleStartScan = useCallback(() => {
+    try {
+      window.localStorage.setItem('threatHuntersPendingScanUrl', scanUrl.trim());
+    } catch {
+      // Keep navigation working even if browser storage is unavailable.
+    }
+
+    onNavigateToSignUp?.();
+  }, [onNavigateToSignUp, scanUrl]);
 
   return (
     <div className="home-page">
@@ -125,7 +143,7 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
             <p className="home-hero-lead">Scan, detect, and secure your web applications in seconds.</p>
 
             <p className="home-hero-subtext">
-              Identify vulnerabilities before hackers do powered by intelligent automation.
+              Identify and neutralize exploitable weaknesses before attackers can turn them into incidents.
             </p>
 
             <div className="home-hero-highlights" aria-label="Threat Hunters highlights">
@@ -147,14 +165,18 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
                   </div>
                   <input
                     aria-label="Website URL"
+                    autoComplete="url"
                     className="home-url-input"
+                    inputMode="url"
+                    onChange={(event) => setScanUrl(event.target.value)}
                     placeholder="https://yourwebsite.com"
-                    readOnly
+                    spellCheck="false"
                     type="text"
+                    value={scanUrl}
                   />
                 </div>
 
-                <button className="home-primary-button home-hero-button" onClick={onNavigateToSignUp} type="button">
+                <button className="home-primary-button home-hero-button" onClick={handleStartScan} type="button">
                   <span>Scan Now</span>
                 </button>
               </div>
@@ -184,6 +206,15 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
                     </article>
                   ))}
                 </div>
+
+                <div className="home-scan-activity" aria-label="Preview scan activity">
+                  {scanActivity.map((item) => (
+                    <span className="home-scan-activity-chip" key={item.label}>
+                      <span aria-hidden="true" />
+                      {item.label} {item.status}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -207,7 +238,7 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
               <article className="home-process-card" key={title}>
                 <div className="home-process-icon-wrap">
                   <div className="home-process-icon" aria-hidden="true">
-                    <Icon />
+                    {createElement(Icon)}
                   </div>
                   <span className="home-process-number">{number}</span>
                 </div>
@@ -229,7 +260,7 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
           <div className="home-marquee-track">
             {duplicatedMarqueeItems.map(({ icon: Icon, label, tone }, index) => (
               <div className={`home-marquee-item home-marquee-item-${tone}`} key={`top-${label}-${index}`}>
-                <Icon aria-hidden="true" />
+                {createElement(Icon, { 'aria-hidden': true })}
                 <span>{label}</span>
               </div>
             ))}
@@ -240,7 +271,7 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
           <div className="home-marquee-track">
             {duplicatedMarqueeItems.map(({ icon: Icon, label, tone }, index) => (
               <div className={`home-marquee-item home-marquee-item-${tone}`} key={`bottom-${label}-${index}`}>
-                <Icon aria-hidden="true" />
+                {createElement(Icon, { 'aria-hidden': true })}
                 <span>{label}</span>
               </div>
             ))}
@@ -260,7 +291,7 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
             {featureCards.map(({ icon: Icon, title, description }) => (
               <article className="home-feature-card" key={title}>
                 <div className="home-feature-icon" aria-hidden="true">
-                  <Icon />
+                  {createElement(Icon)}
                 </div>
                 <h3>{title}</h3>
                 <p>{description}</p>

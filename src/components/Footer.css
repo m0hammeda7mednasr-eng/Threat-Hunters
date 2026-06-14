@@ -1,12 +1,29 @@
 .footer {
+  position: relative;
+  overflow: hidden;
   margin-top: auto;
   padding: 1.9rem var(--shell-gutter) 1rem;
   background: var(--card-bg);
   border-top: 1px solid var(--primary-border-20);
 }
 
+.footer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 54px, var(--primary-tint-05) 55px 56px),
+    repeating-linear-gradient(0deg, transparent 0 34px, var(--primary-tint-03) 35px 36px);
+  opacity: 0.55;
+  transform: translate3d(0, 0, 0);
+  animation: footer-digital-drift 18s linear infinite;
+  pointer-events: none;
+}
+
 .footer-container,
 .footer-bottom {
+  position: relative;
+  z-index: 1;
   max-width: var(--shell-max-width);
   margin-left: auto;
   margin-right: auto;
@@ -159,5 +176,21 @@
 
   .footer-brand {
     grid-column: auto;
+  }
+}
+
+@keyframes footer-digital-drift {
+  from {
+    background-position: 0 0, 0 0;
+  }
+
+  to {
+    background-position: 112px 0, 0 72px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer::before {
+    animation: none;
   }
 }

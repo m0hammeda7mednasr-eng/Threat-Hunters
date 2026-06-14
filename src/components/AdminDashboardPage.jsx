@@ -32,16 +32,16 @@ const topMetrics = [
     label: 'Overall Risk Score',
     value: 'D',
     detail: 'Based on active vulnerabilities',
-    breakdown: ['Critical: 8', 'High: 12', 'Medium: 30'],
+    breakdown: ['Critical: High', '12', 'Medium: 30'],
     icon: ShieldAlert,
-    tone: 'admin-tone-red',
+    tone: 'admin-tone-orange',
     change: null,
   },
   {
     label: 'Active Vulnerabilities',
     value: '47',
     detail: '5 new in last 24h',
-    breakdown: ['Critical: 8', 'High: 12', 'Medium: 30'],
+    breakdown: ['Critical: High', '12', 'Medium: 30'],
     icon: AlertTriangle,
     tone: 'admin-tone-red',
     change: '+12',
@@ -63,7 +63,10 @@ const topMetrics = [
     icon: Activity,
     tone: 'admin-tone-indigo',
     change: null,
-    trend: [8, 22, 16, 13, 12],
+    trend: {
+      found: [8, 22, 15, 10, 7],
+      fixed: [7, 8, 9, 10, 11],
+    },
   },
 ];
 
@@ -153,20 +156,25 @@ const topNavItems = [
   { label: 'Admin Dashboard', route: 'admin-dashboard' },
 ];
 
-function Sparkline({ values }) {
-  const max = Math.max(...values);
+function getSparkPoints(values, max = Math.max(...values)) {
   const stepX = 84 / Math.max(values.length - 1, 1);
-  const points = values
+
+  return values
     .map((value, index) => {
       const x = index * stepX;
       const y = 24 - (value / max) * 18;
       return `${x},${y.toFixed(2)}`;
     })
     .join(' ');
+}
+
+function DualSparkline({ found, fixed }) {
+  const max = Math.max(...found, ...fixed);
 
   return (
-    <svg viewBox="0 0 84 28" aria-hidden="true">
-      <polyline className="admin-mini-trend-line" points={points} />
+    <svg viewBox="0 0 84 32" aria-hidden="true">
+      <polyline className="admin-mini-trend-line is-found-line" points={getSparkPoints(found, max)} />
+      <polyline className="admin-mini-trend-line is-fixed-line" points={getSparkPoints(fixed, max)} />
     </svg>
   );
 }
@@ -284,7 +292,7 @@ function AdminDashboardPage({ onNavigate }) {
                   {metric.trend ? (
                     <div className="admin-metric-trend-wrap">
                       <div className="admin-metric-trend">
-                        <Sparkline values={metric.trend} />
+                        <DualSparkline found={metric.trend.found} fixed={metric.trend.fixed} />
                       </div>
                       <div className="admin-metric-trend-legend">
                         <span><i className="is-found" />Found</span>

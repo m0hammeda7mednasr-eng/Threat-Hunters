@@ -46,6 +46,26 @@
   gap: 1.35rem;
 }
 
+.signin-admin-access {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--primary-border-20);
+  border-radius: 14px;
+  display: grid;
+  gap: 0.2rem;
+  background: var(--state-hover-surface-soft);
+}
+
+.signin-admin-access strong {
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.signin-admin-access span {
+  color: var(--primary-80);
+  font-size: 0.84rem;
+}
+
 .signin-field {
   display: flex;
   flex-direction: column;
@@ -181,10 +201,14 @@
 }
 
 .signin-forgot-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
   color: var(--primary-80);
   text-decoration: none;
   font-size: 14.96px;
   line-height: 21.37px;
+  cursor: pointer;
 }
 
 .signin-forgot-link:hover {
@@ -207,6 +231,16 @@
 .signin-submit-button:hover {
   transform: translateY(-1px);
   box-shadow: var(--button-shadow-hover);
+}
+
+.signin-error {
+  margin: -0.35rem 0 0;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--risk-high-border);
+  border-radius: 12px;
+  background: var(--risk-high-bg-soft);
+  color: var(--accent-coral);
+  font-size: 0.9rem;
 }
 
 .signin-divider {
@@ -267,6 +301,57 @@
   width: 21.37px;
   height: 21.37px;
   stroke-width: 1.9;
+}
+
+.signin-forgot-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--primary-20);
+  border-radius: 18px;
+  background: var(--surface-soft);
+}
+
+.signin-forgot-panel__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.signin-forgot-panel__copy {
+  margin: 0 0 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.signin-forgot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.signin-forgot-action {
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--primary-25);
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.signin-forgot-action.primary {
+  background: var(--button-gradient);
+  color: #fff;
+}
+
+.signin-forgot-status {
+  margin: 0.85rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
 }
 
 @media (max-width: 768px) {

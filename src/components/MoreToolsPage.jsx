@@ -450,8 +450,11 @@ const MoreToolsPage = ({
                 </span>
               </div>
 
-              <div className="more-tools-output-state">
-                <div className="more-tools-output-icon" aria-hidden="true">
+              <div className="more-tools-output-state" aria-live="polite">
+                <div
+                  className={`more-tools-output-icon ${scanState === 'checking' ? 'is-scanning' : ''}`}
+                  aria-hidden="true"
+                >
                   {scanState === 'success' ? <CheckCircle2 size={34} /> : <Shield size={34} />}
                 </div>
 

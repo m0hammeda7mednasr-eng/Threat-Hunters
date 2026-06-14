@@ -1,7 +1,7 @@
 .admin-web-edit-page {
   min-height: 100vh;
-  background: var(--page-gradient);
-  color: var(--text-primary);
+  background: var(--admin-bg);
+  color: #f8f9ff;
 }
 
 .admin-web-sidebar {
@@ -52,7 +52,7 @@
 }
 
 .admin-web-main {
-  gap: 1rem;
+  gap: 16px;
 }
 
 .admin-web-header {
@@ -63,7 +63,8 @@
 }
 
 .admin-web-header h1 {
-  font-size: 1.45rem;
+  font-size: 20px;
+  font-weight: 500;
   line-height: 1.2;
 }
 
@@ -76,14 +77,14 @@
 
 .admin-web-page-picker {
   min-width: 156px;
-  height: 40px;
+  height: 36px;
   padding: 0 0.85rem;
   border-radius: 12px;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: var(--state-hover-surface-soft);
-  border: 1px solid var(--primary-border-20);
+  background: #0d101d;
+  border: 1px solid rgba(109, 124, 255, 0.38);
   color: var(--text-primary);
 }
 
@@ -91,7 +92,13 @@
   border: none;
   outline: none;
   background: transparent;
-  color: inherit;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.admin-web-page-picker select option {
+  color: #ffffff;
+  background: #0d101d;
 }
 
 .admin-web-publish-btn,
@@ -126,7 +133,7 @@
 }
 
 .admin-web-panel {
-  padding: 1rem;
+  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -144,8 +151,8 @@
 }
 
 .admin-web-panel-head h2 {
-  font-size: 0.96rem;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .admin-web-panel-icon {
@@ -187,12 +194,14 @@
 
 .admin-web-field input,
 .admin-web-field textarea,
-.admin-web-feature-field textarea {
+.admin-web-feature-field textarea,
+.admin-web-removable-row input,
+.admin-web-owasp-row input {
   width: 100%;
   border-radius: 10px;
   border: 1px solid rgba(109, 124, 255, 0.35);
-  background: rgba(26, 29, 53, 0.4);
-  color: var(--text-primary);
+  background: #0e1120;
+  color: #ffffff;
   padding: 0.8rem 0.9rem;
   resize: vertical;
   outline: none;
@@ -201,6 +210,8 @@
 .admin-web-field input:focus,
 .admin-web-field textarea:focus,
 .admin-web-feature-field textarea:focus,
+.admin-web-removable-row input:focus,
+.admin-web-owasp-row input:focus,
 .admin-web-page-picker select:focus {
   box-shadow: var(--state-focus-ring-secondary);
 }
@@ -226,6 +237,34 @@
   background: rgba(26, 29, 53, 0.4);
   display: grid;
   gap: 0.8rem;
+}
+
+.admin-web-removable-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 10px;
+}
+
+.admin-web-removable-row button {
+  border: 0;
+  border-radius: 10px;
+  background: rgba(251, 44, 54, 0.2);
+  color: #ff3b47;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.admin-web-owasp-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1.2fr) minmax(140px, 0.55fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-web-owasp-row span {
+  color: var(--admin-blue);
+  font-size: 13px;
 }
 
 @media (max-width: 980px) {
@@ -263,7 +302,32 @@
 .admin-web-field input,
 .admin-web-field textarea,
 .admin-web-feature-field textarea,
+.admin-web-removable-row input,
+.admin-web-owasp-row input,
 .admin-web-stat-card {
-  background: var(--surface-base);
-  border-color: var(--primary-border-20);
+  background: #0e1120;
+  border-color: rgba(109, 124, 255, 0.35);
+}
+
+:root[data-theme="light"] .admin-web-page-picker,
+:root[data-theme="light"] .admin-web-page-picker select,
+:root[data-theme="light"] .admin-web-field input,
+:root[data-theme="light"] .admin-web-field textarea,
+:root[data-theme="light"] .admin-web-feature-field textarea,
+:root[data-theme="light"] .admin-web-removable-row input,
+:root[data-theme="light"] .admin-web-owasp-row input,
+:root[data-theme="light"] .admin-web-stat-card {
+  background: #ffffff;
+  border-color: rgba(21, 93, 252, 0.22);
+  color: #0b0d18;
+}
+
+:root[data-theme="light"] .admin-web-page-picker select option {
+  background: #ffffff;
+  color: #0b0d18;
+}
+
+:root[data-theme="light"] .admin-web-field span,
+:root[data-theme="light"] .admin-web-owasp-row span {
+  color: #4a5565;
 }

@@ -3978,6 +3978,31 @@
   box-shadow: 0 14px 28px rgba(69, 83, 218, 0.2);
 }
 
+.db-user-profile-form-note {
+  margin: 0.85rem 0 0;
+  color: var(--db-primary);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.db-user-profile-action-btn.is-logout {
+  border-color: rgba(251, 44, 54, 0.28);
+  background: rgba(251, 44, 54, 0.1);
+  color: #ff8b96;
+}
+
+.db-user-profile-action-btn.is-logout:hover {
+  border-color: rgba(251, 44, 54, 0.42);
+  background: rgba(251, 44, 54, 0.16);
+}
+
+.db-user-profile-action-btn.primary-logout {
+  background: linear-gradient(135deg, #fb2c36, #d32f4a);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 14px 28px rgba(251, 44, 54, 0.18);
+}
+
 .db-user-profile-card-head {
   display: flex;
   align-items: center;
@@ -4182,6 +4207,15 @@
   min-height: 654px;
   display: grid;
   gap: 1.25rem;
+}
+
+.db-user-profile-logout-card {
+  min-height: 126px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .db-user-profile-stat-grid {
@@ -4826,4 +4860,82 @@
 
 :root[data-theme='light'] .db-user-profile-delete-btn {
   background: linear-gradient(135deg, #ff6b76, #e34d5d) !important;
+}
+
+:root[data-theme='dark'] .user-dashboard-page {
+  --dashboard-panel-bg: linear-gradient(180deg, rgba(20, 25, 46, 0.96), rgba(12, 16, 32, 0.98));
+  --dashboard-sidebar-bg: linear-gradient(180deg, rgba(24, 30, 56, 0.96), rgba(12, 16, 32, 0.98));
+  --dashboard-panel-border: rgba(132, 151, 255, 0.2);
+  --dashboard-panel-border-soft: rgba(132, 151, 255, 0.12);
+  --dashboard-card-shadow: 0 18px 42px rgba(0, 0, 0, 0.26);
+  --dashboard-sidebar-active-bg: linear-gradient(135deg, #6d7cff 0%, #4654d9 100%);
+  --dashboard-surface-soft: rgba(7, 10, 22, 0.52);
+  --dashboard-table-head-bg: rgba(109, 124, 255, 0.11);
+  --dashboard-row-alt: rgba(109, 124, 255, 0.035);
+  --dashboard-chip-bg: rgba(122, 141, 255, 0.13);
+  --dashboard-chip-border: rgba(122, 141, 255, 0.24);
+  --dashboard-chip-fg: #cbd5ff;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(109, 124, 255, 0.13), transparent 31%),
+    radial-gradient(circle at 90% 10%, rgba(0, 217, 255, 0.08), transparent 26%),
+    linear-gradient(180deg, #070a14 0%, #090d1a 48%, #060812 100%);
+}
+
+:root[data-theme='dark'] .user-dashboard-sidebar,
+:root[data-theme='dark'] .db-overview-card,
+:root[data-theme='dark'] .db-risk-card,
+:root[data-theme='dark'] .db-panel,
+:root[data-theme='dark'] .db-settings-panel,
+:root[data-theme='dark'] .db-user-profile-card {
+  background: var(--dashboard-panel-bg) !important;
+  border-color: var(--dashboard-panel-border) !important;
+}
+
+:root[data-theme='dark'] .db-user-profile-input,
+:root[data-theme='dark'] .db-settings-select,
+:root[data-theme='dark'] .db-settings-mode-card,
+:root[data-theme='dark'] .db-settings-toggle-card,
+:root[data-theme='dark'] .db-settings-check-card,
+:root[data-theme='dark'] .db-user-profile-security-subcard,
+:root[data-theme='dark'] .db-user-profile-twofactor-card,
+:root[data-theme='dark'] .db-user-profile-stat-card,
+:root[data-theme='dark'] .db-user-profile-table {
+  background: rgba(7, 10, 22, 0.58) !important;
+  border-color: var(--dashboard-panel-border-soft) !important;
+}
+
+:root[data-theme='dark'] .db-user-profile-summary-copy p,
+:root[data-theme='dark'] .db-user-profile-card-title p,
+:root[data-theme='dark'] .db-user-profile-twofactor-copy p,
+:root[data-theme='dark'] .db-user-profile-stat-card p,
+:root[data-theme='dark'] .db-user-profile-table-row,
+:root[data-theme='dark'] .db-settings-panel-copy p,
+:root[data-theme='dark'] .db-settings-mode-copy small,
+:root[data-theme='dark'] .db-settings-toggle-copy small,
+:root[data-theme='dark'] .db-settings-check-copy small {
+  color: #aeb8dc !important;
+}
+
+:root[data-theme='dark'] .db-user-profile-summary-meta,
+:root[data-theme='dark'] .db-settings-hero p,
+:root[data-theme='dark'] .db-user-profile-hero p {
+  color: #8fa1df !important;
+}
+
+:root[data-theme='dark'] .db-user-profile-avatar,
+:root[data-theme='dark'] .db-user-profile-card-icon {
+  background:
+    radial-gradient(circle at 30% 20%, rgba(109, 124, 255, 0.2), transparent 58%),
+    rgba(7, 10, 22, 0.7) !important;
+  border-color: rgba(132, 151, 255, 0.28) !important;
+  color: #d9e0ff !important;
+}
+
+:root[data-theme='dark'] .db-user-profile-delete-card {
+  background: linear-gradient(180deg, rgba(65, 23, 34, 0.62), rgba(31, 12, 20, 0.74)) !important;
+}
+
+:root[data-theme='light'] .db-user-profile-action-btn.is-logout {
+  background: rgba(251, 44, 54, 0.08);
+  color: #c84255;
 }

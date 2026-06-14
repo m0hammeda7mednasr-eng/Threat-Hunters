@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ChevronDown,
   DollarSign,
@@ -16,6 +16,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { contentAPI } from '../services/api';
 import './AdminDashboardPage.css';
 import './AdminWebEditPage.css';
 
@@ -68,48 +69,35 @@ const initialContent = {
     ctaButton: 'Get Started Free',
   },
   blog: {
-    title: 'Stay Ahead of Emerging Security Threats',
-    subtitle: 'Editorial insights, incident breakdowns, and practical mitigation guides',
-    description: 'Keep the blog fresh with high-signal analysis that helps teams react faster and build safer systems.',
-    primaryButton: 'Explore Articles',
-    secondaryButton: 'Browse Topics',
-    features: [
-      'Expert-written breakdowns',
-      'Fresh vulnerability coverage',
-      'Curated reading lists',
-      'Actionable response playbooks',
+    title: 'Security Insights & Best Practices',
+    description: '',
+    sectionTitle: 'Featured Articles',
+    postsToDisplay: '3',
+    categories: [
+      'Vulnerability Reports',
+      'Security Best Practices',
+      'Threat Intelligence',
+      'Penetration Testing',
+      'Web Application Security',
+      'API Security',
     ],
-    stats: [
-      { value: '320+', label: 'Published Articles' },
-      { value: '45k+', label: 'Monthly Readers' },
-      { value: '18', label: 'Contributing Experts' },
-      { value: '12', label: 'Featured Categories' },
-    ],
-    ctaTitle: 'Want alerts for every new post?',
-    ctaDescription: 'Subscribe to receive practical security reads directly in your inbox.',
-    ctaButton: 'Subscribe Now',
   },
   awareness: {
-    title: 'Train Teams to Recognize Real-World Threats',
-    subtitle: 'Security awareness content built for modern phishing, malware, and social engineering risks',
-    description: 'Shape educational content that keeps employees alert without overwhelming them.',
-    primaryButton: 'Launch Awareness Hub',
-    secondaryButton: 'Preview Modules',
-    features: [
-      'Phishing readiness guides',
-      'Role-based learning paths',
-      'Downloadable checklists',
-      'Bite-sized video lessons',
+    title: 'Security Awareness Training & Resources',
+    description: '',
+    owasp: [
+      { rank: '01', name: 'Broken Access Control', link: '' },
+      { rank: '02', name: 'Cryptographic Failures', link: '' },
+      { rank: '03', name: 'Injection', link: '' },
+      { rank: '04', name: 'Insecure Design', link: '' },
+      { rank: '05', name: 'Security Misconfiguration', link: '' },
     ],
-    stats: [
-      { value: '90%', label: 'Completion Rate' },
-      { value: '1,200+', label: 'Learners Enrolled' },
-      { value: '64', label: 'Training Modules' },
-      { value: '28', label: 'Interactive Scenarios' },
+    resources: [
+      'Secure Coding Fundamentals',
+      'Penetration Testing Basics',
+      'Web Application Security',
+      'API Security Best Practices',
     ],
-    ctaTitle: 'Make security awareness a weekly habit',
-    ctaDescription: 'Publish concise lessons and downloadable assets that teams actually use.',
-    ctaButton: 'Enable Training',
   },
   tools: {
     title: 'Give Users More Powerful Security Tools',
@@ -135,12 +123,62 @@ const initialContent = {
   },
 };
 
+const WEB_EDITOR_STORAGE_KEY = 'threatHuntersAdminWebContent';
+
+const getInitialEditorContent = () => {
+  try {
+    const saved = window.localStorage.getItem(WEB_EDITOR_STORAGE_KEY);
+    return saved ? { ...initialContent, ...JSON.parse(saved) } : initialContent;
+  } catch {
+    return initialContent;
+  }
+};
+
 function AdminWebEditPage({ onNavigate }) {
   const { theme, toggleTheme } = useTheme();
-  const [selectedPage, setSelectedPage] = useState('home');
-  const [content, setContent] = useState(initialContent);
+  const [selectedPage, setSelectedPage] = useState('blog');
+  const [content, setContent] = useState(getInitialEditorContent);
+  const [saveStatus, setSaveStatus] = useState('');
 
   const pageContent = useMemo(() => content[selectedPage], [content, selectedPage]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadContent = async () => {
+      try {
+        const remoteContent = await contentAPI.getContent();
+        if (isMounted && remoteContent) {
+          setContent((prev) => ({ ...prev, ...remoteContent }));
+        }
+      } catch {
+        // Keep local fallback if the API is offline.
+      }
+    };
+
+    loadContent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(WEB_EDITOR_STORAGE_KEY, JSON.stringify(content));
+    } catch {
+      // Keep editing usable even if browser storage is blocked.
+    }
+  }, [content]);
+
+  const handlePublish = async () => {
+    try {
+      setSaveStatus('Saving to backend...');
+      await contentAPI.updateContent(selectedPage, pageContent);
+      setSaveStatus('Changes saved to backend.');
+    } catch (error) {
+      setSaveStatus(error.message || 'Unable to publish changes.');
+    }
+  };
 
   const updateField = (key, value) => {
     setContent((prev) => ({
@@ -173,6 +211,53 @@ function AdminWebEditPage({ onNavigate }) {
       [selectedPage]: {
         ...prev[selectedPage],
         features: [...prev[selectedPage].features, 'New feature'],
+      },
+    }));
+  };
+
+  const updateListItem = (listKey, index, value) => {
+    setContent((prev) => {
+      const nextItems = [...prev[selectedPage][listKey]];
+      nextItems[index] = value;
+
+      return {
+        ...prev,
+        [selectedPage]: {
+          ...prev[selectedPage],
+          [listKey]: nextItems,
+        },
+      };
+    });
+  };
+
+  const addListItem = (listKey, value) => {
+    setContent((prev) => ({
+      ...prev,
+      [selectedPage]: {
+        ...prev[selectedPage],
+        [listKey]: [...prev[selectedPage][listKey], value],
+      },
+    }));
+  };
+
+  const removeListItem = (listKey, index) => {
+    setContent((prev) => ({
+      ...prev,
+      [selectedPage]: {
+        ...prev[selectedPage],
+        [listKey]: prev[selectedPage][listKey].filter((_, itemIndex) => itemIndex !== index),
+      },
+    }));
+  };
+
+  const updateOwasp = (index, field, value) => {
+    setContent((prev) => ({
+      ...prev,
+      awareness: {
+        ...prev.awareness,
+        owasp: prev.awareness.owasp.map((item, itemIndex) => (
+          itemIndex === index ? { ...item, [field]: value } : item
+        )),
       },
     }));
   };
@@ -300,13 +385,156 @@ function AdminWebEditPage({ onNavigate }) {
                 </select>
               </label>
 
-              <button type="button" className="admin-web-publish-btn">
-                <Plus size={16} />
+              <button type="button" className="admin-web-publish-btn" onClick={handlePublish}>
+                <FileText size={16} />
                 <span>Publish Changes</span>
               </button>
             </div>
           </section>
+          {saveStatus && <div className="admin-web-save-status">{saveStatus}</div>}
 
+          {selectedPage === 'blog' && (
+            <>
+              <section className="admin-web-panel admin-card">
+                <div className="admin-web-panel-head">
+                  <span className="admin-web-panel-icon">
+                    <FileText size={14} />
+                  </span>
+                  <h2>Blog Page Header</h2>
+                </div>
+
+                <div className="admin-web-form-grid">
+                  <label className="admin-web-field admin-web-field-full">
+                    <span>Page Title</span>
+                    <input value={pageContent.title} onChange={(event) => updateField('title', event.target.value)} />
+                  </label>
+
+                  <label className="admin-web-field admin-web-field-full">
+                    <span>Description</span>
+                    <textarea rows={4} value={pageContent.description} onChange={(event) => updateField('description', event.target.value)} />
+                  </label>
+                </div>
+              </section>
+
+              <section className="admin-web-panel admin-card">
+                <div className="admin-web-panel-head admin-web-panel-head-between">
+                  <div className="admin-web-panel-head-main">
+                    <span className="admin-web-panel-icon">
+                      <Sparkles size={14} />
+                    </span>
+                    <h2>Blog Categories</h2>
+                  </div>
+
+                  <button type="button" className="admin-web-mini-btn" onClick={() => addListItem('categories', 'New Category')}>
+                    <Plus size={13} />
+                    <span>Add Category</span>
+                  </button>
+                </div>
+
+                <div className="admin-web-stack">
+                  {pageContent.categories.map((category, index) => (
+                    <div key={`${selectedPage}-category-${category}`} className="admin-web-removable-row">
+                      <input value={category} onChange={(event) => updateListItem('categories', index, event.target.value)} />
+                      <button type="button" onClick={() => removeListItem('categories', index)} aria-label={`Remove ${category}`}>
+                        x
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="admin-web-panel admin-card">
+                <div className="admin-web-panel-head">
+                  <span className="admin-web-panel-icon">
+                    <FileText size={14} />
+                  </span>
+                  <h2>Featured Posts Section</h2>
+                </div>
+
+                <div className="admin-web-form-grid">
+                  <label className="admin-web-field admin-web-field-full">
+                    <span>Section Title</span>
+                    <input value={pageContent.sectionTitle} onChange={(event) => updateField('sectionTitle', event.target.value)} />
+                  </label>
+                  <label className="admin-web-field admin-web-field-full">
+                    <span>Number of Posts to Display</span>
+                    <input value={pageContent.postsToDisplay} onChange={(event) => updateField('postsToDisplay', event.target.value)} />
+                  </label>
+                </div>
+              </section>
+            </>
+          )}
+
+          {selectedPage === 'awareness' && (
+            <>
+              <section className="admin-web-panel admin-card">
+                <div className="admin-web-panel-head">
+                  <span className="admin-web-panel-icon">
+                    <Shield size={14} />
+                  </span>
+                  <h2>Security Awareness Header</h2>
+                </div>
+
+                <div className="admin-web-form-grid">
+                  <label className="admin-web-field admin-web-field-full">
+                    <span>Page Title</span>
+                    <input value={pageContent.title} onChange={(event) => updateField('title', event.target.value)} />
+                  </label>
+                  <label className="admin-web-field admin-web-field-full">
+                    <span>Description</span>
+                    <textarea rows={4} value={pageContent.description} onChange={(event) => updateField('description', event.target.value)} />
+                  </label>
+                </div>
+              </section>
+
+              <section className="admin-web-panel admin-card">
+                <div className="admin-web-panel-head">
+                  <span className="admin-web-panel-icon">
+                    <Shield size={14} />
+                  </span>
+                  <h2>OWASP Top 10 Vulnerabilities</h2>
+                </div>
+
+                <div className="admin-web-stack">
+                  {pageContent.owasp.map((item, index) => (
+                    <div key={item.rank} className="admin-web-owasp-row">
+                      <span>{item.rank}</span>
+                      <input value={item.name} onChange={(event) => updateOwasp(index, 'name', event.target.value)} />
+                      <input value={item.link} onChange={(event) => updateOwasp(index, 'link', event.target.value)} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="admin-web-panel admin-card">
+                <div className="admin-web-panel-head admin-web-panel-head-between">
+                  <div className="admin-web-panel-head-main">
+                    <span className="admin-web-panel-icon">
+                      <FileText size={14} />
+                    </span>
+                    <h2>Training Resources</h2>
+                  </div>
+                  <button type="button" className="admin-web-mini-btn" onClick={() => addListItem('resources', 'New Resource')}>
+                    <Plus size={13} />
+                    <span>Add Resource</span>
+                  </button>
+                </div>
+                <div className="admin-web-stack">
+                  {pageContent.resources.map((resource, index) => (
+                    <div key={`${selectedPage}-resource-${resource}`} className="admin-web-removable-row">
+                      <input value={resource} onChange={(event) => updateListItem('resources', index, event.target.value)} />
+                      <button type="button" onClick={() => removeListItem('resources', index)} aria-label={`Remove ${resource}`}>
+                        x
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
+
+          {(selectedPage === 'home' || selectedPage === 'tools') && (
+            <>
           <section className="admin-web-panel admin-card">
             <div className="admin-web-panel-head">
               <span className="admin-web-panel-icon">
@@ -412,10 +640,12 @@ function AdminWebEditPage({ onNavigate }) {
 
               <label className="admin-web-field admin-web-field-full">
                 <span>Button Text</span>
-                <input value={pageContent.ctaButton} onChange={(event) => updateField('ctaButton', event.target.value)} />
+              <input value={pageContent.ctaButton} onChange={(event) => updateField('ctaButton', event.target.value)} />
               </label>
             </div>
           </section>
+            </>
+          )}
         </main>
       </div>
     </div>

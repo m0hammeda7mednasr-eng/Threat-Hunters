@@ -21,6 +21,8 @@ const AdminSettingsPage = lazy(() => import('./components/AdminSettingsPage'));
 
 const STORAGE_KEYS = Object.freeze({
   loginState: 'isLoggedIn',
+  userRole: 'threatHuntersUserRole',
+  userEmail: 'threatHuntersUserEmail',
 });
 
 const SESSION_KEYS = Object.freeze({
@@ -28,7 +30,8 @@ const SESSION_KEYS = Object.freeze({
 });
 
 const PUBLIC_PAGES = new Set(['home', 'signin', 'signup', 'blog', 'awareness', 'tools']);
-const PRIVATE_PAGES = new Set(['dashboard', 'admin-dashboard', 'admin-team', 'admin-users', 'admin-reports', 'admin-web-edit', 'admin-pricing', 'admin-settings', 'blog', 'awareness', 'tools']);
+const ADMIN_PAGES = new Set(['admin-dashboard', 'admin-team', 'admin-users', 'admin-reports', 'admin-web-edit', 'admin-pricing', 'admin-settings']);
+const PRIVATE_PAGES = new Set(['dashboard', ...ADMIN_PAGES, 'blog', 'awareness', 'tools']);
 const DASHBOARD_SECTIONS = new Set(['dashboard', 'reports', 'settings', 'profile']);
 
 const safeStorage = {
@@ -73,6 +76,8 @@ const safeSessionStorage = {
 };
 
 const getInitialLoginState = () => safeStorage.get(STORAGE_KEYS.loginState) === 'true';
+const getInitialUserRole = () => safeStorage.get(STORAGE_KEYS.userRole) || 'user';
+const getInitialUserEmail = () => safeStorage.get(STORAGE_KEYS.userEmail) || '';
 const getInitialSplashState = () => safeSessionStorage.get(SESSION_KEYS.splashSeen) !== 'true';
 
 const normalizeHash = (hashValue) => {
@@ -148,6 +153,8 @@ const createHash = (page, section = 'dashboard') => {
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(getInitialLoginState);
+  const [userRole, setUserRole] = useState(getInitialUserRole);
+  const [userEmail, setUserEmail] = useState(getInitialUserEmail);
   const [showBootSplash, setShowBootSplash] = useState(getInitialSplashState);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [currentPage, setCurrentPage] = useState(() => parseRouteFromHash(window.location.hash).page);
@@ -157,17 +164,21 @@ function App() {
 
   const routeTransitionKey = useMemo(() => {
     const sectionKey = currentPage === 'dashboard' ? dashboardSection : 'page';
-    return `${isLoggedIn ? 'auth' : 'guest'}-${currentPage}-${sectionKey}`;
-  }, [currentPage, dashboardSection, isLoggedIn]);
+    return `${isLoggedIn ? userRole : 'guest'}-${currentPage}-${sectionKey}`;
+  }, [currentPage, dashboardSection, isLoggedIn, userRole]);
 
   useEffect(() => {
     if (isLoggedIn) {
       safeStorage.set(STORAGE_KEYS.loginState, 'true');
+      safeStorage.set(STORAGE_KEYS.userRole, userRole);
+      safeStorage.set(STORAGE_KEYS.userEmail, userEmail);
       return;
     }
 
     safeStorage.remove(STORAGE_KEYS.loginState);
-  }, [isLoggedIn]);
+    safeStorage.remove(STORAGE_KEYS.userRole);
+    safeStorage.remove(STORAGE_KEYS.userEmail);
+  }, [isLoggedIn, userEmail, userRole]);
 
   useEffect(() => {
     if (!showBootSplash) {
@@ -187,8 +198,9 @@ function App() {
   useEffect(() => {
     const syncRouteFromHash = () => {
       const { page, section } = parseRouteFromHash(window.location.hash);
+      const isAdminPage = ADMIN_PAGES.has(page);
 
-      if ((page === 'dashboard' || page === 'admin-dashboard' || page === 'admin-team' || page === 'admin-users' || page === 'admin-reports' || page === 'admin-web-edit' || page === 'admin-pricing' || page === 'admin-settings') && !isLoggedIn) {
+      if ((page === 'dashboard' || isAdminPage) && !isLoggedIn) {
         setCurrentPage('signin');
         setDashboardSection('dashboard');
 
@@ -199,12 +211,24 @@ function App() {
         return;
       }
 
-      if (page === 'home' && isLoggedIn) {
+      if (isAdminPage && userRole !== 'admin') {
         setCurrentPage('dashboard');
         setDashboardSection('dashboard');
 
         if (window.location.hash !== '#dashboard') {
           window.location.hash = '#dashboard';
+        }
+
+        return;
+      }
+
+      if (page === 'home' && isLoggedIn) {
+        const landingPage = userRole === 'admin' ? 'admin-dashboard' : 'dashboard';
+        setCurrentPage(landingPage);
+        setDashboardSection('dashboard');
+
+        if (window.location.hash !== `#${landingPage}`) {
+          window.location.hash = `#${landingPage}`;
         }
 
         return;
@@ -223,7 +247,7 @@ function App() {
     return () => {
       window.removeEventListener('hashchange', syncRouteFromHash);
     };
-  }, [isLoggedIn]);
+  }, [isLoggedIn, userRole]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
@@ -327,15 +351,22 @@ function App() {
     };
   }, [routeTransitionKey]);
 
-  const handleLogin = useCallback(() => {
+  const handleLogin = useCallback((account = {}) => {
+    const nextRole = account.role === 'admin' ? 'admin' : 'user';
+    const nextPage = nextRole === 'admin' ? 'admin-dashboard' : 'dashboard';
+
     setIsLoggedIn(true);
-    setCurrentPage('dashboard');
+    setUserRole(nextRole);
+    setUserEmail(account.email || '');
+    setCurrentPage(nextPage);
     setDashboardSection('dashboard');
-    window.location.hash = '#dashboard';
+    window.location.hash = `#${nextPage}`;
   }, []);
 
   const handleLogout = useCallback(() => {
     setIsLoggedIn(false);
+    setUserRole('user');
+    setUserEmail('');
     setCurrentPage('home');
     setDashboardSection('dashboard');
     window.location.hash = '#home';
@@ -374,87 +405,16 @@ function App() {
         return;
       }
 
-      if (page === 'admin-dashboard') {
-        if (!isLoggedIn) {
+      if (ADMIN_PAGES.has(page)) {
+        if (!isLoggedIn || userRole !== 'admin') {
           setCurrentPage('signin');
           window.location.hash = '#signin';
           return;
         }
 
-        setCurrentPage('admin-dashboard');
-        window.location.hash = '#admin-dashboard';
-        return;
-      }
-
-      if (page === 'admin-team') {
-        if (!isLoggedIn) {
-          setCurrentPage('signin');
-          window.location.hash = '#signin';
-          return;
-        }
-
-        setCurrentPage('admin-team');
-        window.location.hash = '#admin-team';
-        return;
-      }
-
-      if (page === 'admin-users') {
-        if (!isLoggedIn) {
-          setCurrentPage('signin');
-          window.location.hash = '#signin';
-          return;
-        }
-
-        setCurrentPage('admin-users');
-        window.location.hash = '#admin-users';
-        return;
-      }
-
-      if (page === 'admin-reports') {
-        if (!isLoggedIn) {
-          setCurrentPage('signin');
-          window.location.hash = '#signin';
-          return;
-        }
-
-        setCurrentPage('admin-reports');
-        window.location.hash = '#admin-reports';
-        return;
-      }
-
-      if (page === 'admin-web-edit') {
-        if (!isLoggedIn) {
-          setCurrentPage('signin');
-          window.location.hash = '#signin';
-          return;
-        }
-
-        setCurrentPage('admin-web-edit');
-        window.location.hash = '#admin-web-edit';
-        return;
-      }
-
-      if (page === 'admin-pricing') {
-        if (!isLoggedIn) {
-          setCurrentPage('signin');
-          window.location.hash = '#signin';
-          return;
-        }
-
-        setCurrentPage('admin-pricing');
-        window.location.hash = '#admin-pricing';
-        return;
-      }
-
-      if (page === 'admin-settings') {
-        if (!isLoggedIn) {
-          setCurrentPage('signin');
-          window.location.hash = '#signin';
-          return;
-        }
-
-        setCurrentPage('admin-settings');
-        window.location.hash = '#admin-settings';
+        setCurrentPage(page);
+        setDashboardSection('dashboard');
+        window.location.hash = createHash(page);
         return;
       }
 
@@ -475,7 +435,7 @@ function App() {
       setCurrentPage(nextPage);
       window.location.hash = createHash(nextPage);
     },
-    [handleLogout, isLoggedIn],
+    [handleLogout, isLoggedIn, userRole],
   );
 
   const publicNavigationProps = useMemo(
@@ -519,10 +479,7 @@ function App() {
           )}
 
           {currentPage === 'admin-dashboard' && isLoggedIn && (
-            <>
-              <AdminDashboardPage onNavigate={handleNavigation} />
-              <Footer />
-            </>
+            <AdminDashboardPage onNavigate={handleNavigation} />
           )}
 
           {currentPage === 'admin-team' && isLoggedIn && (
@@ -570,7 +527,7 @@ function App() {
           {isLoggedIn && currentPage === 'blog' && (
             <div className="logged-in-page">
               <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
-              <BlogPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn />
+              <BlogPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn userRole={userRole} />
               <Footer />
             </div>
           )}
@@ -612,7 +569,7 @@ function App() {
           )}
 
           {!isLoggedIn && currentPage === 'blog' && (
-            <BlogPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn={false} />
+            <BlogPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn={false} userRole="guest" />
           )}
 
           {!isLoggedIn && currentPage === 'awareness' && (

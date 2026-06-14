@@ -16,6 +16,7 @@ import {
   FileText,
   KeyRound,
   LayoutDashboard,
+  LogOut,
   Mail,
   MoreVertical,
   Pencil,
@@ -445,6 +446,19 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
   });
   const [reportSearchQuery, setReportSearchQuery] = useState('');
   const [profileTwoFactorEnabled, setProfileTwoFactorEnabled] = useState(true);
+  const [profileForm, setProfileForm] = useState({
+    username: 'Tyler_Durden_Pentest',
+    email: 'Tyler_Durden@Gmail.com',
+    phone: '+1 (555) 123-4567',
+    lastLogin: 'December 9,2025 - 9:10 PM',
+    bio: 'Experienced security analyst specializing in web vulnerability assessment and penetration testing. Passionate about identifying and mitigating security risks.',
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    current: '',
+    next: '',
+    confirm: '',
+  });
+  const [profileNotice, setProfileNotice] = useState('');
   const [scanMode, setScanMode] = useState('quick');
   const [notificationPrefs, setNotificationPrefs] = useState({
     completion: true,
@@ -523,6 +537,31 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
 
   const toggleReportPref = (key) => {
     setReportPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const updateProfileForm = (key, value) => {
+    setProfileForm((prev) => ({ ...prev, [key]: value }));
+    setProfileNotice('Profile changes saved for this demo session.');
+  };
+
+  const updatePasswordForm = (key, value) => {
+    setPasswordForm((prev) => ({ ...prev, [key]: value }));
+    setProfileNotice('');
+  };
+
+  const handlePasswordUpdate = () => {
+    if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
+      setProfileNotice('Fill all password fields first.');
+      return;
+    }
+
+    if (passwordForm.next !== passwordForm.confirm) {
+      setProfileNotice('New passwords do not match.');
+      return;
+    }
+
+    setPasswordForm({ current: '', next: '', confirm: '' });
+    setProfileNotice('Password updated for this demo session.');
   };
 
   const renderAdvancedScanModal = () => (
@@ -1418,6 +1457,10 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
             <Pencil size={13} />
             Edit Profile
           </button>
+          <button type="button" className="db-user-profile-action-btn is-logout" onClick={() => onNavigate('home')}>
+            <LogOut size={14} />
+            Log Out
+          </button>
         </div>
       </section>
 
@@ -1442,30 +1485,47 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
         <div className="db-user-profile-info-grid">
           <label className="db-user-profile-field">
             <span>Username</span>
-            <input className="db-user-profile-input" value="Tyler_Durden_Pentest" readOnly />
+            <input
+              className="db-user-profile-input"
+              value={profileForm.username}
+              onChange={(event) => updateProfileForm('username', event.target.value)}
+            />
           </label>
 
           <label className="db-user-profile-field">
             <span>Email Address</span>
-            <input className="db-user-profile-input" value="Tyler_Durden@Gmail.com" readOnly />
+            <input
+              className="db-user-profile-input"
+              type="email"
+              value={profileForm.email}
+              onChange={(event) => updateProfileForm('email', event.target.value)}
+            />
           </label>
 
           <label className="db-user-profile-field">
             <span>Phone Number</span>
-            <input className="db-user-profile-input" value="+1 (555) 123-4567" readOnly />
+            <input
+              className="db-user-profile-input"
+              value={profileForm.phone}
+              onChange={(event) => updateProfileForm('phone', event.target.value)}
+            />
           </label>
 
           <label className="db-user-profile-field">
             <span>Last Login</span>
-            <input className="db-user-profile-input" value="December 9,2025 - 9:10 PM" readOnly />
+            <input
+              className="db-user-profile-input"
+              value={profileForm.lastLogin}
+              onChange={(event) => updateProfileForm('lastLogin', event.target.value)}
+            />
           </label>
 
           <label className="db-user-profile-field full">
             <span>Bio</span>
             <textarea
               className="db-user-profile-input db-user-profile-textarea"
-              value="Experienced security analyst specializing in web vulnerability assessment and penetration testing. Passionate about identifying and mitigating security risks."
-              readOnly
+              value={profileForm.bio}
+              onChange={(event) => updateProfileForm('bio', event.target.value)}
             />
           </label>
         </div>
@@ -1493,21 +1553,42 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           <div className="db-user-profile-password-grid">
             <label className="db-user-profile-field">
               <span>Current Password</span>
-              <input className="db-user-profile-input" type="password" placeholder="Enter Current Password" readOnly />
+              <input
+                className="db-user-profile-input"
+                type="password"
+                placeholder="Enter Current Password"
+                value={passwordForm.current}
+                onChange={(event) => updatePasswordForm('current', event.target.value)}
+              />
             </label>
 
             <label className="db-user-profile-field">
               <span>New Password</span>
-              <input className="db-user-profile-input" type="password" placeholder="Enter New Password" readOnly />
+              <input
+                className="db-user-profile-input"
+                type="password"
+                placeholder="Enter New Password"
+                value={passwordForm.next}
+                onChange={(event) => updatePasswordForm('next', event.target.value)}
+              />
             </label>
 
             <label className="db-user-profile-field full">
               <span>Confirm New Password</span>
-              <input className="db-user-profile-input" type="password" placeholder="Confirm new Password" readOnly />
+              <input
+                className="db-user-profile-input"
+                type="password"
+                placeholder="Confirm new Password"
+                value={passwordForm.confirm}
+                onChange={(event) => updatePasswordForm('confirm', event.target.value)}
+              />
             </label>
           </div>
 
-          <button type="button" className="db-user-profile-action-btn primary">Update Password</button>
+          <button type="button" className="db-user-profile-action-btn primary" onClick={handlePasswordUpdate}>
+            Update Password
+          </button>
+          {profileNotice && <p className="db-user-profile-form-note">{profileNotice}</p>}
         </article>
 
         <article className="db-user-profile-twofactor-card">
@@ -1566,6 +1647,23 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="db-user-profile-card db-user-profile-logout-card">
+        <div className="db-user-profile-card-title">
+          <span className="db-user-profile-card-icon">
+            <LogOut size={34} />
+          </span>
+          <div>
+            <h2>Account Session</h2>
+            <p>End this session and return to the public website</p>
+          </div>
+        </div>
+
+        <button type="button" className="db-user-profile-action-btn is-logout primary-logout" onClick={() => onNavigate('home')}>
+          <LogOut size={14} />
+          Log Out
+        </button>
       </section>
 
       <section className="db-user-profile-delete-card">

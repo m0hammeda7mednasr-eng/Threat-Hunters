@@ -1,3 +1,4 @@
+/* global process */
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -19,7 +20,7 @@ const previewSecurityHeaders = {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data:",
     "font-src 'self' data: https://fonts.gstatic.com",
-    "connect-src 'self'",
+    "connect-src 'self' http://localhost:5000",
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'",
@@ -33,9 +34,17 @@ const isGithubPagesBuild = process.env.GITHUB_ACTIONS === "true";
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   // Use a sub-path only for GitHub Pages builds; keep root paths for Vercel and local runs.
-  base: command === "serve" ? "/" : isGithubPagesBuild ? "/Threat-Hunters/" : "/",
+  base:
+    command === "serve" ? "/" : isGithubPagesBuild ? "/Threat-Hunters/" : "/",
   server: {
     headers: baseSecurityHeaders,
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   preview: {
     headers: previewSecurityHeaders,

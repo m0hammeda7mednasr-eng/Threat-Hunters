@@ -1,7 +1,7 @@
 .admin-team-page {
   min-height: 100vh;
-  background: var(--page-gradient);
-  color: var(--text-primary);
+  background: var(--admin-bg);
+  color: #f8f9ff;
 }
 
 .admin-team-main {

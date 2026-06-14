@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import {
   BookOpen,
   Bot,
@@ -225,7 +225,40 @@ const SecurityAwarenessPage = ({
   onNavigateToTools,
   isLoggedIn,
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
   const badgeTrack = [...knowledgeBadges, ...knowledgeBadges];
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const itemMatchesSearch = useCallback(
+    (fields) => !normalizedSearch || fields.join(' ').toLowerCase().includes(normalizedSearch),
+    [normalizedSearch],
+  );
+
+  const filteredSecurityTips = useMemo(
+    () => securityTips.filter((tip) => itemMatchesSearch([tip.title, tip.description])),
+    [itemMatchesSearch],
+  );
+  const filteredCyberThreats = useMemo(
+    () =>
+      cyberThreats.filter((threat) =>
+        itemMatchesSearch([threat.title, threat.description, threat.badge, ...threat.howToAvoid]),
+      ),
+    [itemMatchesSearch],
+  );
+  const filteredLearningResources = useMemo(
+    () =>
+      learningResources.filter((resource) =>
+        itemMatchesSearch([resource.type, resource.topic, resource.title, resource.description]),
+      ),
+    [itemMatchesSearch],
+  );
+  const filteredDownloadableResources = useMemo(
+    () =>
+      downloadableResources.filter((resource) =>
+        itemMatchesSearch([resource.title, resource.description, resource.fileMeta]),
+      ),
+    [itemMatchesSearch],
+  );
 
   return (
     <div className="security-awareness-page">
@@ -250,7 +283,12 @@ const SecurityAwarenessPage = ({
           </p>
           <label className="awareness-hero__search" aria-label="Search for security topics">
             <Search strokeWidth={2} />
-            <input type="text" placeholder="Search for security topics..." />
+            <input
+              type="text"
+              placeholder="Search for security topics..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
           </label>
         </div>
       </section>
@@ -265,7 +303,7 @@ const SecurityAwarenessPage = ({
           </header>
 
           <div className="tips-grid">
-            {securityTips.map((tip) => {
+            {filteredSecurityTips.map((tip) => {
               const Icon = tip.icon;
 
               return (
@@ -278,6 +316,9 @@ const SecurityAwarenessPage = ({
                 </article>
               );
             })}
+            {!filteredSecurityTips.length && (
+              <div className="awareness-empty-state">No security tips match this search.</div>
+            )}
           </div>
         </div>
       </section>
@@ -330,7 +371,7 @@ const SecurityAwarenessPage = ({
           </header>
 
           <div className="threats-grid">
-            {cyberThreats.map((threat) => {
+            {filteredCyberThreats.map((threat) => {
               const Icon = threat.icon;
 
               return (
@@ -359,6 +400,9 @@ const SecurityAwarenessPage = ({
                 </article>
               );
             })}
+            {!filteredCyberThreats.length && (
+              <div className="awareness-empty-state">No cyber threats match this search.</div>
+            )}
           </div>
         </div>
       </section>
@@ -373,7 +417,7 @@ const SecurityAwarenessPage = ({
           </header>
 
           <div className="resources-grid">
-            {learningResources.map((resource) => {
+            {filteredLearningResources.map((resource) => {
               const Icon = resource.icon;
 
               return (
@@ -410,6 +454,9 @@ const SecurityAwarenessPage = ({
                 </article>
               );
             })}
+            {!filteredLearningResources.length && (
+              <div className="awareness-empty-state">No learning resources match this search.</div>
+            )}
           </div>
 
           <section className="downloads-panel">
@@ -424,7 +471,7 @@ const SecurityAwarenessPage = ({
             </header>
 
             <div className="downloads-grid">
-              {downloadableResources.map((resource) => (
+              {filteredDownloadableResources.map((resource) => (
                 <article key={resource.id} className="download-card">
                   <div className="download-card__content">
                     <div className="download-card__heading-row">
@@ -442,6 +489,9 @@ const SecurityAwarenessPage = ({
                   </div>
                 </article>
               ))}
+              {!filteredDownloadableResources.length && (
+                <div className="awareness-empty-state">No downloads match this search.</div>
+              )}
             </div>
           </section>
         </div>
