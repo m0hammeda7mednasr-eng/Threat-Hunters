@@ -340,3 +340,146 @@ def get_blog_by_id(blog_id, current_user):
         return jsonify({
             "message": "Invalid blog id"
         }), 400
+    
+def update_blog(blog_id, data, current_user):
+
+    try:
+
+        blog = mongo.db.blogs.find_one({
+            "_id": ObjectId(blog_id)
+        })
+
+        if not blog:
+
+            return jsonify({
+                "message": "Blog not found"
+            }), 404
+
+        is_author = (
+            blog.get("author_id")
+            ==
+            str(current_user["_id"])
+        )
+
+        is_admin = (
+            current_user.get("role")
+            ==
+            "admin"
+        )
+
+        if not is_author and not is_admin:
+
+            return jsonify({
+                "message": "Unauthorized"
+            }), 403
+
+        update_data = {}
+
+        if "title" in data:
+
+            new_slug = generate_slug(
+                data["title"]
+            )
+
+            existing_blog = mongo.db.blogs.find_one({
+                "slug": new_slug,
+                "_id": {
+                    "$ne": ObjectId(blog_id)
+                }
+            })
+
+            if existing_blog:
+
+                return jsonify({
+                    "message": "Blog with similar title already exists"
+                }), 400
+
+            update_data["title"] = data["title"].strip()
+            update_data["slug"] = new_slug
+
+        if "content" in data:
+
+            update_data["content"] = data["content"].strip()
+
+        if "category" in data:
+
+            update_data["category"] = data["category"].strip()
+
+        update_data["updatedAt"] = datetime.utcnow()
+
+        mongo.db.blogs.update_one(
+            {
+                "_id": ObjectId(blog_id)
+            },
+            {
+                "$set": update_data
+            }
+        )
+
+        return jsonify({
+            "message": "Blog updated successfully"
+        }), 200
+
+    except Exception:
+
+        return jsonify({
+            "message": "Invalid blog id"
+        }), 400
+
+def delete_blog(blog_id, current_user):
+
+    try:
+
+        blog = mongo.db.blogs.find_one({
+            "_id": ObjectId(blog_id)
+        })
+
+        if not blog:
+
+            return jsonify({
+                "message": "Blog not found"
+            }), 404
+
+        is_author = (
+            blog.get("author_id")
+            ==
+            str(current_user["_id"])
+        )
+
+        is_admin = (
+            current_user.get("role")
+            ==
+            "admin"
+        )
+
+        if not is_author and not is_admin:
+
+            return jsonify({
+                "message": "Unauthorized"
+            }), 403
+
+        mongo.db.comments.delete_many({
+            "blog_id": blog_id
+        })
+
+        mongo.db.likes.delete_many({
+            "blog_id": blog_id
+        })
+
+        mongo.db.blog_views.delete_many({
+            "blog_id": blog_id
+        })
+
+        mongo.db.blogs.delete_one({
+            "_id": ObjectId(blog_id)
+        })
+
+        return jsonify({
+            "message": "Blog deleted successfully"
+        }), 200
+
+    except Exception:
+
+        return jsonify({
+            "message": "Invalid blog id"
+        }), 400

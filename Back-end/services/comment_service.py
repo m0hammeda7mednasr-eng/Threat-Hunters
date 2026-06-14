@@ -116,3 +116,128 @@ def get_comments(blog_id):
         comment["replies"] = replies_map.get(comment["id"], [])
 
     return jsonify(comments), 200
+    return jsonify(comments), 200
+
+def update_comment(comment_id, current_user, data):
+
+    try:
+
+        comment = mongo.db.comments.find_one({
+            "_id": ObjectId(comment_id)
+        })
+
+        if not comment:
+
+            return jsonify({
+                "message": "Comment not found"
+            }), 404
+
+        is_owner = (
+            comment.get("user_id")
+            ==
+            str(current_user["_id"])
+        )
+
+        is_admin = (
+            current_user.get("role")
+            ==
+            "admin"
+        )
+
+        if not is_owner and not is_admin:
+
+            return jsonify({
+                "message": "Unauthorized"
+            }), 403
+
+        content = data.get(
+            "content",
+            ""
+        ).strip()
+
+        if not content:
+
+            return jsonify({
+                "message": "Comment content is required"
+            }), 400
+
+        mongo.db.comments.update_one(
+            {
+                "_id": ObjectId(comment_id)
+            },
+            {
+                "$set": {
+                    "content": content,
+                    "updatedAt": datetime.utcnow()
+                }
+            }
+        )
+
+        return jsonify({
+            "message": "Comment updated successfully"
+        }), 200
+
+    except Exception:
+
+        return jsonify({
+            "message": "Invalid comment id"
+        }), 400
+    
+def delete_comment(comment_id, current_user):
+
+    try:
+
+        comment = mongo.db.comments.find_one({
+            "_id": ObjectId(comment_id)
+        })
+
+        if not comment:
+
+            return jsonify({
+                "message": "Comment not found"
+            }), 404
+
+        is_owner = (
+            comment.get("user_id")
+            ==
+            str(current_user["_id"])
+        )
+
+        is_admin = (
+            current_user.get("role")
+            ==
+            "admin"
+        )
+
+        if not is_owner and not is_admin:
+
+            return jsonify({
+                "message": "Unauthorized"
+            }), 403
+
+        mongo.db.comments.delete_one({
+            "_id": ObjectId(comment_id)
+        })
+
+        mongo.db.blogs.update_one(
+            {
+                "_id": ObjectId(
+                    comment["blog_id"]
+                )
+            },
+            {
+                "$inc": {
+                    "comments_count": -1
+                }
+            }
+        )
+
+        return jsonify({
+            "message": "Comment deleted successfully"
+        }), 200
+
+    except Exception:
+
+        return jsonify({
+            "message": "Invalid comment id"
+        }), 400

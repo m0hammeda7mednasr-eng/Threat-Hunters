@@ -66,6 +66,7 @@ def edit_blog(blog_id):
 @blog_bp.route("/blogs/<blog_id>", methods=["DELETE"])
 @token_required
 def remove_blog(blog_id):
+
     return delete_blog(
         blog_id,
         request.current_user

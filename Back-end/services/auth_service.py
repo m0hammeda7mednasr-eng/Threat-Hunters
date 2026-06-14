@@ -346,3 +346,144 @@ def verify_email(data):
     return jsonify({
         "message": "Email verified successfully"
     }), 200
+
+def forgot_password(data):
+
+    email = data.get(
+        "email",
+        ""
+    ).strip().lower()
+
+    if not email:
+
+        return jsonify({
+            "message": "Email is required"
+        }), 400
+
+    user = mongo.db.users.find_one({
+        "email": email
+    })
+
+    if not user:
+
+        return jsonify({
+            "message": "User not found"
+        }), 404
+
+    reset_code = generate_otp()
+
+    mongo.db.users.update_one(
+        {
+            "_id": user["_id"]
+        },
+        {
+            "$set": {
+
+                "reset_code":
+                reset_code,
+
+                "reset_expires":
+                datetime.datetime.utcnow()
+                +
+                datetime.timedelta(
+                    minutes=10
+                )
+            }
+        }
+    )
+
+    send_email(
+        email,
+        "Threat Hunters Password Reset",
+        f"Your password reset code is: {reset_code}"
+    )
+
+    return jsonify({
+        "message":
+        "Password reset code sent"
+    }), 200
+
+def reset_password(data):
+
+    email = data.get(
+        "email",
+        ""
+    ).strip().lower()
+
+    code = data.get(
+        "code",
+        ""
+    ).strip()
+
+    new_password = data.get(
+        "new_password",
+        ""
+    )
+
+    if not email or not code or not new_password:
+
+        return jsonify({
+            "message": "Missing fields"
+        }), 400
+
+    user = mongo.db.users.find_one({
+        "email": email
+    })
+
+    if not user:
+
+        return jsonify({
+            "message": "User not found"
+        }), 404
+
+    if code != user.get(
+        "reset_code"
+    ):
+
+        return jsonify({
+            "message": "Invalid reset code"
+        }), 400
+
+    if (
+        user.get("reset_expires")
+        and
+        user["reset_expires"]
+        < datetime.datetime.utcnow()
+    ):
+
+        return jsonify({
+            "message": "Reset code expired"
+        }), 400
+
+    password_error = validate_password(
+        new_password
+    )
+
+    if password_error:
+
+        return jsonify({
+            "message": password_error
+        }), 400
+
+    hashed_password = hash_password(
+        new_password
+    )
+
+    mongo.db.users.update_one(
+        {
+            "_id": user["_id"]
+        },
+        {
+            "$set": {
+                "password": hashed_password
+            },
+            "$unset": {
+                "reset_code": "",
+                "reset_expires": ""
+            }
+        }
+    )
+
+    return jsonify({
+        "message": "Password updated successfully"
+    }), 200
