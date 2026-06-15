@@ -90,6 +90,7 @@ def reply_comment(blog_id, parent_comment_id, user_id, username, data):
         "user_id": str(user_id),
         "author_name": username,
         "content": content,
+        "parentCommentId": parent_comment_id,
         "parent_comment_id": parent_comment_id,
         "createdAt": _utcnow(),
     }
@@ -130,7 +131,28 @@ def get_comments(blog_id):
             comments.append(serialized)
 
     for comment in comments:
-        comment["replies"] = replies_map.get(comment["id"], [])
+        embedded_replies = []
+        for reply in mongo.db.comments.find({
+            "blog_id": blog_id,
+            "parent_comment_id": comment["id"],
+        }).sort("createdAt", -1):
+            embedded_replies.append({
+                "id": str(reply["_id"]),
+                "author": reply["author_name"],
+                "content": reply["content"],
+                "createdAt": reply["createdAt"],
+            })
+
+        combined_replies = replies_map.get(comment["id"], []) + embedded_replies
+        deduped_replies = []
+        seen_reply_ids = set()
+        for reply in combined_replies:
+            if reply["id"] in seen_reply_ids:
+                continue
+            seen_reply_ids.add(reply["id"])
+            deduped_replies.append(reply)
+
+        comment["replies"] = deduped_replies
 
     return jsonify(comments), 200
 

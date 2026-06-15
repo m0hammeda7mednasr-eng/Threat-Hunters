@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BookOpen,
   Bot,
@@ -24,6 +24,7 @@ import {
 import './SecurityAwarenessPage.css';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import { securityAPI } from '../services/api';
 
 const securityTips = [
   {
@@ -218,6 +219,15 @@ const downloadableResources = [
   },
 ];
 
+const normalizeList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload?.vulnerabilities)) return payload.vulnerabilities;
+  if (Array.isArray(payload?.news)) return payload.news;
+  return [];
+};
+
 const SecurityAwarenessPage = ({
   onNavigateToSignUp,
   onNavigateToHome,
@@ -226,6 +236,15 @@ const SecurityAwarenessPage = ({
   isLoggedIn,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [liveFeed, setLiveFeed] = useState({
+    latestCves: [],
+    criticalCves: [],
+    kev: [],
+    news: [],
+  });
+  const [liveLoading, setLiveLoading] = useState(true);
+  const [liveError, setLiveError] = useState('');
+  const [liveUpdatedAt, setLiveUpdatedAt] = useState('');
   const badgeTrack = [...knowledgeBadges, ...knowledgeBadges];
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
@@ -260,6 +279,51 @@ const SecurityAwarenessPage = ({
     [itemMatchesSearch],
   );
 
+  const loadLiveFeed = useCallback(async () => {
+    setLiveLoading(true);
+    setLiveError('');
+
+    const [latestResult, criticalResult, kevResult, newsResult] = await Promise.allSettled([
+      securityAPI.getLatestCVEs(),
+      securityAPI.getCriticalCVEs(),
+      securityAPI.getKEV(),
+      securityAPI.getSecurityNews(),
+    ]);
+
+    const nextFeed = {
+      latestCves: latestResult.status === 'fulfilled' ? normalizeList(latestResult.value) : [],
+      criticalCves: criticalResult.status === 'fulfilled' ? normalizeList(criticalResult.value) : [],
+      kev: kevResult.status === 'fulfilled' ? normalizeList(kevResult.value) : [],
+      news: newsResult.status === 'fulfilled' ? normalizeList(newsResult.value) : [],
+    };
+
+    const failedFeeds = [];
+    if (latestResult.status === 'rejected') failedFeeds.push('latest CVEs');
+    if (criticalResult.status === 'rejected') failedFeeds.push('critical CVEs');
+    if (kevResult.status === 'rejected') failedFeeds.push('KEV');
+    if (newsResult.status === 'rejected') failedFeeds.push('security news');
+
+    setLiveFeed(nextFeed);
+    setLiveUpdatedAt(new Date().toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }));
+    setLiveError(
+      failedFeeds.length
+        ? `Some live security feeds failed to load: ${failedFeeds.join(', ')}.`
+        : '',
+    );
+    setLiveLoading(false);
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadLiveFeed();
+    });
+  }, [loadLiveFeed]);
+
   return (
     <div className="security-awareness-page">
       {!isLoggedIn && (
@@ -290,6 +354,113 @@ const SecurityAwarenessPage = ({
               onChange={(event) => setSearchQuery(event.target.value)}
             />
           </label>
+        </div>
+      </section>
+
+      <section className="awareness-section awareness-section--live">
+        <div className="awareness-shell">
+          <header className="awareness-live__header">
+            <div>
+              <p className="awareness-live__eyebrow">Live Security Intelligence</p>
+              <h2 className="awareness-section__title">API-backed threat feed</h2>
+              <p className="awareness-section__subtitle">
+                Pulled live from NVD, CISA KEV, and security news endpoints.
+              </p>
+            </div>
+
+            <div className="awareness-live__actions">
+              <span className="awareness-live__status">
+                {liveLoading ? 'Refreshing feed...' : `Updated ${liveUpdatedAt || 'just now'}`}
+              </span>
+              <button type="button" className="awareness-live__refresh" onClick={loadLiveFeed} disabled={liveLoading}>
+                {liveLoading ? 'Loading...' : 'Refresh feed'}
+              </button>
+            </div>
+          </header>
+
+          {liveError && <div className="awareness-empty-state awareness-empty-state--live">{liveError}</div>}
+
+          <div className="awareness-live-grid">
+            <article className="awareness-live-card">
+              <div className="awareness-live-card__header">
+                <span>Latest CVEs</span>
+                <span className="awareness-live-card__count">{liveFeed.latestCves.length}</span>
+              </div>
+              <ul className="awareness-live-card__list">
+                {liveLoading && !liveFeed.latestCves.length ? (
+                  <li className="awareness-live-card__placeholder">Loading latest CVEs...</li>
+                ) : (
+                  liveFeed.latestCves.slice(0, 4).map((item, index) => (
+                    <li key={`${item.id || item.cve || index}`} className="awareness-live-card__item">
+                      <strong>{item.id || item.cve || item.cve_id || 'Unknown CVE'}</strong>
+                      <span>{item.severity || item.score ? `${item.severity || 'Unknown'}${item.score ? ` | ${item.score}` : ''}` : 'Unrated'}</span>
+                      <p>{item.description || item.short_description || 'No description provided.'}</p>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </article>
+
+            <article className="awareness-live-card">
+              <div className="awareness-live-card__header">
+                <span>Critical CVEs</span>
+                <span className="awareness-live-card__count">{liveFeed.criticalCves.length}</span>
+              </div>
+              <ul className="awareness-live-card__list">
+                {liveLoading && !liveFeed.criticalCves.length ? (
+                  <li className="awareness-live-card__placeholder">Loading critical CVEs...</li>
+                ) : (
+                  liveFeed.criticalCves.slice(0, 4).map((item, index) => (
+                    <li key={`${item.id || item.cve || item.cve_id || index}`} className="awareness-live-card__item">
+                      <strong>{item.id || item.cve || item.cve_id || 'Unknown CVE'}</strong>
+                      <span>{item.component || item.category || item.score ? `${item.component || item.category || 'High priority'}${item.score ? ` | ${item.score}` : ''}` : 'Critical priority'}</span>
+                      <p>{item.description || item.short_description || 'Immediate review recommended.'}</p>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </article>
+
+            <article className="awareness-live-card">
+              <div className="awareness-live-card__header">
+                <span>Known Exploited</span>
+                <span className="awareness-live-card__count">{liveFeed.kev.length}</span>
+              </div>
+              <ul className="awareness-live-card__list">
+                {liveLoading && !liveFeed.kev.length ? (
+                  <li className="awareness-live-card__placeholder">Loading KEV list...</li>
+                ) : (
+                  liveFeed.kev.slice(0, 4).map((item, index) => (
+                    <li key={`${item.id || item.cveID || item.cve_id || index}`} className="awareness-live-card__item">
+                      <strong>{item.id || item.cveID || item.cve_id || 'Unknown CVE'}</strong>
+                      <span>{item.dueDate || item.due_date || 'No due date'}</span>
+                      <p>{item.status || item.required_action || item.short_description || 'Exploited vulnerability tracked by CISA.'}</p>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </article>
+
+            <article className="awareness-live-card">
+              <div className="awareness-live-card__header">
+                <span>Security News</span>
+                <span className="awareness-live-card__count">{liveFeed.news.length}</span>
+              </div>
+              <ul className="awareness-live-card__list">
+                {liveLoading && !liveFeed.news.length ? (
+                  <li className="awareness-live-card__placeholder">Loading security news...</li>
+                ) : (
+                  liveFeed.news.slice(0, 4).map((item, index) => (
+                    <li key={`${item.id || item.title || index}`} className="awareness-live-card__item">
+                      <strong>{item.title || item.headline || 'Untitled update'}</strong>
+                      <span>{item.source || item.publisher || 'Security feed'}</span>
+                      <p>{item.summary || item.description || item.short_description || 'Fresh threat intelligence update.'}</p>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </article>
+          </div>
         </div>
       </section>
 

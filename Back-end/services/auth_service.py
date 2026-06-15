@@ -403,7 +403,7 @@ def request_password_reset(data):
     )
 
     return jsonify({
-        "message": "Password reset token prepared",
+        "message": "Password reset OTP prepared",
         "email": email,
         "resetToken": token,
         "resetCode": reset_code
@@ -423,7 +423,7 @@ def reset_password(data):
 
     if not email or not new_password or (not token and not code):
         return jsonify({
-            "message": "Email, reset code, and new password are required"
+            "message": "Email, OTP, and new password are required"
         }), 400
 
     password_error = validate_password(new_password)
@@ -463,7 +463,7 @@ def reset_password(data):
 
     if not token_valid and not legacy_valid:
         return jsonify({
-            "message": "Invalid or expired reset token"
+            "message": "Invalid or expired OTP"
         }), 400
 
     mongo.db.users.update_one(

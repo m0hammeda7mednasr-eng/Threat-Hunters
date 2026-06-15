@@ -458,6 +458,12 @@
   line-height: 1.35;
 }
 
+.admin-empty-state {
+  padding: 18px 20px;
+  color: var(--admin-blue);
+  font-size: 0.95rem;
+}
+
 .admin-action-card {
   min-height: 166px;
   padding: 24px;

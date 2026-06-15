@@ -475,7 +475,13 @@ const BlogPage = ({
       await blogAPI.addComment(selectedPostId, { content: commentDraft.trim() });
       setCommentDraft("");
       await loadPostDetail(selectedPostId);
-      await loadPosts(selectedPostId);
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === selectedPostId
+            ? { ...post, comments_count: Number(post.comments_count || 0) + 1 }
+            : post,
+        ),
+      );
     } catch (err) {
       setError(err.message || "Unable to add comment.");
     }
@@ -493,7 +499,13 @@ const BlogPage = ({
       await blogAPI.addReply(selectedPostId, commentId, { content: text });
       setReplyDrafts((current) => ({ ...current, [key]: "" }));
       await loadPostDetail(selectedPostId);
-      await loadPosts(selectedPostId);
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === selectedPostId
+            ? { ...post, comments_count: Number(post.comments_count || 0) + 1 }
+            : post,
+        ),
+      );
     } catch (err) {
       setError(err.message || "Unable to add reply.");
     }
@@ -979,7 +991,11 @@ const BlogPage = ({
                       <button
                         type="button"
                         className="blog-comments__button"
-                        onClick={handleCommentSubmit}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleCommentSubmit();
+                        }}
                         disabled={!isLoggedIn || !selectedPostId}
                       >
                         Post Comment
@@ -1027,7 +1043,11 @@ const BlogPage = ({
                               <button
                                 type="button"
                                 className="blog-comment__reply-button"
-                                onClick={() => handleReplySubmit(comment.id)}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  handleReplySubmit(comment.id);
+                                }}
                                 disabled={!isLoggedIn || !selectedPostId}
                               >
                                 Reply

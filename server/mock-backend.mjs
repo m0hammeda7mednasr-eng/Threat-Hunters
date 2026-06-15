@@ -575,17 +575,20 @@ async function handleRequest(req, res) {
     }
 
     const resetToken = crypto.randomBytes(12).toString('hex');
+    const resetCode = String(crypto.randomInt(100000, 1000000));
     db.resetTokens = db.resetTokens.filter((item) => item.email !== email);
     db.resetTokens.push({
       email,
       token: resetToken,
+      code: resetCode,
       expiresAt: new Date(Date.now() + 1000 * 60 * 20).toISOString(),
     });
     await saveDb(db);
 
     send(200, {
-      message: 'Password reset link prepared for demo use.',
+      message: 'Password reset OTP prepared for demo use.',
       resetToken,
+      resetCode,
       email,
     });
     return;
@@ -594,17 +597,19 @@ async function handleRequest(req, res) {
   if (pathname === '/api/password/reset' && req.method === 'POST') {
     const body = await readBody(req);
     const email = String(body.email || '').trim().toLowerCase();
-    const token = String(body.token || '').trim();
+    const token = String(body.token || body.code || '').trim();
     const nextPassword = String(body.newPassword || '').trim();
 
     if (!email || !token || !nextPassword) {
-      sendError(400, 'Email, token, and new password are required.');
+      sendError(400, 'Email, OTP, and new password are required.');
       return;
     }
 
-    const resetRecord = db.resetTokens.find((item) => item.email === email && item.token === token);
+    const resetRecord = db.resetTokens.find((item) => (
+      item.email === email && (item.token === token || item.code === token)
+    ));
     if (!resetRecord || new Date(resetRecord.expiresAt).getTime() < Date.now()) {
-      sendError(400, 'Invalid or expired reset token.');
+      sendError(400, 'Invalid or expired OTP.');
       return;
     }
 
@@ -845,6 +850,48 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (commentMatch && req.method === 'GET') {
+      const comments = (post.comments || []).reduce((acc, comment) => {
+        if (comment.parentCommentId || comment.parent_comment_id) {
+          return acc;
+        }
+
+        const replyPool = [
+          ...(Array.isArray(comment.replies) ? comment.replies : []),
+          ...((post.comments || []).filter((item) => (
+            item.parentCommentId === comment.id || item.parent_comment_id === comment.id
+          ))),
+        ];
+
+        const uniqueReplies = new Map();
+        for (const reply of replyPool) {
+          const replyId = reply.id || reply._id || `${comment.id}-reply`;
+          if (uniqueReplies.has(replyId)) {
+            continue;
+          }
+          uniqueReplies.set(replyId, {
+            id: replyId,
+            author: reply.author,
+            content: reply.content || reply.text || '',
+            createdAt: reply.createdAt,
+          });
+        }
+
+        acc.push({
+          id: comment.id,
+          author: comment.author,
+          content: comment.content || comment.text || '',
+          createdAt: comment.createdAt,
+          replies: Array.from(uniqueReplies.values()),
+        });
+
+        return acc;
+      }, []);
+
+      send(200, comments);
+      return;
+    }
+
     if (replyMatch && req.method === 'POST') {
       const user = requireUser(db, req);
       if (!user) {
@@ -869,6 +916,8 @@ async function handleRequest(req, res) {
         author: `${user.firstName} ${user.lastName}`.trim(),
         authorEmail: user.email,
         content: textValue,
+        parentCommentId: commentId,
+        parent_comment_id: commentId,
         createdAt: new Date().toISOString(),
       });
       await saveDb(db);

@@ -1336,7 +1336,7 @@
   display: grid;
   place-items: center;
   padding: 1.25rem;
-  background: rgba(6, 10, 24, 0.68);
+  background: var(--overlay-backdrop);
   backdrop-filter: blur(14px);
 }
 
@@ -1351,14 +1351,12 @@
   padding: 1.35rem;
   border-radius: 28px;
   border: 1px solid var(--primary-border-20);
-  background: var(--blog-surface);
+  background: var(--surface-panel);
   box-shadow: var(--elevation-shadow-lg);
 }
 
 .blog-editor-panel--modal {
-  background:
-    linear-gradient(180deg, rgba(18, 20, 38, 0.98), rgba(12, 14, 28, 0.98)),
-    var(--blog-surface);
+  background: var(--surface-panel);
 }
 
 .blog-editor-panel__head {
@@ -1403,7 +1401,7 @@
   padding: 1rem;
   border: 1px solid var(--primary-border-20);
   border-radius: 22px;
-  background: var(--blog-surface-soft);
+  background: var(--surface-base);
 }
 
 .blog-image-placeholder--photo {
@@ -1436,7 +1434,7 @@
   padding: 1rem;
   border: 1px solid var(--primary-border-20);
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-base);
 }
 
 .blog-editor-field {
@@ -1460,7 +1458,7 @@
   padding: 0.85rem 0.95rem;
   border-radius: 14px;
   border: 1px solid var(--primary-border-20);
-  background: var(--blog-surface-soft);
+  background: var(--surface-elevated);
   color: var(--blog-text);
 }
 
@@ -1629,7 +1627,7 @@
   display: grid;
   place-items: center;
   padding: 1.25rem;
-  background: rgba(5, 8, 18, 0.72);
+  background: var(--overlay-backdrop);
   backdrop-filter: blur(18px);
 }
 
@@ -1640,7 +1638,7 @@
   padding: 1.35rem;
   border-radius: 28px;
   border: 1px solid var(--primary-border-20);
-  background: var(--blog-surface);
+  background: var(--surface-panel);
   box-shadow: var(--elevation-shadow-lg);
 }
 
@@ -1704,11 +1702,11 @@
   margin-top: 0;
   padding: 1.15rem;
   border-radius: 22px;
-  background: var(--blog-surface-soft);
+  background: var(--surface-base);
 }
 
 .blog-detail-comments--modal .blog-comments__composer {
-  background: rgba(255, 255, 255, 0.02);
+  background: transparent;
   padding: 0;
 }
 
