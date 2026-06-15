@@ -433,7 +433,7 @@ const getLinePoints = (values, width, height, padding = 16) => {
   });
 };
 
-function DashboardPage({ onNavigate, currentPage, initialSection }) {
+function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   const { user, getProfile, updateProfile, changePassword } = useAuth();
   const [activeSection, setActiveSection] = useState(initialSection || 'dashboard');
   const [scanUrl, setScanUrl] = useState('');
@@ -1510,7 +1510,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
             <Pencil size={13} />
             Edit Profile
           </button>
-          <button type="button" className="db-user-profile-action-btn is-logout" onClick={() => onNavigate('home')}>
+          <button type="button" className="db-user-profile-action-btn is-logout" onClick={onLogout || (() => onNavigate('home'))}>
             <LogOut size={14} />
             Log Out
           </button>
@@ -1713,7 +1713,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           </div>
         </div>
 
-        <button type="button" className="db-user-profile-action-btn is-logout primary-logout" onClick={() => onNavigate('home')}>
+        <button type="button" className="db-user-profile-action-btn is-logout primary-logout" onClick={onLogout || (() => onNavigate('home'))}>
           <LogOut size={14} />
           Log Out
         </button>

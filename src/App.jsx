@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 import AuthNavbar from './components/AuthNavbar';
+import AdminTopNav from './components/AdminTopNav';
 import BootSplash from './components/BootSplash';
 import Footer from './components/Footer';
 
@@ -375,19 +376,14 @@ function App() {
     window.location.hash = `#${nextPage}`;
   }, []);
 
-  const handleLogout = useCallback(() => {
-    setIsLoggedIn(false);
-    setUserRole('user');
-    setUserEmail('');
-    setCurrentPage('home');
-    setDashboardSection('dashboard');
-    window.location.hash = '#home';
-  }, []);
-
   const handleNavigation = useCallback(
     (page) => {
       if (page === 'home' && isLoggedIn) {
-        handleLogout();
+        const landingPage = userRole === 'admin' ? 'admin-dashboard' : 'dashboard';
+
+        setCurrentPage(landingPage);
+        setDashboardSection('dashboard');
+        window.location.hash = `#${landingPage}`;
         return;
       }
 
@@ -408,6 +404,13 @@ function App() {
         if (!isLoggedIn) {
           setCurrentPage('signin');
           window.location.hash = '#signin';
+          return;
+        }
+
+        if (userRole === 'admin') {
+          setCurrentPage('admin-dashboard');
+          setDashboardSection('dashboard');
+          window.location.hash = '#admin-dashboard';
           return;
         }
 
@@ -447,8 +450,17 @@ function App() {
       setCurrentPage(nextPage);
       window.location.hash = createHash(nextPage);
     },
-    [handleLogout, isLoggedIn, userRole],
+    [isLoggedIn, userRole],
   );
+
+  const handleLogout = useCallback(() => {
+    setIsLoggedIn(false);
+    setUserRole('user');
+    setUserEmail('');
+    setCurrentPage('home');
+    setDashboardSection('dashboard');
+    window.location.hash = '#home';
+  }, []);
 
   const publicNavigationProps = useMemo(
     () => ({
@@ -483,6 +495,7 @@ function App() {
               <DashboardPage
                 key={`dashboard-${dashboardSection}`}
                 onNavigate={handleNavigation}
+                onLogout={handleLogout}
                 currentPage={currentPage}
                 initialSection={dashboardSection}
               />
@@ -491,54 +504,58 @@ function App() {
           )}
 
           {currentPage === 'admin-dashboard' && isLoggedIn && (
-            <AdminDashboardPage onNavigate={handleNavigation} />
+            <AdminDashboardPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
           )}
 
           {currentPage === 'admin-team' && isLoggedIn && (
             <>
-              <AdminTeamPage onNavigate={handleNavigation} />
+              <AdminTeamPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {currentPage === 'admin-users' && isLoggedIn && (
             <>
-              <AdminUsersPage onNavigate={handleNavigation} />
+              <AdminUsersPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {currentPage === 'admin-reports' && isLoggedIn && (
             <>
-              <AdminReportsPage onNavigate={handleNavigation} />
+              <AdminReportsPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {currentPage === 'admin-web-edit' && isLoggedIn && (
             <>
-              <AdminWebEditPage onNavigate={handleNavigation} />
+              <AdminWebEditPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {currentPage === 'admin-pricing' && isLoggedIn && (
             <>
-              <AdminPricingPage onNavigate={handleNavigation} />
+              <AdminPricingPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {currentPage === 'admin-settings' && isLoggedIn && (
             <>
-              <AdminSettingsPage onNavigate={handleNavigation} />
+              <AdminSettingsPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {isLoggedIn && currentPage === 'blog' && (
             <div className="logged-in-page">
-              <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              {userRole === 'admin' ? (
+                <AdminTopNav onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+              ) : (
+                <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              )}
               <BlogPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn userRole={userRole} />
               <Footer />
             </div>
@@ -546,7 +563,11 @@ function App() {
 
           {isLoggedIn && currentPage === 'awareness' && (
             <div className="logged-in-page">
-              <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              {userRole === 'admin' ? (
+                <AdminTopNav onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+              ) : (
+                <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              )}
               <SecurityAwarenessPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn />
               <Footer />
             </div>
@@ -554,7 +575,11 @@ function App() {
 
           {isLoggedIn && currentPage === 'tools' && (
             <div className="logged-in-page">
-              <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              {userRole === 'admin' ? (
+                <AdminTopNav onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+              ) : (
+                <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              )}
               <MoreToolsPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn />
               <Footer />
             </div>

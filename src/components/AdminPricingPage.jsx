@@ -22,7 +22,7 @@ import './AdminDashboardPage.css';
 import './AdminPricingPage.css';
 
 const topNavItems = [
-  { label: 'Home', route: 'dashboard' },
+  { label: 'Home', route: 'admin-dashboard' },
   { label: 'More Tools', route: 'tools' },
   { label: 'Security Awareness', route: 'awareness' },
   { label: 'Blog', route: 'blog' },
@@ -113,7 +113,7 @@ function getPlanTone(plan) {
   return 'is-free';
 }
 
-function AdminPricingPage({ onNavigate }) {
+function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' }) {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -132,7 +132,7 @@ function AdminPricingPage({ onNavigate }) {
               <button
                 key={item.label}
                 type="button"
-                className={`admin-nav-link ${item.route === 'admin-dashboard' ? 'is-active' : ''}`}
+                className={`admin-nav-link ${item.route === currentPage ? 'is-active' : ''}`}
                 onClick={() => onNavigate(item.route)}
               >
                 {item.label}
@@ -149,7 +149,7 @@ function AdminPricingPage({ onNavigate }) {
             >
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <button type="button" className="admin-logout-btn" onClick={() => onNavigate('home')}>
+            <button type="button" className="admin-logout-btn" onClick={onLogout ?? (() => onNavigate('home'))}>
               <LogOut size={15} />
               <span>log out</span>
             </button>

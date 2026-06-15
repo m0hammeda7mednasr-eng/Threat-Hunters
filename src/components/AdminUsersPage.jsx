@@ -25,7 +25,7 @@ import './AdminDashboardPage.css';
 import './AdminUsersPage.css';
 
 const topNavItems = [
-  { label: 'Home', route: 'dashboard' },
+  { label: 'Home', route: 'admin-dashboard' },
   { label: 'More Tools', route: 'tools' },
   { label: 'Security Awareness', route: 'awareness' },
   { label: 'Blog', route: 'blog' },
@@ -101,7 +101,7 @@ function getPlanTone(plan) {
   return 'is-free';
 }
 
-function AdminUsersPage({ onNavigate }) {
+function AdminUsersPage({ onNavigate, onLogout, currentPage = 'admin-users' }) {
   const { theme, toggleTheme } = useTheme();
   const [query, setQuery] = useState('');
   const [managedUsers, setManagedUsers] = useState(users);
@@ -210,7 +210,7 @@ function AdminUsersPage({ onNavigate }) {
               <button
                 key={item.label}
                 type="button"
-                className={`admin-nav-link ${item.route === 'admin-dashboard' ? 'is-active' : ''}`}
+                className={`admin-nav-link ${item.route === currentPage ? 'is-active' : ''}`}
                 onClick={() => onNavigate(item.route)}
               >
                 {item.label}
@@ -227,7 +227,7 @@ function AdminUsersPage({ onNavigate }) {
             >
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <button type="button" className="admin-logout-btn" onClick={() => onNavigate('home')}>
+            <button type="button" className="admin-logout-btn" onClick={onLogout ?? (() => onNavigate('home'))}>
               <LogOut size={15} />
               <span>log out</span>
             </button>

@@ -23,6 +23,8 @@ def create_blog(data, user_id, username):
     category = data.get("category", "General").strip()
     description = data.get("description", "").strip()
     tags = data.get("tags", [])
+    image_url = data.get("imageUrl", "").strip()
+    image_name = data.get("imageName", "").strip()
 
     if not title:
         return jsonify({
@@ -61,6 +63,8 @@ def create_blog(data, user_id, username):
 
         "status": status,
         "tags": tags if isinstance(tags, list) else [],
+        "imageUrl": image_url,
+        "imageName": image_name,
 
         "views": 0,
         "likes": 0,
@@ -271,6 +275,8 @@ def get_blogs(current_user=None, include_hidden=False):
             "comments_count": blog.get("comments_count", 0),
             "tags": blog.get("tags", []),
             "status": blog.get("status", "published"),
+            "imageUrl": blog.get("imageUrl", ""),
+            "imageName": blog.get("imageName", ""),
             "createdAt": blog.get("createdAt"),
             "updatedAt": blog.get("updatedAt")
         })
@@ -329,6 +335,8 @@ def get_blog_by_id(blog_id, current_user):
             "comments_count": blog.get("comments_count", 0),
             "tags": blog.get("tags", []),
             "status": blog.get("status", "published"),
+            "imageUrl": blog.get("imageUrl", ""),
+            "imageName": blog.get("imageName", ""),
             "createdAt": blog["createdAt"],
             "updatedAt": blog["updatedAt"]
         }), 200
@@ -404,6 +412,26 @@ def update_blog(blog_id, data, current_user):
         if "category" in data:
 
             update_data["category"] = data["category"].strip()
+
+        if "description" in data:
+
+            update_data["description"] = data["description"].strip()
+
+        if "tags" in data and isinstance(data["tags"], list):
+
+            update_data["tags"] = data["tags"]
+
+        if "badge" in data:
+
+            update_data["badge"] = data["badge"].strip()
+
+        if "imageUrl" in data:
+
+            update_data["imageUrl"] = data["imageUrl"].strip()
+
+        if "imageName" in data:
+
+            update_data["imageName"] = data["imageName"].strip()
 
         update_data["updatedAt"] = datetime.utcnow()
 

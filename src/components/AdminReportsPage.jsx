@@ -20,7 +20,7 @@ import './AdminDashboardPage.css';
 import './AdminReportsPage.css';
 
 const topNavItems = [
-  { label: 'Home', route: 'dashboard' },
+  { label: 'Home', route: 'admin-dashboard' },
   { label: 'More Tools', route: 'tools' },
   { label: 'Security Awareness', route: 'awareness' },
   { label: 'Blog', route: 'blog' },
@@ -145,7 +145,7 @@ function BarChart({ bars }) {
   );
 }
 
-function AdminReportsPage({ onNavigate }) {
+function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' }) {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -164,7 +164,7 @@ function AdminReportsPage({ onNavigate }) {
               <button
                 key={item.label}
                 type="button"
-                className={`admin-nav-link ${item.route === 'admin-dashboard' ? 'is-active' : ''}`}
+                className={`admin-nav-link ${item.route === currentPage ? 'is-active' : ''}`}
                 onClick={() => onNavigate(item.route)}
               >
                 {item.label}
@@ -181,7 +181,7 @@ function AdminReportsPage({ onNavigate }) {
             >
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <button type="button" className="admin-logout-btn" onClick={() => onNavigate('home')}>
+            <button type="button" className="admin-logout-btn" onClick={onLogout ?? (() => onNavigate('home'))}>
               <LogOut size={15} />
               <span>log out</span>
             </button>
