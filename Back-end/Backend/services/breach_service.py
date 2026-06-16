@@ -1,6 +1,8 @@
 from flask import jsonify
 from haveibeenpwned import HIBP
 from config import Config
+import math
+
 hibp = HIBP(api_key=Config.HIBP_API_KEY)
 
 ALL_BREACHES_CACHE = {}
@@ -290,3 +292,264 @@ def check_email_breach(data):
             str(e)
 
         }), 500
+    
+def analyze_password(data):
+
+    password = data.get(
+        "password",
+        ""
+    ).strip()
+
+    if not password:
+
+        return jsonify({
+            "message":
+            "Password is required"
+        }), 400
+
+    score = 0
+
+    recommendations = []
+    COMMON_WORDS = [
+
+        "password",
+        "admin",
+        "welcome",
+        "football",
+        "qwerty",
+        "letmein",
+        "login",
+        "root",
+        "user",
+        "secret",
+        "test",
+        "guest"
+
+    ]
+
+    SEQUENTIAL_PATTERNS = [
+
+        "123456",
+        "654321",
+
+        "abcdef",
+        "fedcba",
+
+        "qwerty",
+        "asdfgh",
+        "zxcvbn",
+
+        "111111",
+        "222222",
+        "333333",
+
+        "000000"
+
+    ]
+
+    breached_count = hibp.is_password_pwned(
+        password
+    )
+
+    has_upper = any(
+        c.isupper()
+        for c in password
+    )
+
+    has_lower = any(
+        c.islower()
+        for c in password
+    )
+
+    has_digit = any(
+        c.isdigit()
+        for c in password
+    )
+
+    special_chars = (
+        "!@#$%^&*()_+-=[]{}|;:,.<>?"
+    )
+
+    has_special = any(
+        c in special_chars
+        for c in password
+    )
+    charset_size = 0
+
+    if has_lower:
+        charset_size += 26
+
+    if has_upper:
+        charset_size += 26
+
+    if has_digit:
+        charset_size += 10
+
+    if has_special:
+        charset_size += len(
+            special_chars
+        )
+
+    entropy_bits = 0
+
+    if charset_size > 0:
+
+        entropy_bits = round(
+
+            len(password)
+            * math.log2(charset_size),
+
+            2
+        )
+
+    if len(password) >= 12:
+        score += 20
+    else:
+        recommendations.append(
+            "Use at least 12 characters"
+        )
+
+    if has_upper:
+        score += 20
+    else:
+        recommendations.append(
+            "Add uppercase letters"
+        )
+
+    if has_lower:
+        score += 20
+    else:
+        recommendations.append(
+            "Add lowercase letters"
+        )
+
+    if has_digit:
+        score += 20
+    else:
+        recommendations.append(
+            "Add numbers"
+        )
+
+    if has_special:
+        score += 20
+    else:
+        recommendations.append(
+            "Add special characters"
+        )
+    
+    dictionary_word_found = False
+
+    for word in COMMON_WORDS:
+
+        if word in password.lower():
+
+            dictionary_word_found = True
+
+            score -= 20
+
+            recommendations.append(
+                f"Contains common word: {word}"
+            )
+
+            break
+    
+    sequential_pattern_found = False
+
+    for pattern in SEQUENTIAL_PATTERNS:
+
+        if pattern in password.lower():
+
+            sequential_pattern_found = True
+
+            score -= 15
+
+            recommendations.append(
+                f"Contains predictable pattern: {pattern}"
+            )
+
+            break
+    
+    
+    if breached_count > 0:
+
+        score -= 40
+
+        recommendations.append(
+            f"Password appeared "
+            f"{breached_count:,} times "
+            f"in known breaches"
+        )
+
+    score = max(
+        0,
+        min(score, 100)
+    )
+
+    if score <= 20:
+        strength = "Very Weak"
+
+    elif score <= 40:
+        strength = "Weak"
+
+    elif score <= 60:
+        strength = "Medium"
+
+    elif score <= 80:
+        strength = "Strong"
+
+    else:
+        strength = "Very Strong"
+
+    entropy_level = "Very Weak"
+
+    if entropy_bits >= 40:
+        entropy_level = "Weak"
+
+    if entropy_bits >= 60:
+        entropy_level = "Medium"
+
+    if entropy_bits >= 80:
+        entropy_level = "Strong"
+
+    if entropy_bits >= 100:
+        entropy_level = "Very Strong"
+    
+    return jsonify({
+
+        "strength":
+        strength,
+
+        "score":
+        score,
+
+        "breached":
+        breached_count > 0,
+
+        "breach_count":
+        breached_count,
+
+        "password_length":
+        len(password),
+
+        "has_uppercase":
+        has_upper,
+
+        "has_lowercase":
+        has_lower,
+
+        "has_numbers":
+        has_digit,
+
+        "has_special_characters":
+        has_special,
+
+        "recommendations":
+        recommendations,
+
+        "dictionary_word_found":
+        dictionary_word_found,
+
+        "sequential_pattern_found":
+        sequential_pattern_found,
+
+    }), 200
