@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify
+from services.awareness_service import get_awareness_content
 from services.nvd_service import get_latest_cves
 from services.cisa_service import get_exploited_vulnerabilities
 from services.news_service import get_security_news
@@ -37,3 +38,7 @@ def security_news():
     return jsonify(
         get_security_news()
     )
+
+@security_bp.route("/awareness", methods=["GET"])
+def awareness_content():
+    return jsonify(get_awareness_content())

@@ -94,11 +94,13 @@ const ImagePlaceholder = ({ badge, tone = "blue", compact = false }) => (
 );
 
 const PostImage = ({ badge, tone = "blue", compact = false, imageUrl = "", alt = "Post preview" }) => {
-  if (imageUrl) {
+  const [failedImageUrl, setFailedImageUrl] = useState("");
+
+  if (imageUrl && failedImageUrl !== imageUrl) {
     return (
       <div className={`blog-image-placeholder blog-image-placeholder--photo ${compact ? "blog-image-placeholder--compact" : ""}`}>
         {badge ? <span className={`blog-image-placeholder__badge blog-image-placeholder__badge--${tone}`}>{badge}</span> : null}
-        <img className="blog-post-image" src={imageUrl} alt={alt} />
+        <img className="blog-post-image" src={imageUrl} alt={alt} onError={() => setFailedImageUrl(imageUrl)} />
       </div>
     );
   }

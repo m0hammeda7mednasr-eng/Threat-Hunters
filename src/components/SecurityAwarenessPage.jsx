@@ -219,6 +219,25 @@ const downloadableResources = [
   },
 ];
 
+const iconRegistry = {
+  BookOpen,
+  Bot,
+  Bug,
+  FileText,
+  Fingerprint,
+  KeyRound,
+  LockKeyhole,
+  Mail,
+  Shield,
+  ShieldCheck,
+  ShieldX,
+  Smartphone,
+  TriangleAlert,
+  Video,
+  Wifi,
+  Zap,
+};
+
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.items)) return payload.items;
@@ -226,6 +245,104 @@ const normalizeList = (payload) => {
   if (Array.isArray(payload?.vulnerabilities)) return payload.vulnerabilities;
   if (Array.isArray(payload?.news)) return payload.news;
   return [];
+};
+
+const resolveIcon = (icon) => {
+  if (typeof icon === 'function') {
+    return icon;
+  }
+
+  return iconRegistry[icon] || ShieldCheck;
+};
+
+const escapePdfText = (value) => String(value || '')
+  .replace(/[^\x20-\x7E]/g, '')
+  .replace(/\\/g, '\\\\')
+  .replace(/\(/g, '\\(')
+  .replace(/\)/g, '\\)');
+
+const wrapPdfLine = (value, maxLength = 88) => {
+  const words = String(value || '').split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = '';
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxLength && current) {
+      lines.push(current);
+      current = word;
+      continue;
+    }
+    current = next;
+  }
+
+  if (current) {
+    lines.push(current);
+  }
+
+  return lines.length ? lines : [''];
+};
+
+const buildPdfBlob = (resource) => {
+  const contentLines = [
+    'Threat Hunters Security Awareness',
+    resource.title,
+    resource.description,
+    `Generated: ${new Date().toLocaleString('en-US')}`,
+    '',
+    ...(resource.sections || []).flatMap((item, index) => (
+      wrapPdfLine(`${index + 1}. ${item}`)
+    )),
+  ];
+
+  let y = 760;
+  const textCommands = ['BT', '/F1 12 Tf'];
+  for (const line of contentLines) {
+    const fontSize = line === resource.title ? 18 : line === 'Threat Hunters Security Awareness' ? 14 : 12;
+    textCommands.push(`/F1 ${fontSize} Tf`);
+    textCommands.push(`72 ${y} Td (${escapePdfText(line)}) Tj`);
+    textCommands.push(`-72 0 Td`);
+    y -= fontSize + 8;
+  }
+  textCommands.push('ET');
+
+  const stream = textCommands.join('\n');
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n',
+    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+    `5 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`,
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(pdf.length);
+    pdf += object;
+  }
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  for (let index = 1; index <= objects.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: 'application/pdf' });
+};
+
+const downloadPdfResource = (resource) => {
+  const blob = buildPdfBlob(resource);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${resource.id || 'security-awareness'}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 };
 
 const SecurityAwarenessPage = ({
@@ -236,6 +353,12 @@ const SecurityAwarenessPage = ({
   isLoggedIn,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [awarenessContent, setAwarenessContent] = useState({
+    tips: securityTips,
+    threats: cyberThreats,
+    resources: learningResources,
+    downloads: downloadableResources,
+  });
   const [liveFeed, setLiveFeed] = useState({
     latestCves: [],
     criticalCves: [],
@@ -254,29 +377,34 @@ const SecurityAwarenessPage = ({
   );
 
   const filteredSecurityTips = useMemo(
-    () => securityTips.filter((tip) => itemMatchesSearch([tip.title, tip.description])),
-    [itemMatchesSearch],
+    () => awarenessContent.tips.filter((tip) => itemMatchesSearch([tip.title, tip.description])),
+    [awarenessContent.tips, itemMatchesSearch],
   );
   const filteredCyberThreats = useMemo(
     () =>
-      cyberThreats.filter((threat) =>
-        itemMatchesSearch([threat.title, threat.description, threat.badge, ...threat.howToAvoid]),
+      awarenessContent.threats.filter((threat) =>
+        itemMatchesSearch([
+          threat.title,
+          threat.description,
+          threat.badge,
+          ...(Array.isArray(threat.howToAvoid) ? threat.howToAvoid : []),
+        ]),
       ),
-    [itemMatchesSearch],
+    [awarenessContent.threats, itemMatchesSearch],
   );
   const filteredLearningResources = useMemo(
     () =>
-      learningResources.filter((resource) =>
+      awarenessContent.resources.filter((resource) =>
         itemMatchesSearch([resource.type, resource.topic, resource.title, resource.description]),
       ),
-    [itemMatchesSearch],
+    [awarenessContent.resources, itemMatchesSearch],
   );
   const filteredDownloadableResources = useMemo(
     () =>
-      downloadableResources.filter((resource) =>
-        itemMatchesSearch([resource.title, resource.description, resource.fileMeta]),
+      awarenessContent.downloads.filter((resource) =>
+        itemMatchesSearch([resource.title, resource.description, resource.fileMeta || 'PDF']),
       ),
-    [itemMatchesSearch],
+    [awarenessContent.downloads, itemMatchesSearch],
   );
 
   const loadLiveFeed = useCallback(async () => {
@@ -321,6 +449,23 @@ const SecurityAwarenessPage = ({
   useEffect(() => {
     queueMicrotask(() => {
       void loadLiveFeed();
+      securityAPI.getAwarenessContent()
+        .then((content) => {
+          setAwarenessContent({
+            tips: normalizeList(content?.tips).length ? normalizeList(content.tips) : securityTips,
+            threats: normalizeList(content?.threats).length ? normalizeList(content.threats) : cyberThreats,
+            resources: normalizeList(content?.resources).length ? normalizeList(content.resources) : learningResources,
+            downloads: normalizeList(content?.downloads).length ? normalizeList(content.downloads) : downloadableResources,
+          });
+        })
+        .catch(() => {
+          setAwarenessContent({
+            tips: securityTips,
+            threats: cyberThreats,
+            resources: learningResources,
+            downloads: downloadableResources,
+          });
+        });
     });
   }, [loadLiveFeed]);
 
@@ -475,7 +620,7 @@ const SecurityAwarenessPage = ({
 
           <div className="tips-grid">
             {filteredSecurityTips.map((tip) => {
-              const Icon = tip.icon;
+              const Icon = resolveIcon(tip.icon);
 
               return (
                 <article key={tip.id} className="tip-card">
@@ -543,7 +688,7 @@ const SecurityAwarenessPage = ({
 
           <div className="threats-grid">
             {filteredCyberThreats.map((threat) => {
-              const Icon = threat.icon;
+              const Icon = resolveIcon(threat.icon);
 
               return (
                 <article key={threat.id} className={`threat-card threat-card--${threat.tone}`}>
@@ -563,7 +708,7 @@ const SecurityAwarenessPage = ({
                   <div className="threat-card__details">
                     <p className="threat-card__details-title">How to avoid:</p>
                     <ul className="threat-card__list">
-                      {threat.howToAvoid.map((tip) => (
+                      {(Array.isArray(threat.howToAvoid) ? threat.howToAvoid : []).map((tip) => (
                         <li key={tip}>{tip}</li>
                       ))}
                     </ul>
@@ -589,7 +734,7 @@ const SecurityAwarenessPage = ({
 
           <div className="resources-grid">
             {filteredLearningResources.map((resource) => {
-              const Icon = resource.icon;
+              const Icon = resolveIcon(resource.icon);
 
               return (
                 <article key={resource.id} className="resource-card">
@@ -618,6 +763,8 @@ const SecurityAwarenessPage = ({
                       type="button"
                       className="resource-card__action"
                       aria-label={`Open ${resource.title}`}
+                      onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
+                      disabled={!resource.url}
                     >
                       <ExternalLink strokeWidth={1.8} />
                     </button>
@@ -651,6 +798,7 @@ const SecurityAwarenessPage = ({
                         type="button"
                         className="download-card__action"
                         aria-label={`Download ${resource.title}`}
+                        onClick={() => downloadPdfResource(resource)}
                       >
                         <Download strokeWidth={1.9} />
                       </button>

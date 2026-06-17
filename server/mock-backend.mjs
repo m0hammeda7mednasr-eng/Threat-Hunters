@@ -9,6 +9,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'mock-db.json');
 const port = Number(process.env.API_PORT || 5000);
+const APP_USER_AGENT = 'Threat Hunters Security Tools';
+const HIBP_BREACH_URL = 'https://haveibeenpwned.com/api/v3/breachedaccount/{email}';
 
 const baseNow = new Date('2026-06-14T12:00:00.000Z');
 const demoUsers = [
@@ -33,6 +35,24 @@ const demoUsers = [
     bio: 'Security analyst focused on awareness and reporting.',
   },
 ];
+
+const defaultUserSettings = {
+  language: 'English (US)',
+  timezone: 'UTC+02:00 (Cairo)',
+  scanMode: 'quick',
+  twoFactorEnabled: false,
+  notifications: {
+    completion: true,
+    critical: true,
+    weekly: true,
+    cve: true,
+  },
+  reports: {
+    technical: true,
+    aiSummary: true,
+    autoPdf: false,
+  },
+};
 
 const seedDb = () => ({
   users: [
@@ -247,6 +267,23 @@ function sanitizeUser(user) {
     phone: user.phone || '',
     bio: user.bio || '',
     createdAt: user.createdAt,
+    lastLogin: user.lastLogin || null,
+  };
+}
+
+function userSettings(user) {
+  const settings = user.settings || {};
+  return {
+    ...defaultUserSettings,
+    ...settings,
+    notifications: {
+      ...defaultUserSettings.notifications,
+      ...(settings.notifications || {}),
+    },
+    reports: {
+      ...defaultUserSettings.reports,
+      ...(settings.reports || {}),
+    },
   };
 }
 
@@ -463,6 +500,757 @@ function buildSecurityMetrics() {
   ];
 }
 
+function buildAwarenessContent() {
+  return {
+    tips: [
+      {
+        id: 'passwords',
+        icon: 'LockKeyhole',
+        title: 'Use Strong Passwords',
+        description: 'Create unique passwords with at least 12 characters including numbers, symbols, and mixed case letters.',
+      },
+      {
+        id: 'two-factor',
+        icon: 'KeyRound',
+        title: 'Enable Two-Factor Authentication',
+        description: 'Add an extra layer of security by enabling 2FA on all your important accounts.',
+      },
+      {
+        id: 'phishing',
+        icon: 'Mail',
+        title: 'Beware of Phishing',
+        description: 'Do not click suspicious links or download attachments from unknown senders.',
+      },
+      {
+        id: 'network',
+        icon: 'Wifi',
+        title: 'Secure Your Network',
+        description: 'Use WPA3 encryption for WiFi and avoid using public networks for sensitive tasks.',
+      },
+      {
+        id: 'updates',
+        icon: 'Smartphone',
+        title: 'Keep Software Updated',
+        description: 'Regularly update your operating system and applications to patch security vulnerabilities.',
+      },
+      {
+        id: 'backups',
+        icon: 'ShieldCheck',
+        title: 'Backup Your Data',
+        description: 'Create regular backups of important files and store them in multiple secure locations.',
+      },
+    ],
+    threats: [
+      {
+        id: 'phishing-attacks',
+        icon: 'TriangleAlert',
+        title: 'Phishing Attacks',
+        badge: 'High',
+        tone: 'high',
+        description: 'Fraudulent emails or messages designed to steal your credentials or personal information.',
+        howToAvoid: [
+          'Verify sender email addresses carefully',
+          'Do not click on suspicious links',
+          'Check for spelling and grammar errors',
+          'Contact the company directly if unsure',
+        ],
+      },
+      {
+        id: 'malware-ransomware',
+        icon: 'Bug',
+        title: 'Malware & Ransomware',
+        badge: 'Critical',
+        tone: 'critical',
+        description: 'Malicious software that can damage your system or encrypt your files for ransom.',
+        howToAvoid: [
+          'Install reputable antivirus software',
+          'Do not download from untrusted sources',
+          'Keep your system updated',
+          'Backup important files regularly',
+        ],
+      },
+      {
+        id: 'social-engineering',
+        icon: 'Zap',
+        title: 'Social Engineering',
+        badge: 'Medium',
+        tone: 'medium',
+        description: 'Manipulating people into revealing confidential information or performing actions.',
+        howToAvoid: [
+          'Be skeptical of unexpected requests',
+          'Verify identity before sharing info',
+          'Do not share passwords or codes',
+          'Trust your instincts',
+        ],
+      },
+      {
+        id: 'weak-passwords',
+        icon: 'Smartphone',
+        title: 'Weak Passwords',
+        badge: 'Low',
+        tone: 'low',
+        description: 'Using simple or reused passwords makes your accounts vulnerable to attacks.',
+        howToAvoid: [
+          'Use password managers',
+          'Create unique passwords per account',
+          'Use passphrases instead of passwords',
+          'Enable multi-factor authentication',
+        ],
+      },
+    ],
+    resources: [
+      {
+        id: 'password-guide',
+        icon: 'FileText',
+        type: 'Article',
+        topic: 'Basics',
+        title: 'Complete Guide to Password Security',
+        description: 'Everything you need to know about creating and managing secure passwords.',
+        duration: '8 min read',
+        url: 'https://www.cisa.gov/secure-our-world/use-strong-passwords',
+      },
+      {
+        id: 'phishing-video',
+        icon: 'Video',
+        type: 'Video',
+        topic: 'Threats',
+        title: 'Understanding Phishing Attacks',
+        description: 'Learn to identify and avoid phishing attempts with real examples.',
+        duration: '12 min',
+        url: 'https://www.youtube.com/results?search_query=cisa+phishing+awareness',
+      },
+      {
+        id: 'two-factor-guide',
+        icon: 'BookOpen',
+        type: 'Guide',
+        topic: 'Basics',
+        title: 'Setting Up Two-Factor Authentication',
+        description: 'Step-by-step guide to enable 2FA on popular platforms.',
+        duration: '5 min read',
+        url: 'https://www.cisa.gov/secure-our-world/turn-mfa',
+      },
+      {
+        id: 'ransomware-article',
+        icon: 'FileText',
+        type: 'Article',
+        topic: 'Threats',
+        title: 'Ransomware: Prevention and Recovery',
+        description: 'How to protect against ransomware and what to do if infected.',
+        duration: '10 min read',
+        url: 'https://www.cisa.gov/stopransomware',
+      },
+      {
+        id: 'network-video',
+        icon: 'Video',
+        type: 'Video',
+        topic: 'Network',
+        title: 'Secure Your Home Network',
+        description: 'Best practices for securing your WiFi and home devices.',
+        duration: '15 min',
+        url: 'https://www.youtube.com/results?search_query=secure+home+network+cybersecurity',
+      },
+      {
+        id: 'social-guide',
+        icon: 'BookOpen',
+        type: 'Guide',
+        topic: 'Threats',
+        title: 'Social Engineering Tactics',
+        description: 'Recognize and defend against social engineering attacks.',
+        duration: '7 min read',
+        url: 'https://www.cisa.gov/news-events/news/avoiding-social-engineering-and-phishing-attacks',
+      },
+    ],
+    downloads: [
+      {
+        id: 'checklist',
+        title: 'Security Awareness Checklist',
+        description: 'Daily security practices checklist',
+        fileMeta: 'PDF | generated instantly',
+        sections: [
+          'Use unique passwords and a password manager.',
+          'Turn on MFA for email, banking, admin, and cloud accounts.',
+          'Verify sender identity before opening links or attachments.',
+          'Keep operating systems, browsers, and apps updated.',
+          'Back up important files and test recovery periodically.',
+        ],
+      },
+      {
+        id: 'incident-plan',
+        title: 'Incident Response Plan Template',
+        description: 'Template for handling security incidents',
+        fileMeta: 'PDF | generated instantly',
+        sections: [
+          'Identify the affected asset, user, account, and timestamp.',
+          'Preserve logs, screenshots, alerts, and suspicious files.',
+          'Contain the incident by disabling accounts or isolating devices.',
+          'Notify the correct owner, manager, or security contact.',
+          'Document root cause, impact, remediation, and lessons learned.',
+        ],
+      },
+      {
+        id: 'password-managers',
+        title: 'Password Manager Comparison',
+        description: 'Compare popular password managers',
+        fileMeta: 'PDF | generated instantly',
+        sections: [
+          'Prefer managers with strong encryption and independent audits.',
+          'Check MFA support, recovery options, and device sync controls.',
+          'Use sharing features only for team-approved secrets.',
+          'Review breach alerts and password health dashboards monthly.',
+          'Export recovery codes and store them securely offline.',
+        ],
+      },
+    ],
+  };
+}
+
+function buildMockPasswordBreach(password) {
+  const normalized = String(password || '').trim();
+  const hash = crypto.createHash('sha1').update(normalized).digest('hex').toUpperCase();
+  const score = parseInt(hash.slice(0, 6), 16);
+  const count = score % 2 === 0 ? 0 : (score % 5000) + 1;
+
+  return {
+    breached: count > 0,
+    count,
+    risk_level: count > 1000 ? 'High' : count > 100 ? 'Medium' : count > 0 ? 'Low' : 'Safe',
+    message: count > 0
+      ? `Password found ${count} times in known breaches`
+      : 'Password not found in known breaches',
+  };
+}
+
+function buildMockEmailBreach(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  const breached = normalized.includes('admin') || normalized.includes('user') || normalized.includes('test');
+  const baseBreach = {
+    name: 'Mock Credential Leak',
+    title: 'Mock Credential Leak',
+    domain: 'mock.threathunters.local',
+    breach_date: '2026-05-14',
+    added_date: '2026-05-15T00:00:00Z',
+    modified_date: '2026-05-16T00:00:00Z',
+    pwn_count: 12840,
+    description: 'Mock breach data returned by the local dev server when HIBP is not available.',
+    logo_path: '',
+    data_classes: ['Emails', 'Passwords', 'Usernames'],
+    verified: true,
+    fabricated: false,
+    sensitive: false,
+    retired: false,
+    spam_list: false,
+    malware: false,
+    stealer_log: false,
+    subscription_free: true,
+    attribution: 'Threat Hunters demo data',
+  };
+
+  if (!breached) {
+    return {
+      email: normalized,
+      breached: false,
+      risk_level: 'Safe',
+      breach_count: 0,
+      verified_breach_count: 0,
+      stealer_log_count: 0,
+      latest_breach: null,
+      exposed_data: [],
+      summary: {
+        verified_breaches: 0,
+        stealer_logs: 0,
+        latest_breach: null,
+        risk_level: 'Safe',
+      },
+      breaches: [],
+    };
+  }
+
+  return {
+    email: normalized,
+    breached: true,
+    risk_level: 'Medium',
+    breach_count: 1,
+    verified_breach_count: 1,
+    stealer_log_count: 0,
+    latest_breach: baseBreach,
+    exposed_data: baseBreach.data_classes,
+    summary: {
+      verified_breaches: 1,
+      stealer_logs: 0,
+      latest_breach: baseBreach,
+      risk_level: 'Medium',
+    },
+    breaches: [baseBreach],
+  };
+}
+
+function normalizeScanUrl(rawTarget) {
+  let value = String(rawTarget || '').trim();
+  if (!value) {
+    throw new Error('Website URL is required.');
+  }
+  if (!/^https?:\/\//i.test(value)) {
+    value = `https://${value}`;
+  }
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error('Enter a valid website URL, for example https://example.com.');
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol) || !isValidScanHostname(parsed.hostname)) {
+    throw new Error('Enter a valid website URL, for example https://example.com.');
+  }
+  return parsed.toString();
+}
+
+function isValidScanHostname(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  if (host === 'localhost') return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+    return host.split('.').every((part) => Number(part) >= 0 && Number(part) <= 255);
+  }
+  return /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host) && !host.includes('..');
+}
+
+function scanRiskLabel(score) {
+  if (score >= 80) return 'Critical';
+  if (score >= 60) return 'High';
+  if (score >= 35) return 'Medium';
+  return 'Low';
+}
+
+function scanFinding(code, severity, title, description, recommendation) {
+  return { code, severity, title, description, recommendation };
+}
+
+function scanCheck(name, status, details, evidence = '') {
+  return { name, status, details, evidence };
+}
+
+function headerSnapshot(headers) {
+  const interestingHeaders = [
+    'content-security-policy',
+    'strict-transport-security',
+    'x-frame-options',
+    'x-content-type-options',
+    'referrer-policy',
+    'permissions-policy',
+    'cross-origin-opener-policy',
+    'cross-origin-resource-policy',
+    'cross-origin-embedder-policy',
+    'cache-control',
+    'set-cookie',
+    'server',
+    'x-powered-by',
+  ];
+  return Object.fromEntries(interestingHeaders.map((header) => [header, headers[header] || 'Missing']));
+}
+
+function analyzeHtmlBody(text, finalUrl) {
+  const findings = [];
+  const checks = [];
+  const html = String(text || '').slice(0, 250000);
+  if (!html) {
+    checks.push(scanCheck('HTML body analysis', 'Skipped', 'The response is not HTML or the body could not be decoded.'));
+    return { findings, checks };
+  }
+
+  const lowerHtml = html.toLowerCase();
+  const formCount = (lowerHtml.match(/<form\b/g) || []).length;
+  const passwordFields = (lowerHtml.match(/type=["']?password/g) || []).length;
+  const hasCsrf = /name=["']?(csrf|csrf_token|_token|authenticity_token)/i.test(lowerHtml);
+  checks.push(scanCheck('Form inventory', formCount ? 'Review' : 'Passed', `Detected ${formCount} form(s) and ${passwordFields} password field(s).`));
+
+  if (formCount && !hasCsrf) {
+    findings.push(scanFinding(
+      'csrf-token-not-detected',
+      'Medium',
+      'CSRF token not detected in forms',
+      'The HTML contains forms, but no common CSRF token field name was detected in the page source.',
+      'Add anti-CSRF tokens to state-changing forms and verify them server-side.',
+    ));
+  }
+
+  if (new URL(finalUrl).protocol === 'https:' && /(src|href)=["']http:\/\//i.test(lowerHtml)) {
+    findings.push(scanFinding(
+      'mixed-content-reference',
+      'Medium',
+      'Possible mixed content reference',
+      'The HTTPS page references one or more HTTP resources in src/href attributes.',
+      'Serve all scripts, images, styles, and links over HTTPS.',
+    ));
+  }
+
+  if (/(api[_-]?key|secret|token|password)\s*[:=]/i.test(lowerHtml)) {
+    findings.push(scanFinding(
+      'possible-secret-pattern',
+      'High',
+      'Possible secret-like string in page source',
+      'The scanner found token/secret/password style patterns in the HTML response.',
+      'Review the rendered source and remove credentials, tokens, or sensitive configuration from client output.',
+    ));
+  }
+
+  checks.push(scanCheck('Client-side exposure review', 'Review', 'Checked HTML for mixed content, common secret patterns, and basic form hygiene.'));
+  return { findings, checks };
+}
+
+function analyzeCookieFlags(headers) {
+  const findings = [];
+  const checks = [];
+  const cookie = String(headers['set-cookie'] || '').toLowerCase();
+  if (!cookie) {
+    checks.push(scanCheck('Cookie security', 'Passed', 'No Set-Cookie header was returned on the scanned response.'));
+    return { findings, checks };
+  }
+
+  checks.push(scanCheck('Cookie security', 'Review', 'Set-Cookie header detected; checking common security flags.'));
+  if (!cookie.includes('secure')) {
+    findings.push(scanFinding(
+      'cookie-missing-secure',
+      'Medium',
+      'Cookie missing Secure flag',
+      'At least one cookie appears to be set without the Secure flag.',
+      'Add Secure to cookies so browsers only send them over HTTPS.',
+    ));
+  }
+  if (!cookie.includes('httponly')) {
+    findings.push(scanFinding(
+      'cookie-missing-httponly',
+      'Medium',
+      'Cookie missing HttpOnly flag',
+      'At least one cookie appears to be set without HttpOnly.',
+      'Add HttpOnly to session cookies to reduce script-based theft impact.',
+    ));
+  }
+  if (!cookie.includes('samesite')) {
+    findings.push(scanFinding(
+      'cookie-missing-samesite',
+      'Low',
+      'Cookie missing SameSite attribute',
+      'At least one cookie appears to be set without SameSite.',
+      'Add SameSite=Lax or SameSite=Strict where appropriate.',
+    ));
+  }
+  return { findings, checks };
+}
+
+async function safeEndpointCheck(finalUrl, pathValue, label) {
+  const baseUrl = new URL(finalUrl);
+  const endpointUrl = `${baseUrl.protocol}//${baseUrl.host}${pathValue}`;
+  try {
+    const response = await fetch(endpointUrl, {
+      redirect: 'manual',
+      headers: { 'User-Agent': 'ThreatHuntersScanner/1.0' },
+      signal: AbortSignal.timeout(6000),
+    });
+    if ([200, 401, 403].includes(response.status)) {
+      return scanCheck(label, 'Review', `${pathValue} returned HTTP ${response.status}.`, endpointUrl);
+    }
+    if ([301, 302, 307, 308].includes(response.status)) {
+      return scanCheck(label, 'Info', `${pathValue} redirected with HTTP ${response.status}.`, response.headers.get('location') || endpointUrl);
+    }
+    return scanCheck(label, 'Passed', `${pathValue} returned HTTP ${response.status}.`, endpointUrl);
+  } catch (error) {
+    return scanCheck(label, 'Skipped', `Could not request ${pathValue}: ${error.message || 'network request failed'}`);
+  }
+}
+
+async function runWebsiteScan(body) {
+  const target = normalizeScanUrl(body.target || body.url);
+  const mode = String(body.scan_mode || body.mode || 'quick').toLowerCase();
+  const startedAt = Date.now();
+  let response;
+  try {
+    response = await fetch(target, {
+      redirect: 'follow',
+      headers: { 'User-Agent': 'ThreatHuntersScanner/1.0' },
+      signal: AbortSignal.timeout(mode === 'deep' ? 18000 : 12000),
+    });
+  } catch (error) {
+    throw new Error(`Could not reach target: ${error.message || 'network request failed'}`);
+  }
+
+  const headers = Object.fromEntries([...response.headers.entries()].map(([key, value]) => [key.toLowerCase(), value]));
+  const findings = [];
+  const checks = [
+    scanCheck('Target reachability', 'Passed', `Target returned HTTP ${response.status}.`, response.url),
+    scanCheck('Redirect handling', 'Info', `${response.redirected ? 1 : 0} redirect(s) followed.`),
+  ];
+  const securityHeaders = {
+    'content-security-policy': ['High', 'Missing Content Security Policy', 'Add a strict Content-Security-Policy header to reduce XSS and injection impact.'],
+    'strict-transport-security': ['High', 'Missing HSTS', 'Add Strict-Transport-Security for HTTPS sites to enforce encrypted connections.'],
+    'x-frame-options': ['Medium', 'Missing clickjacking protection', 'Add X-Frame-Options or frame-ancestors in CSP.'],
+    'x-content-type-options': ['Medium', 'Missing MIME sniffing protection', 'Add X-Content-Type-Options: nosniff.'],
+    'referrer-policy': ['Low', 'Missing Referrer Policy', 'Add Referrer-Policy to limit sensitive URL leakage.'],
+    'permissions-policy': ['Low', 'Missing Permissions Policy', 'Add Permissions-Policy to reduce browser feature exposure.'],
+  };
+
+  if (new URL(target).protocol !== 'https:') {
+    findings.push(scanFinding(
+      'plain-http',
+      'High',
+      'Site is not using HTTPS',
+      'The target was scanned over plain HTTP, which exposes traffic to interception.',
+      'Redirect all traffic to HTTPS and enable HSTS.',
+    ));
+  } else {
+    checks.push(scanCheck('HTTPS transport', 'Passed', 'The submitted target uses HTTPS.'));
+  }
+
+  for (const [header, [severity, title, recommendation]] of Object.entries(securityHeaders)) {
+    if (!headers[header]) {
+      findings.push(scanFinding(
+        `missing-${header}`,
+        severity,
+        title,
+        `The ${header} response header was not present.`,
+        recommendation,
+      ));
+    } else {
+      checks.push(scanCheck(title, 'Passed', `${header} is present.`, headers[header]));
+    }
+  }
+
+  if (headers['x-powered-by']) {
+    findings.push(scanFinding(
+      'technology-disclosure',
+      'Low',
+      'Technology header disclosure',
+      `The response exposes X-Powered-By: ${headers['x-powered-by']}.`,
+      'Remove technology disclosure headers from production responses.',
+    ));
+  }
+  if (headers.server) {
+    checks.push(scanCheck('Server fingerprint', 'Review', 'Server header is visible.', headers.server));
+  }
+
+  if (response.status >= 500) {
+    findings.push(scanFinding(
+      'server-error',
+      'Medium',
+      'Server returned an error',
+      `The target returned HTTP ${response.status}.`,
+      'Review server logs and avoid exposing unstable endpoints.',
+    ));
+  }
+
+  const contentType = headers['content-type'] || 'Unknown';
+  const bodyText = /text\/html|application\/xhtml/i.test(contentType) ? await response.text() : '';
+  const cookieAnalysis = analyzeCookieFlags(headers);
+  const bodyAnalysis = analyzeHtmlBody(bodyText, response.url);
+  findings.push(...cookieAnalysis.findings, ...bodyAnalysis.findings);
+  checks.push(...cookieAnalysis.checks, ...bodyAnalysis.checks);
+
+  const endpointPlan = mode === 'deep'
+    ? [
+      ['/robots.txt', 'robots.txt'],
+      ['/sitemap.xml', 'sitemap.xml'],
+      ['/.well-known/security.txt', 'security.txt'],
+      ['/admin', 'Admin surface'],
+      ['/login', 'Login surface'],
+    ]
+    : [
+      ['/.well-known/security.txt', 'security.txt'],
+      ['/robots.txt', 'robots.txt'],
+    ];
+  const endpointChecks = await Promise.all(endpointPlan.map(([pathValue, label]) => safeEndpointCheck(response.url, pathValue, label)));
+  for (const check of endpointChecks) {
+    if (check.name === 'Admin surface' && check.status === 'Review') {
+      findings.push(scanFinding(
+        'admin-surface-detected',
+        'Low',
+        'Administrative surface may be exposed',
+        `The ${check.name} check returned a reachable response: ${check.details}`,
+        'Confirm administrative paths require authentication, rate limiting, and monitoring.',
+      ));
+    }
+    checks.push(check);
+  }
+
+  const severityCounts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+  const points = { Critical: 28, High: 18, Medium: 10, Low: 4 };
+  for (const finding of findings) {
+    severityCounts[finding.severity] += 1;
+  }
+  const riskScore = Math.min(100, findings.reduce((sum, finding) => sum + points[finding.severity], 0));
+  const risk = scanRiskLabel(riskScore);
+  const completedAt = new Date();
+  const reportId = `RPT-${completedAt.toISOString().replace(/\D/g, '').slice(0, 14)}`;
+
+  return {
+    id: reportId,
+    reference: reportId.replace('RPT-', 'TH-'),
+    target,
+    url: response.url,
+    status: 'Completed',
+    scan_mode: mode,
+    http_status: response.status,
+    server: headers.server || 'Not disclosed',
+    content_type: contentType,
+    content_length: headers['content-length'] || String(bodyText.length),
+    tls: new URL(response.url).protocol === 'https:' ? { valid: true, issuer: 'Browser trust store', expires: null } : null,
+    headers: headerSnapshot(headers),
+    risk,
+    risk_label: `${risk} Risk`,
+    risk_score: riskScore,
+    score: `${riskScore}/100`,
+    duration: `${Math.max((Date.now() - startedAt) / 1000, 0.1).toFixed(1)}s`,
+    date: completedAt.toISOString().slice(0, 10),
+    time: completedAt.toTimeString().slice(0, 5),
+    created_at: completedAt.toISOString(),
+    findings,
+    checks,
+    summary: {
+      total_findings: findings.length,
+      severity_counts: severityCounts,
+      headers_checked: Object.keys(securityHeaders),
+      redirects: response.redirected ? 1 : 0,
+      checks_run: checks.length,
+      passed_checks: checks.filter((check) => check.status === 'Passed').length,
+      review_checks: checks.filter((check) => check.status === 'Review').length,
+    },
+    recommendations: [...new Set(findings.map((finding) => finding.recommendation))].slice(0, 10),
+  };
+}
+
+function normalizeBreachDescription(value) {
+  return String(value || '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
+
+async function checkEmailWithHIBP(email) {
+  const apiKey = String(process.env.HIBP_API_KEY || '').trim();
+  if (!apiKey) {
+    return null;
+  }
+
+  const response = await fetch(
+    `${HIBP_BREACH_URL.replace('{email}', encodeURIComponent(email))}?truncateResponse=false`,
+    {
+      headers: {
+        'User-Agent': APP_USER_AGENT,
+        'hibp-api-key': apiKey,
+      },
+    },
+  );
+
+  if (response.status === 404) {
+    return {
+      email,
+      breached: false,
+      risk_level: 'Safe',
+      breach_count: 0,
+      verified_breach_count: 0,
+      stealer_log_count: 0,
+      latest_breach: null,
+      exposed_data: [],
+      summary: {
+        verified_breaches: 0,
+        stealer_logs: 0,
+        latest_breach: null,
+        risk_level: 'Safe',
+      },
+      breaches: [],
+    };
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    const error = new Error(errorText || `HIBP request failed with status ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  const breaches = await response.json();
+  const normalizedBreaches = [];
+  const exposedData = new Set();
+  let verifiedBreachCount = 0;
+  let stealerLogCount = 0;
+
+  for (const breach of breaches || []) {
+    const normalized = {
+      name: breach.Name,
+      title: breach.Title,
+      domain: breach.Domain,
+      breach_date: breach.BreachDate,
+      added_date: breach.AddedDate,
+      modified_date: breach.ModifiedDate,
+      pwn_count: breach.PwnCount || 0,
+      description: normalizeBreachDescription(breach.Description),
+      logo_path: breach.LogoPath,
+      data_classes: breach.DataClasses || [],
+      verified: Boolean(breach.IsVerified),
+      fabricated: Boolean(breach.IsFabricated),
+      sensitive: Boolean(breach.IsSensitive),
+      retired: Boolean(breach.IsRetired),
+      spam_list: Boolean(breach.IsSpamList),
+      malware: Boolean(breach.IsMalware),
+      stealer_log: Boolean(breach.IsStealerLog),
+      subscription_free: Boolean(breach.IsSubscriptionFree),
+      attribution: breach.Attribution,
+    };
+
+    if (normalized.verified) {
+      verifiedBreachCount += 1;
+    }
+    if (normalized.stealer_log) {
+      stealerLogCount += 1;
+    }
+
+    for (const dataClass of normalized.data_classes) {
+      exposedData.add(dataClass);
+    }
+
+    normalizedBreaches.push(normalized);
+  }
+
+  normalizedBreaches.sort((left, right) => {
+    if (left.breach_date !== right.breach_date) {
+      return String(right.breach_date || '').localeCompare(String(left.breach_date || ''));
+    }
+
+    return Number(right.pwn_count || 0) - Number(left.pwn_count || 0);
+  });
+
+  const breachCount = normalizedBreaches.length;
+  let riskLevel = 'Low';
+  if (breachCount >= 1) {
+    riskLevel = 'Medium';
+  }
+  if (breachCount >= 5) {
+    riskLevel = 'High';
+  }
+  if (breachCount >= 10 || stealerLogCount > 0) {
+    riskLevel = 'Critical';
+  }
+
+  const latestBreach = normalizedBreaches[0] || null;
+
+  return {
+    email,
+    breached: breachCount > 0,
+    risk_level: riskLevel,
+    breach_count: breachCount,
+    verified_breach_count: verifiedBreachCount,
+    stealer_log_count: stealerLogCount,
+    latest_breach: latestBreach,
+    exposed_data: Array.from(exposedData).sort(),
+    summary: {
+      verified_breaches: verifiedBreachCount,
+      stealer_logs: stealerLogCount,
+      latest_breach: latestBreach,
+      risk_level: riskLevel,
+    },
+    breaches: normalizedBreaches,
+  };
+}
+
 function latestBlogsPayload(db, includeHidden = false) {
   const posts = db.posts.map((post) => {
     if (!post.status) {
@@ -645,10 +1433,59 @@ async function handleRequest(req, res) {
     const body = await readBody(req);
     user.firstName = String(body.firstName ?? user.firstName).trim() || user.firstName;
     user.lastName = String(body.lastName ?? user.lastName).trim() || user.lastName;
+    const nextEmail = String(body.email ?? user.email).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(nextEmail)) {
+      sendError(400, 'Enter a valid email address.');
+      return;
+    }
+    const emailTaken = db.users.some((item) => item.id !== user.id && item.email === nextEmail);
+    if (emailTaken) {
+      sendError(400, 'Email address is already in use.');
+      return;
+    }
+    user.email = nextEmail;
     user.phone = String(body.phone ?? user.phone ?? '').trim();
     user.bio = String(body.bio ?? user.bio ?? '').trim();
     await saveDb(db);
     send(200, sanitizeUser(user));
+    return;
+  }
+
+  if (pathname === '/api/user/settings' && req.method === 'GET') {
+    const user = requireUser(db, req);
+    if (!user) {
+      sendError(401, 'Unauthorized.');
+      return;
+    }
+    send(200, userSettings(user));
+    return;
+  }
+
+  if (pathname === '/api/user/settings' && req.method === 'PUT') {
+    const user = requireUser(db, req);
+    if (!user) {
+      sendError(401, 'Unauthorized.');
+      return;
+    }
+    const body = await readBody(req);
+    const currentSettings = userSettings(user);
+    user.settings = {
+      ...currentSettings,
+      language: String(body.language ?? currentSettings.language).trim() || currentSettings.language,
+      timezone: String(body.timezone ?? currentSettings.timezone).trim() || currentSettings.timezone,
+      scanMode: ['quick', 'deep'].includes(body.scanMode) ? body.scanMode : currentSettings.scanMode,
+      twoFactorEnabled: Boolean(body.twoFactorEnabled ?? currentSettings.twoFactorEnabled),
+      notifications: {
+        ...currentSettings.notifications,
+        ...(body.notifications || {}),
+      },
+      reports: {
+        ...currentSettings.reports,
+        ...(body.reports || {}),
+      },
+    };
+    await saveDb(db);
+    send(200, user.settings);
     return;
   }
 
@@ -672,6 +1509,19 @@ async function handleRequest(req, res) {
     user.passwordHash = hashPassword(nextPassword);
     await saveDb(db);
     send(200, { message: 'Password updated successfully.' });
+    return;
+  }
+
+  if (pathname === '/api/user/account' && req.method === 'DELETE') {
+    const user = requireUser(db, req);
+    if (!user) {
+      sendError(401, 'Unauthorized.');
+      return;
+    }
+    db.users = db.users.filter((item) => item.id !== user.id);
+    db.sessions = db.sessions.filter((session) => session.userId !== user.id);
+    await saveDb(db);
+    send(200, { message: 'Account deleted successfully.' });
     return;
   }
 
@@ -709,6 +1559,8 @@ async function handleRequest(req, res) {
       badge: body.badge ? String(body.badge) : 'New',
       tone: body.tone ? String(body.tone) : 'blue',
       imageTone: body.imageTone ? String(body.imageTone) : 'blue',
+      imageUrl: body.imageUrl ? String(body.imageUrl) : '',
+      imageName: body.imageName ? String(body.imageName) : '',
       publishedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       status: ['published', 'hidden'].includes(body.status) ? body.status : 'published',
@@ -763,6 +1615,12 @@ async function handleRequest(req, res) {
       post.category = String(body.category || post.category).trim();
       post.tags = Array.isArray(body.tags) ? body.tags.filter(Boolean).map(String) : post.tags;
       post.badge = body.badge ? String(body.badge) : post.badge;
+      if ('imageUrl' in body) {
+        post.imageUrl = body.imageUrl ? String(body.imageUrl) : '';
+      }
+      if ('imageName' in body) {
+        post.imageName = body.imageName ? String(body.imageName) : '';
+      }
       post.status = ['published', 'hidden'].includes(body.status) ? body.status : (post.status || 'published');
       post.updatedAt = new Date().toISOString();
       await saveDb(db);
@@ -957,6 +1815,62 @@ async function handleRequest(req, res) {
       { title: 'New secure-by-default API headers recommended', source: 'Threat Hunters Desk' },
       { title: 'Ransomware groups pivot to identity compromise', source: 'Threat Hunters Desk' },
     ]);
+    return;
+  }
+
+  if (pathname === '/api/security/awareness') {
+    send(200, buildAwarenessContent());
+    return;
+  }
+
+  if (pathname === '/api/security/check-password' && req.method === 'POST') {
+    const body = await readBody(req);
+    const password = String(body.password || '').trim();
+
+    if (!password) {
+      sendError(400, 'Password is required');
+      return;
+    }
+
+    send(200, buildMockPasswordBreach(password));
+    return;
+  }
+
+  if (pathname === '/api/security/check-email' && req.method === 'POST') {
+    const body = await readBody(req);
+    const email = String(body.email || '').trim().toLowerCase();
+
+    if (!email) {
+      sendError(400, 'Email is required');
+      return;
+    }
+
+    try {
+      const liveResult = await checkEmailWithHIBP(email);
+      if (liveResult) {
+        send(200, liveResult);
+        return;
+      }
+    } catch (error) {
+      const status = Number(error.status || 502);
+      sendError(status, status === 401 || status === 403
+        ? 'HIBP_API_KEY is invalid or unauthorized.'
+        : 'Failed to check email breaches from HIBP.');
+      return;
+    }
+
+    sendError(503, 'HIBP_API_KEY is required for email breach checks.');
+    return;
+  }
+
+  if (pathname === '/api/scanner/scan' && req.method === 'POST') {
+    const body = await readBody(req);
+    try {
+      const result = await runWebsiteScan(body);
+      send(200, result);
+    } catch (error) {
+      sendError(400, error.message || 'Scan failed.');
+    }
     return;
   }
 

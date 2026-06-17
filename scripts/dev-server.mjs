@@ -1,7 +1,54 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 
 const root = path.resolve(process.cwd());
+
+function loadEnvFile(filePath) {
+  if (!existsSync(filePath)) {
+    return;
+  }
+
+  const content = readFileSync(filePath, 'utf8');
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+
+    const separatorIndex = line.indexOf('=');
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = line.slice(0, separatorIndex).trim();
+    if (!key || process.env[key] !== undefined) {
+      continue;
+    }
+
+    let value = line.slice(separatorIndex + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    process.env[key] = value;
+  }
+}
+
+[
+  path.join(root, 'Back-end', '.env'),
+  path.join(root, 'Back-end', '.env.local'),
+  path.join(root, '.env'),
+  path.join(root, '.env.local'),
+  path.join(root, '.vercel', '.env.development.local'),
+  path.join(root, '.vercel', '.env.preview.local'),
+  path.join(root, '.vercel', '.env.production.local'),
+].forEach(loadEnvFile);
 
 function start(command, args, label) {
   const child = spawn(command, args, {
@@ -17,7 +64,35 @@ function start(command, args, label) {
   return child;
 }
 
-function canRunPythonBackend() {
+function parseLocalMongoEndpoint(uri) {
+  const match = String(uri || '').match(/^mongodb(?:\+srv)?:\/\/(?:[^@/]+@)?([^/:/?]+)(?::(\d+))?/i);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    host: match[1],
+    port: Number(match[2] || 27017),
+  };
+}
+
+async function canReachTcpHost(host, port, timeoutMs = 800) {
+  return await new Promise((resolve) => {
+    const socket = net.createConnection({ host, port });
+    const done = (result) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(result);
+    };
+
+    socket.setTimeout(timeoutMs);
+    socket.on('connect', () => done(true));
+    socket.on('timeout', () => done(false));
+    socket.on('error', () => done(false));
+  });
+}
+
+async function canRunPythonBackend() {
   if (!process.env.MONGO_URI || !process.env.SECRET_KEY) {
     return false;
   }
@@ -28,10 +103,19 @@ function canRunPythonBackend() {
     shell: false,
   });
 
-  return pythonCheck.status === 0;
+  if (pythonCheck.status !== 0) {
+    return false;
+  }
+
+  const localMongo = parseLocalMongoEndpoint(process.env.MONGO_URI);
+  if (localMongo) {
+    return await canReachTcpHost(localMongo.host, localMongo.port);
+  }
+
+  return true;
 }
 
-const backend = canRunPythonBackend()
+const backend = (await canRunPythonBackend())
   ? start('python', ['Back-end/app.py'], 'backend')
   : start(process.execPath, ['server/mock-backend.mjs'], 'backend');
 const frontend = start(process.execPath, ['node_modules/vite/bin/vite.js'], 'vite');

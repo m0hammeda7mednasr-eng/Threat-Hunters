@@ -87,6 +87,26 @@ export const authAPI = {
     });
   },
 
+  // Get user console settings
+  getSettings: async () => {
+    return apiRequest("/user/settings");
+  },
+
+  // Update user console settings
+  updateSettings: async (settingsData) => {
+    return apiRequest("/user/settings", {
+      method: "PUT",
+      body: settingsData,
+    });
+  },
+
+  // Delete current user account
+  deleteAccount: async () => {
+    return apiRequest("/user/account", {
+      method: "DELETE",
+    });
+  },
+
   // Request password reset
   requestPasswordReset: async (payload) => {
     return apiRequest("/password/forgot", {
@@ -124,6 +144,27 @@ export const securityAPI = {
   // Get security news
   getSecurityNews: async () => {
     return apiRequest("/security/news");
+  },
+
+  // Get security awareness learning content
+  getAwarenessContent: async () => {
+    return apiRequest("/security/awareness");
+  },
+
+  // Check password against Pwned Passwords
+  checkPasswordBreach: async (payload) => {
+    return apiRequest("/security/check-password", {
+      method: "POST",
+      body: payload,
+    });
+  },
+
+  // Check email against HIBP breach data
+  checkEmailBreach: async (payload) => {
+    return apiRequest("/security/check-email", {
+      method: "POST",
+      body: payload,
+    });
   },
 };
 
@@ -230,6 +271,16 @@ export const dashboardAPI = {
   },
 };
 
+// Scanner API calls
+export const scannerAPI = {
+  scanWebsite: async (payload) => {
+    return apiRequest("/scanner/scan", {
+      method: "POST",
+      body: payload,
+    });
+  },
+};
+
 // Website content API calls
 export const contentAPI = {
   getContent: async () => {
@@ -289,6 +340,10 @@ export const utils = {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("userRole");
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("threatHuntersUserRole");
+    localStorage.removeItem("threatHuntersUserEmail");
+    localStorage.removeItem("threatHuntersScanReports");
   },
 
   // Get stored user data
@@ -306,6 +361,10 @@ export const utils = {
     localStorage.setItem("user", JSON.stringify(user));
     if (user.role) {
       localStorage.setItem("userRole", user.role);
+      localStorage.setItem("threatHuntersUserRole", user.role);
+    }
+    if (user.email) {
+      localStorage.setItem("threatHuntersUserEmail", user.email);
     }
   },
 
