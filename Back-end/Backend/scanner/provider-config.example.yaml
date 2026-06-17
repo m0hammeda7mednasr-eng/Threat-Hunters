@@ -1,0 +1,10 @@
+github:
+  - "${GITHUB_TOKEN}"
+virustotal:
+  - "${VIRUSTOTAL_API_KEY}"
+censys:
+  - "${CENSYS_API_ID}:${CENSYS_API_SECRET}"
+shodan:
+  - "${SHODAN_API_KEY}"
+securitytrails:
+  - "${SECURITYTRAILS_API_KEY}"

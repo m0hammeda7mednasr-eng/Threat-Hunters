@@ -1,0 +1,108 @@
+Private scanner package handoff note
+===================================
+
+Package path
+------------
+
+D:\scanner is the private scanner package export. Import it from its parent
+directory:
+
+  cd D:\
+  python -c "import scanner.runner; print('runner import ok')"
+
+The CLI entrypoint is:
+
+  cd D:\
+  python -m scanner.cli --target http://127.0.0.1:8081 --mode light
+
+Reports
+-------
+
+runner.py writes reports to:
+
+  D:\scanner\reports
+
+The report directory can be overridden with SCANNER_REPORTS_DIR. Do not write
+scan output to a drive root such as D:\reports.
+
+Python requirements
+-------------------
+
+Install package requirements with:
+
+  python -m pip install -r D:\scanner\requirements.txt
+
+Core Python dependencies:
+
+- httpx
+- beautifulsoup4
+- jinja2
+
+Optional external tools
+-----------------------
+
+The scanner discovers external tools from PATH and D:\scanner\tools.
+
+- SQLMap is intentionally vendored at D:\scanner\tools\sqlmap-master\sqlmap.py.
+- Nuclei is optional and must be enabled through runner/CLI options.
+- Nmap or Naabu are optional for safe limited port scans.
+- ffuf or gobuster are optional for rate-limited fuzzing/content discovery.
+- Katana, gau, dalfox, and crlfuzz are used by related modules when available.
+
+SQLMap security note
+--------------------
+
+This private repository vendors SQLMap for authorized security testing only.
+SQLMap includes payload, stager, shell, helper, and resource files used by the
+tool. Do not use this scanner or SQLMap against any target without explicit
+permission.
+
+SQLMap's automatic GitHub issue-reporting token path is disabled in this
+vendored export so the package does not carry an upstream credential-like token.
+
+Wordlists
+---------
+
+Wordlists live under:
+
+  D:\scanner\wordlists
+
+Current fuzz selection is profile-aware:
+
+- light: common.txt, then directory-list-2.3-small.txt
+- deep: directory-list-2.3-medium.txt, then directory-list-2.3-small.txt, then common.txt
+
+The runner does not use raft-large as a first/default fuzz wordlist.
+
+Provider config
+---------------
+
+provider-config.example.yaml contains placeholders only:
+
+- ${GITHUB_TOKEN}
+- ${VIRUSTOTAL_API_KEY}
+- ${CENSYS_API_ID}:${CENSYS_API_SECRET}
+- ${SHODAN_API_KEY}
+- ${SECURITYTRAILS_API_KEY}
+
+Real local config should be named provider-config.yaml. That file is ignored by
+Git and must not be committed.
+
+Before push
+-----------
+
+Run:
+
+  python -m compileall D:\scanner
+  cd D:\
+  python -c "import scanner.runner; print('runner import ok')"
+  python -m scanner.cli --help
+
+Also confirm that these are not staged:
+
+- provider-config.yaml
+- .env files
+- cookies, tokens, or secrets
+- reports or results
+- __pycache__ folders
+- *.pyc files
