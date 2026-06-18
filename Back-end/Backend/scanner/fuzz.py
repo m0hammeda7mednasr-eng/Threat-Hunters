@@ -137,6 +137,61 @@ def _count_wordlist_entries(wordlist: str | None) -> int:
     return count
 
 
+def _max_wordlist_entries(scan_config: dict | None) -> int | None:
+    if not isinstance(scan_config, dict):
+        return None
+    limits = scan_config.get("limits") if isinstance(scan_config.get("limits"), dict) else {}
+    try:
+        value = int(limits.get("max_requests", 0))
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def _make_capped_wordlist(wordlist: str, max_entries: int | None) -> tuple[str, int, str | None]:
+    original_count = _count_wordlist_entries(wordlist)
+    if not max_entries or original_count <= max_entries:
+        return wordlist, original_count, None
+
+    temp_file = tempfile.NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        newline="\n",
+        prefix="scanner-fuzz-",
+        suffix=".txt",
+        delete=False,
+    )
+    temp_path = temp_file.name
+    written = 0
+    try:
+        with temp_file:
+            with open(wordlist, "r", encoding="utf-8", errors="ignore") as handle:
+                for line in handle:
+                    candidate = line.strip()
+                    if not candidate or candidate.startswith("#"):
+                        continue
+                    temp_file.write(candidate + "\n")
+                    written += 1
+                    if written >= max_entries:
+                        break
+    except OSError:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        return wordlist, original_count, None
+
+    if written == 0:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        return wordlist, original_count, None
+
+    log.info(f"[fuzz] Capped wordlist to {written} entries from {original_count} using scan limits.")
+    return temp_path, written, temp_path
+
+
 def _safe_int(value) -> int | None:
     try:
         if value is None or value == "":
@@ -969,7 +1024,7 @@ async def _verify_results(
     return sorted(endpoints), findings
 
 
-async def fuzz_endpoints(alive_hosts: list[dict], profile: str = "light", callback=None) -> list[dict]:
+async def fuzz_endpoints(alive_hosts: list[dict], profile: str = "light", callback=None, scan_config: dict | None = None) -> list[dict]:
     if not alive_hosts:
         return []
 
@@ -992,8 +1047,6 @@ async def fuzz_endpoints(alive_hosts: list[dict], profile: str = "light", callba
     if os.path.exists(custom_wordlist):
         log.info(f"[fuzz] Found custom wordlist: {custom_wordlist}. We will use both.")
 
-    log.info(f"[fuzz] Using wordlist: {wordlist}")
-
     threads = "50" if profile == "deep" else "20"
     delay = "0.5" if profile == "deep" else None
 
@@ -1003,7 +1056,8 @@ async def fuzz_endpoints(alive_hosts: list[dict], profile: str = "light", callba
         log.info(f"[fuzz] Using custom CeWL wordlist: {custom_wl}")
         wordlist = custom_wl
 
-    wordlist_count = _count_wordlist_entries(wordlist)
+    wordlist, wordlist_count, capped_wordlist = _make_capped_wordlist(wordlist, _max_wordlist_entries(scan_config))
+    log.info(f"[fuzz] Using wordlist: {wordlist}")
 
     async def fuzzer(url: str) -> list[FuzzResult]:
         if tool == "ffuf":
@@ -1061,7 +1115,14 @@ async def fuzz_endpoints(alive_hosts: list[dict], profile: str = "light", callba
                 log.info(f"[fuzz] {host_info.get('subdomain', host_info.get('url', 'host'))} -> discovered {len(host_info['endpoints'])} endpoints")
 
     tasks = [_fuzz_one(host) for host in alive_hosts]
-    await asyncio.gather(*tasks, return_exceptions=True)
+    try:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    finally:
+        if capped_wordlist:
+            try:
+                os.unlink(capped_wordlist)
+            except OSError:
+                pass
 
     total_eps = sum(len(host.get("endpoints", [])) for host in alive_hosts)
     total_findings = sum(len(host.get("fuzz_findings", [])) for host in alive_hosts)

@@ -50,25 +50,34 @@ import scanner.runner
 
 ## Scan Modes
 
-Light scan:
+Light scan runs the core useful checks: alive probing, security headers, URL/form extraction,
+sensitive file checks, targeted checks, form checks, and WebSocket checks.
 
 ```powershell
 cd D:\
 python -m scanner.cli --target http://127.0.0.1:8081 --mode light
 ```
 
-Deep scan:
+Deep scan includes the light checks and also enables bounded content discovery,
+limited port scanning, and CRLF checks by default when the required tools are available.
 
 ```powershell
 cd D:\
 python -m scanner.cli --target http://127.0.0.1:8081 --mode deep
 ```
 
-Optional modules are off unless explicitly enabled:
+You can still turn those heavier deep defaults off:
 
 ```powershell
 cd D:\
-python -m scanner.cli --target http://127.0.0.1:8081 --mode light --enable-fuzz --enable-ports
+python -m scanner.cli --target http://127.0.0.1:8081 --mode deep --disable-fuzz --disable-ports --disable-crlfuzz
+```
+
+Nuclei remains explicitly opt-in:
+
+```powershell
+cd D:\
+python -m scanner.cli --target http://127.0.0.1:8081 --mode deep --enable-nuclei
 ```
 
 For public/non-local targets, include permission confirmation only when you have authorization:
@@ -106,9 +115,9 @@ D:\scanner\provider-config.yaml
 
 ## Wordlists And Safety Defaults
 
-Content discovery is intentionally opt-in. Light mode uses `common.txt` first and can fall back to `directory-list-2.3-small.txt`. Deep mode can use `directory-list-2.3-medium.txt`. The runner does not use a huge raft-large-first default.
+Content discovery is off in light mode and on by default in deep mode. Light mode can still enable it explicitly with `--enable-fuzz`. Fuzzing uses `common.txt` first in light mode and `directory-list-2.3-medium.txt` first in deep mode, capped by the scan `max_requests` limit before handing the list to external tools. The runner does not use a huge raft-large-first default.
 
-Port scanning is also opt-in. Light mode uses a limited top-port scan, and deep mode remains bounded rather than running full destructive or exhaustive checks.
+Port scanning is off in light mode and on by default in deep mode. It remains bounded rather than running full destructive or exhaustive checks, and can be disabled with `--disable-ports`.
 
 ## Push Checklist
 

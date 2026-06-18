@@ -22,6 +22,9 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--enable-fuzz", action="store_true", help="Enable rate-limited content discovery.")
     parser.add_argument("--enable-ports", action="store_true", help="Enable safe limited port scanning.")
     parser.add_argument("--enable-crlfuzz", action="store_true", help="Enable CRLF checks.")
+    parser.add_argument("--disable-fuzz", action="store_true", help="Disable content discovery even if the selected mode enables it.")
+    parser.add_argument("--disable-ports", action="store_true", help="Disable port scanning even if the selected mode enables it.")
+    parser.add_argument("--disable-crlfuzz", action="store_true", help="Disable CRLF checks even if the selected mode enables them.")
     parser.add_argument("--json", action="store_true", help="Print a compact JSON result.")
     return parser
 
@@ -30,11 +33,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    module_overrides = {
-        "fuzz": args.enable_fuzz,
-        "ports": args.enable_ports,
-        "crlfuzz": args.enable_crlfuzz,
-    }
+    module_overrides = {}
+    for module_name in ("fuzz", "ports", "crlfuzz"):
+        enable = getattr(args, f"enable_{module_name}")
+        disable = getattr(args, f"disable_{module_name}")
+        if enable and disable:
+            parser.error(f"--enable-{module_name} and --disable-{module_name} cannot be used together")
+        if enable:
+            module_overrides[module_name] = True
+        elif disable:
+            module_overrides[module_name] = False
 
     try:
         result = run_scan(

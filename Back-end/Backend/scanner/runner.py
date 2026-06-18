@@ -259,14 +259,14 @@ def _default_tools(scan_mode: str, enable_nuclei: bool) -> dict:
     return {
         "extraction": True,
         "security_headers": True,
-        "sensitive_files": deep,
-        "targeted": deep,
-        "forms": deep,
-        "crlfuzz": False,
-        "websocket": deep,
+        "sensitive_files": True,
+        "targeted": True,
+        "forms": True,
+        "crlfuzz": deep,
+        "websocket": True,
         "vulns": bool(deep and enable_nuclei),
-        "ports": False,
-        "fuzz": False,
+        "ports": deep,
+        "fuzz": deep,
         "archive_cdx": False,
     }
 
@@ -466,7 +466,7 @@ async def _run_scan_async(
                     "fuzz",
                     scan_data,
                     progress,
-                    lambda: fuzz_endpoints(alive_hosts, profile=profile, callback=progress),
+                    lambda: fuzz_endpoints(alive_hosts, profile=profile, callback=progress, scan_config=runtime_scan_config),
                     "Running rate-limited content discovery",
                 )
                 if fuzz_results is not None:

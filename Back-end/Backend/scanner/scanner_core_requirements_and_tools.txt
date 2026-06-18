@@ -49,6 +49,25 @@ The scanner discovers external tools from PATH and D:\scanner\tools.
 - ffuf or gobuster are optional for rate-limited fuzzing/content discovery.
 - Katana, gau, dalfox, and crlfuzz are used by related modules when available.
 
+Scan profiles
+-------------
+
+Light mode runs the practical core checks by default:
+
+- alive probing
+- security headers
+- URL/form extraction
+- sensitive file checks
+- targeted checks
+- form checks
+- WebSocket checks
+
+Deep mode includes the light checks and also enables bounded content discovery,
+limited port scanning, and CRLF checks by default when their tools are available.
+Fuzzing uses the profile wordlist but caps it by the scan max_requests limit
+before handing it to external tools. Nuclei remains explicitly opt-in with
+--enable-nuclei.
+
 SQLMap security note
 --------------------
 
