@@ -4,6 +4,7 @@ from services.auth_service import (
     forgot_password,
     login_user,
     register_user,
+    resend_verification_otp,
     request_password_reset,
     reset_password,
     verify_email,
@@ -26,6 +27,11 @@ def login():
 @auth_bp.route("/verify-email", methods=["POST"])
 def verify():
     return verify_email(request.json)
+
+
+@auth_bp.route("/verify-email/resend", methods=["POST"])
+def resend_verify():
+    return resend_verification_otp(request.json)
 
 
 @auth_bp.route("/forgot-password", methods=["POST"])

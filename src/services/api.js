@@ -66,6 +66,22 @@ export const authAPI = {
     });
   },
 
+  // Verify email with OTP
+  verifyEmail: async (payload) => {
+    return apiRequest("/verify-email", {
+      method: "POST",
+      body: payload,
+    });
+  },
+
+  // Resend verification OTP
+  resendVerificationOtp: async (payload) => {
+    return apiRequest("/verify-email/resend", {
+      method: "POST",
+      body: payload,
+    });
+  },
+
   // Get current user profile
   getProfile: async () => {
     return apiRequest("/user/profile");

@@ -355,6 +355,54 @@ def verify_email(data):
     }), 200
 
 
+def resend_verification_otp(data):
+
+    email = data.get("email", "").strip().lower()
+
+    if not email:
+        return jsonify({
+            "message": "Email is required"
+        }), 400
+
+    user = mongo.db.users.find_one({
+        "email": email
+    })
+
+    if not user:
+        return jsonify({
+            "message": "User not found"
+        }), 404
+
+    if user.get("is_verified", False):
+        return jsonify({
+            "message": "Account already verified"
+        }), 400
+
+    otp = generate_otp()
+    expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+
+    mongo.db.users.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {
+                "verification_code": otp,
+                "verification_expires": expires_at
+            }
+        }
+    )
+
+    send_email(
+        email,
+        "Threat Hunters Verification Code",
+        f"Your verification code is: {otp}"
+    )
+
+    return jsonify({
+        "message": "Verification code resent",
+        "email": email
+    }), 200
+
+
 def request_password_reset(data):
 
     email = data.get("email", "").strip().lower()

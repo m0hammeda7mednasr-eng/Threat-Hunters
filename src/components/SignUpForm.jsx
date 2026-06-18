@@ -4,16 +4,19 @@ import { useAuth } from "../context/AuthContext";
 import "./SignUpForm.css";
 
 const SignUpForm = ({ onSwitchToSignIn }) => {
-  const { register, loading, error: authError } = useAuth();
+  const { register, verifyEmail, resendVerificationOtp, loading, error: authError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [step, setStep] = useState("register");
+  const [pendingEmail, setPendingEmail] = useState("");
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
+    otp: "",
     agreeToTerms: false,
   });
 
@@ -76,17 +79,9 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
 
         if (result.success) {
           setError("");
-          setSuccess("Account created successfully! Check your email for the OTP, verify the account, then sign in.");
-
-          // Reset form
-          setFormData({
-            firstName: "",
-            lastName: "",
-            email: "",
-            password: "",
-            confirmPassword: "",
-            agreeToTerms: false,
-          });
+          setPendingEmail(sanitizedEmail);
+          setStep("verify");
+          setSuccess(`Account created successfully. We sent an OTP to ${sanitizedEmail}. Enter it below to activate your account.`);
         } else {
           setError(result.error || "Registration failed. Please try again.");
         }
@@ -96,6 +91,50 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
       }
     },
     [formData, register, onSwitchToSignIn],
+  );
+
+  const handleVerify = useCallback(
+    async (event) => {
+      event.preventDefault();
+
+      const email = (pendingEmail || formData.email).trim().toLowerCase();
+      const otp = formData.otp.trim();
+
+      if (!email || !otp) {
+        setError("Email and OTP are required.");
+        return;
+      }
+
+      try {
+        const result = await verifyEmail({
+          email,
+          code: otp,
+        });
+
+        if (result.success) {
+          setError("");
+          setSuccess("Email verified successfully. You can sign in now.");
+          setStep("register");
+          setPendingEmail("");
+          setFormData({
+            firstName: "",
+            lastName: "",
+            email: "",
+            password: "",
+            confirmPassword: "",
+            otp: "",
+            agreeToTerms: false,
+          });
+          onSwitchToSignIn?.();
+        } else {
+          setError(result.error || "OTP verification failed.");
+        }
+      } catch (err) {
+        setError("An unexpected error occurred. Please try again.");
+        console.error("Verification error:", err);
+      }
+    },
+    [formData.email, formData.otp, onSwitchToSignIn, pendingEmail, verifyEmail],
   );
 
   return (
@@ -127,7 +166,9 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
         </button>
       </div>
 
-      <form className="signup-form" onSubmit={handleSubmit}>
+      <form className="signup-form" onSubmit={step === "verify" ? handleVerify : handleSubmit}>
+        {step === "register" ? (
+          <>
         <div className="signup-form-row">
           <label className="signup-field">
             <span>First Name</span>
@@ -245,6 +286,68 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
         >
           {loading ? "Creating Account..." : "Create Account"}
         </button>
+          </>
+        ) : (
+          <>
+            <label className="signup-field">
+              <span>Verification Email</span>
+              <div className="signup-input-shell signup-input-shell-plain">
+                <input
+                  readOnly
+                  type="email"
+                  value={pendingEmail || formData.email}
+                />
+              </div>
+            </label>
+
+            <label className="signup-field">
+              <span>OTP Code</span>
+              <div className="signup-input-shell signup-input-shell-plain">
+                <input
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  name="otp"
+                  onChange={handleChange}
+                  placeholder="Enter the OTP code"
+                  required
+                  inputMode="numeric"
+                  type="text"
+                  value={formData.otp}
+                />
+              </div>
+            </label>
+
+            <button
+              className="signup-submit-button"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? "Verifying..." : "Verify Email"}
+            </button>
+
+            <button
+              type="button"
+              className="signup-submit-button signup-submit-button-secondary"
+              onClick={async () => {
+                const email = (pendingEmail || formData.email).trim();
+                if (!email) {
+                  setError("Enter your email before resending the OTP.");
+                  return;
+                }
+
+                const result = await resendVerificationOtp({ email });
+                if (result.success) {
+                  setSuccess(`OTP resent to ${email}. Check your inbox.`);
+                } else {
+                  setError(result.error || "Unable to resend OTP.");
+                }
+              }}
+              disabled={loading}
+            >
+              Resend OTP
+            </button>
+          </>
+        )}
 
         {(error || authError) && (
           <p className="signup-error" role="alert">

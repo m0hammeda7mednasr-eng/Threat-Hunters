@@ -9,7 +9,7 @@ def validate_email_format(email):
 
         validate_email(
             email,
-            check_deliverability=True
+            check_deliverability=False
         )
 
         return True

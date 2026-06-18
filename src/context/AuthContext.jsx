@@ -70,6 +70,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const verifyEmail = async (payload) => {
+    try {
+      setError(null);
+      const response = await authAPI.verifyEmail(payload);
+      return { success: true, data: response };
+    } catch (err) {
+      const errorMessage = err.message || "Failed to verify email";
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  const resendVerificationOtp = async (payload) => {
+    try {
+      setError(null);
+      const response = await authAPI.resendVerificationOtp(payload);
+      return { success: true, data: response };
+    } catch (err) {
+      const errorMessage = err.message || "Failed to resend verification OTP";
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
   // Register function
   const register = async (userData) => {
     try {
@@ -242,6 +266,8 @@ export const AuthProvider = ({ children }) => {
 
     // Actions
     login,
+    verifyEmail,
+    resendVerificationOtp,
     register,
     logout,
     getProfile,
