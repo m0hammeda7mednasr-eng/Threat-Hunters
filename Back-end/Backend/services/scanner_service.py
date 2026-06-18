@@ -37,6 +37,11 @@ def start_scan(data):
     modules = data.get(
         "modules"
     )
+    confirm_permission = data.get(
+        "confirm_permission"
+    )
+    if confirm_permission is None:
+        confirm_permission = True
 
     result = run_scan(
 
@@ -48,7 +53,7 @@ def start_scan(data):
 
         enable_nuclei=enable_nuclei,
 
-        confirm_permission=True,
+        confirm_permission=confirm_permission,
 
         nuclei_profile=nuclei_profile,
 

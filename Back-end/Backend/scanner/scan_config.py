@@ -341,7 +341,9 @@ def prepare_scan_config(req: dict, *, domain: str, default_profile: str = "light
         avoid_paths=avoid_paths,
     )
     limits = _normalize_limits(raw_config.get("limits", {}))
-    external_tool_auth_requested = _as_bool(raw_config.get("external_tool_auth_allowed", False))
+    external_tool_auth_requested = _as_bool(
+        raw_config.get("external_tool_auth_requested", raw_config.get("external_tool_auth_allowed", False))
+    )
     external_tool_auth_allowed = bool(
         external_tool_auth_requested
         and is_local
@@ -427,38 +429,6 @@ def _merge_unique(existing, additions) -> list:
     return merged
 
 
-def _host_for_url(url: str) -> str:
-    parsed = urlparse(url if "://" in str(url) else f"http://{url}")
-    return (parsed.hostname or "").lower()
-
-
-def _seed_matches_host(seed_url: str, host: dict) -> bool:
-    seed_host = _host_for_url(seed_url)
-    host_url = str(host.get("url") or "")
-    host_host = _host_for_url(host_url)
-    host_subdomain = str(host.get("subdomain") or "").lower()
-    if not seed_host:
-        return False
-    if seed_host in {host_host, host_subdomain}:
-        return True
-    return bool(host_host and (seed_host.endswith("." + host_host) or host_host.endswith("." + seed_host)))
-
-
-def _merge_unique(existing, additions) -> list:
-    merged = []
-    seen = set()
-    for item in [*_as_list(existing), *_as_list(additions)]:
-        text = str(item or "").strip()
-        if not text:
-            continue
-        key = text.rstrip("/")
-        if key in seen:
-            continue
-        seen.add(key)
-        merged.append(text)
-    return merged
-
-
 def inject_seed_urls_into_hosts(alive_hosts: list, scan_config: dict | None) -> list:
     if not isinstance(alive_hosts, list):
         return alive_hosts
@@ -493,4 +463,3 @@ def inject_seed_urls_into_hosts(alive_hosts: list, scan_config: dict | None) -> 
                 "extracted_urls": unmatched
             })
     return alive_hosts
-

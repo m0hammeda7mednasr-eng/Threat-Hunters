@@ -13,7 +13,7 @@ from .scan_config import sanitize_scan_config_for_storage
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s â”‚ %(levelname)-7s â”‚ %(message)s",
+    format="%(asctime)s | %(levelname)-7s | %(message)s",
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("recon")
@@ -1126,4 +1126,3 @@ def save_report(report: dict, output_dir: str = None) -> str:
 
     log.info(f"Report saved â†’ {filepath}")
     return filepath
-

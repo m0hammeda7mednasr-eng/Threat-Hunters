@@ -64,6 +64,62 @@ def _as_bool(value) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
+TOOL_KEYS = {
+    "extraction",
+    "security_headers",
+    "sensitive_files",
+    "targeted",
+    "forms",
+    "crlfuzz",
+    "websocket",
+    "vulns",
+    "ports",
+    "fuzz",
+    "archive_cdx",
+}
+
+TOOL_OVERRIDE_ALIASES = {
+    "qbasicport": "ports",
+    "qfingerprint": "extraction",
+    "qserverinfo": "extraction",
+    "qheaders": "security_headers",
+    "qlightdirectory": "fuzz",
+    "dfullport": "ports",
+    "daggressivenmap": "ports",
+    "dnsescripts": "ports",
+    "dnikto": "targeted",
+    "dsqlmap": "targeted",
+    "dxsstrike": "targeted",
+    "ddirsearch": "fuzz",
+    "doutdated": "vulns",
+    "dbruteforce": "targeted",
+    "dssltls": "security_headers",
+}
+
+
+def _normalize_tool_overrides(overrides: dict | None) -> dict:
+    flat: dict[str, bool] = {}
+    if not isinstance(overrides, dict):
+        return flat
+
+    def visit(mapping: dict) -> None:
+        for key, value in mapping.items():
+            key_text = str(key or "").strip().lower()
+            if not key_text:
+                continue
+            if key_text in {"dashboard", "advanced", "modules", "tools"} and isinstance(value, dict):
+                visit(value)
+                continue
+            if key_text == "dashboard" and isinstance(value, (list, tuple, set)):
+                continue
+            canonical = TOOL_OVERRIDE_ALIASES.get(key_text, key_text)
+            if canonical in TOOL_KEYS:
+                flat[canonical] = _as_bool(value)
+
+    visit(overrides)
+    return flat
+
+
 def _normalized_finding_route(url: str) -> str:
     try:
         parsed = urlparse(url or "")
@@ -273,11 +329,9 @@ def _default_tools(scan_mode: str, enable_nuclei: bool) -> dict:
 
 def _merge_tool_overrides(defaults: dict, overrides: dict | None) -> dict:
     tools = dict(defaults)
-    if not isinstance(overrides, dict):
-        return tools
-    for name, enabled in overrides.items():
+    for name, enabled in _normalize_tool_overrides(overrides).items():
         if name in tools:
-            tools[name] = _as_bool(enabled)
+            tools[name] = enabled
     return tools
 
 
@@ -388,6 +442,7 @@ async def _run_scan_async(
     prepared = prepare_scan_config(req, domain=domain, default_profile=profile)
     stored_scan_config = prepared["redacted"]
     runtime_scan_config = prepared["runtime"]
+    normalized_modules = _normalize_tool_overrides(modules)
     tools = _merge_tool_overrides(_default_tools(profile, enable_nuclei), modules)
     if tools.get("vulns") and not (profile == "deep" and enable_nuclei):
         tools["vulns"] = False
@@ -407,7 +462,7 @@ async def _run_scan_async(
         "scan_id": scan_id,
         "profile": profile,
         "scan_config": stored_scan_config,
-        "requested_modules": {name: _as_bool(enabled) for name, enabled in (modules or {}).items() if name in tools},
+        "requested_modules": {name: _as_bool(enabled) for name, enabled in normalized_modules.items() if name in tools},
         "effective_modules": dict(tools),
         "telemetry": {"modules": {}},
     }
