@@ -50,6 +50,20 @@ def add_cors_headers(response):
 
 mongo.init_app(app)
 
+
+def ensure_mongo_indexes():
+    if not getattr(mongo, "db", None):
+        return
+    try:
+        mongo.db.blogs.create_index("slug", unique=True, name="uq_blogs_slug")
+    except Exception:
+        # Let the app continue if the index already exists or the database is unavailable.
+        pass
+
+
+with app.app_context():
+    ensure_mongo_indexes()
+
 app.register_blueprint(auth_bp, url_prefix="/api")
 app.register_blueprint(user_bp, url_prefix="/api")
 app.register_blueprint(blog_bp, url_prefix="/api")

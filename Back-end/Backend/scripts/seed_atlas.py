@@ -203,20 +203,23 @@ def main():
         ]:
             db[collection_name].delete_many({})
 
-    if users:
+    blog_seed_exists = db.blogs.count_documents({}) > 0
+    seed_blog_data = args.reset or not blog_seed_exists
+
+    if users and (args.reset or db.users.count_documents({}) == 0):
         db.users.insert_many(users)
 
-    if blogs:
-        db.blogs.insert_many(blogs)
-
-    if comments:
-        db.comments.insert_many(comments)
-
-    if likes:
-        db.likes.insert_many(likes)
-
-    if blog_views:
-        db.blog_views.insert_many(blog_views)
+    if seed_blog_data:
+        if blogs:
+            db.blogs.insert_many(blogs)
+        if comments:
+            db.comments.insert_many(comments)
+        if likes:
+            db.likes.insert_many(likes)
+        if blog_views:
+            db.blog_views.insert_many(blog_views)
+    else:
+        print("Blogs already exist; skipping blog seed data to avoid duplicates.")
 
     for page, payload in (bootstrap.get("webContent") or {}).items():
         record = deepcopy(payload)
