@@ -63,11 +63,14 @@ Light mode runs the practical core checks by default:
 - WebSocket checks
 
 Deep mode includes the light checks and also enables bounded content discovery,
-limited port scanning, and CRLF checks by default when their tools are available.
-Fuzzing uses the profile wordlist but caps it by the scan max_requests limit
-before handing it to external tools. The default cap is 1000 for light and 5000
-for deep, and the CLI can override it with --max-requests. Nuclei remains
-explicitly opt-in with --enable-nuclei.
+historical URL discovery, hidden parameter discovery, limited port scanning,
+and CRLF checks by default when their tools are available. Fuzzing uses custom
+wordlists first when present, including matching files from D:\recon\wordlists,
+then caps the combined list by max_requests before handing it to external
+tools. The default cap is 1000 for light and 5000 for deep, and the CLI can
+override it with --max-requests. Nuclei remains explicitly opt-in with
+--enable-nuclei; authorized public app-route checks use
+--nuclei-profile authorized-app-v1.
 
 SQLMap security note
 --------------------

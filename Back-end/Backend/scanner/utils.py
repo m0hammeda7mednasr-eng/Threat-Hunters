@@ -1,4 +1,4 @@
-import shutil
+﻿import shutil
 import logging
 import json
 import os
@@ -13,7 +13,7 @@ from .scan_config import sanitize_scan_config_for_storage
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s â”‚ %(levelname)-7s â”‚ %(message)s",
+    format="%(asctime)s | %(levelname)-7s | %(message)s",
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("recon")
@@ -96,6 +96,9 @@ REQUIRED_TOOLS = {
 def _find_local_tool(name: str) -> str | None:
     search_dirs = [
         TOOLS_DIR,
+        os.getenv("SCANNER_TOOLS_DIR", ""),
+        r"D:\recon\tools",
+        r"D:\Projects\recon\tools",
         os.path.expanduser("~/go/bin"),
         os.path.expanduser("~/.local/bin"),
     ]
@@ -1124,6 +1127,6 @@ def save_report(report: dict, output_dir: str = None) -> str:
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
 
-    log.info(f"Report saved â†’ {filepath}")
+    log.info(f"Report saved -> {filepath}")
     return filepath
 

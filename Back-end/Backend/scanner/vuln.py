@@ -81,6 +81,7 @@ EXPOSURE_TAGS = {"exposure", "exposures", "file", "files", "config", "backup", "
 INJECTION_TAGS = {"xss", "sqli", "sql", "rce", "lfi", "ssrf", "ssti", "injection"}
 NUCLEI_PUBLIC_SAFE_PROFILE = "public-safe-v1"
 NUCLEI_LAB_APP_PROFILE = "lab-app-v1"
+NUCLEI_AUTHORIZED_APP_PROFILE = "authorized-app-v1"
 NUCLEI_SAFE_TEMPLATE_PROFILE = NUCLEI_PUBLIC_SAFE_PROFILE
 NUCLEI_PUBLIC_SAFE_TEMPLATE_RELATIVE_PATHS = [
     "http/technologies/tech-detect.yaml",
@@ -137,6 +138,15 @@ NUCLEI_PROFILES = {
         "target_scope": "host_and_app_routes",
         "max_targets": NUCLEI_LAB_APP_MAX_TARGETS,
         "allowed_target_type": "local_lab_only",
+    },
+    NUCLEI_AUTHORIZED_APP_PROFILE: {
+        "name": NUCLEI_AUTHORIZED_APP_PROFILE,
+        "template_paths": NUCLEI_LAB_APP_TEMPLATE_RELATIVE_PATHS,
+        "severity": NUCLEI_LAB_APP_SEVERITIES,
+        "exclude_tags": NUCLEI_LAB_APP_EXCLUDE_TAGS,
+        "target_scope": "host_and_app_routes",
+        "max_targets": NUCLEI_LAB_APP_MAX_TARGETS,
+        "allowed_target_type": "explicit_permission",
     },
 }
 
@@ -831,6 +841,12 @@ def _resolve_nuclei_profile(scan_config: dict | None) -> tuple[dict, dict]:
             gate["profile_safety_gate"] = "lab_profile_allowed"
             return NUCLEI_PROFILES[NUCLEI_LAB_APP_PROFILE], gate
         gate["profile_safety_gate"] = "lab_profile_blocked_public_or_unmarked"
+        return NUCLEI_PROFILES[NUCLEI_PUBLIC_SAFE_PROFILE], gate
+    if requested == NUCLEI_AUTHORIZED_APP_PROFILE:
+        if _as_bool(scan_config.get("authorization_confirmed")) and auth_type in {"own_target", "i_own_this_target", "explicit_permission", "permission", "explicit"}:
+            gate["profile_safety_gate"] = "authorized_app_profile_allowed"
+            return NUCLEI_PROFILES[NUCLEI_AUTHORIZED_APP_PROFILE], gate
+        gate["profile_safety_gate"] = "authorized_app_profile_blocked_without_permission"
         return NUCLEI_PROFILES[NUCLEI_PUBLIC_SAFE_PROFILE], gate
     return NUCLEI_PROFILES[NUCLEI_PUBLIC_SAFE_PROFILE], gate
 

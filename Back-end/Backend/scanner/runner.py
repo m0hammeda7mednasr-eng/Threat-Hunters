@@ -15,6 +15,8 @@ from .extraction import run_extraction
 from .findings import merge_findings
 from .form_scanner import run_form_scanner
 from .fuzz import fuzz_endpoints
+from .js_checks import run_js_checks
+from .param_discovery import run_param_discovery
 from .ports import scan_ports
 from .reporter import generate_html_report, generate_markdown_report
 from .scan_config import (
@@ -276,6 +278,8 @@ def _default_tools(scan_mode: str, enable_nuclei: bool) -> dict:
         "sensitive_files": True,
         "targeted": True,
         "forms": True,
+        "js_checks": True,
+        "param_discovery": deep,
         "crlfuzz": deep,
         "websocket": True,
         "vulns": bool(deep and enable_nuclei),
@@ -338,6 +342,43 @@ def _record_disabled_modules(scan_data: dict, tools: dict) -> None:
     for module_name, enabled in tools.items():
         if not enabled:
             _record_module_state(scan_data, module_name, "skipped", "Disabled by scan mode or options.")
+
+
+def _merge_js_results_into_hosts(domain: str, alive_hosts: list[dict], js_results: dict | None) -> None:
+    if not isinstance(js_results, dict):
+        return
+    endpoint_items = js_results.get("endpoints", []) if isinstance(js_results.get("endpoints", []), list) else []
+    finding_items = js_results.get("findings", []) if isinstance(js_results.get("findings", []), list) else []
+    secret_items = js_results.get("secrets", []) if isinstance(js_results.get("secrets", []), list) else []
+
+    for host in alive_hosts:
+        host_url = host.get("url") or ""
+        host_key = _finding_host_key({"url": host_url}, domain)
+        base_urls = [base for base in host.get("expanded_urls", [host_url]) if base]
+        js_endpoint_urls = []
+        for item in endpoint_items:
+            endpoint_url = item.get("url") if isinstance(item, dict) else ""
+            if not endpoint_url or _finding_host_key({"url": endpoint_url}, host_key) != host_key:
+                continue
+            js_endpoint_urls.append(endpoint_url)
+        if js_endpoint_urls:
+            host["js_endpoints"] = sorted(set([*host.get("js_endpoints", []), *js_endpoint_urls]))
+            host["extracted_urls"] = sorted(set([*host.get("extracted_urls", []), *js_endpoint_urls]))
+            host["endpoints"] = sorted(set([*host.get("endpoints", []), *js_endpoint_urls]))
+
+        host_findings = [
+            finding for finding in finding_items
+            if isinstance(finding, dict) and _finding_host_key(finding, host_key) == host_key
+        ]
+        host_secrets = [
+            finding for finding in secret_items
+            if isinstance(finding, dict) and _finding_host_key(finding, host_key) == host_key
+        ]
+        if host_findings:
+            host["js_findings"] = merge_findings(host.get("js_findings", []), host_findings)
+            host["vulns"] = merge_findings(host.get("vulns", []), host_findings)
+        if host_secrets:
+            host["js_secrets"] = merge_findings(host.get("js_secrets", []), host_secrets)
 
 
 async def _run_module_safely(module_name: str, scan_data: dict, progress, call, message: str = ""):
@@ -462,12 +503,23 @@ async def _run_scan_async(
                 "extraction",
                 scan_data,
                 progress,
-                lambda: run_extraction(alive_hosts, profile=profile, callback=progress),
+                lambda: run_extraction(alive_hosts, profile=profile, callback=progress, scan_config=runtime_scan_config),
                 "Extracting same-origin URLs and forms",
             )
             if extraction_results is not None:
                 alive_hosts = extraction_results
             alive_hosts = inject_seed_urls_into_hosts(alive_hosts, runtime_scan_config)
+
+        if tools["js_checks"]:
+            js_results = await _run_module_safely(
+                "js_checks",
+                scan_data,
+                progress,
+                lambda: run_js_checks(domain, copy.deepcopy(alive_hosts), profile),
+                "Mining JavaScript for routes and exposed secrets",
+            ) or {}
+            scan_data["js_secrets"] = js_results
+            _merge_js_results_into_hosts(domain, alive_hosts, js_results)
 
         if tools["ports"]:
             if not check_tool("naabu") and not check_tool("nmap"):
@@ -498,6 +550,22 @@ async def _run_scan_async(
                 )
                 if fuzz_results is not None:
                     alive_hosts = fuzz_results
+
+        if tools["param_discovery"]:
+            param_results = await _run_module_safely(
+                "param_discovery",
+                scan_data,
+                progress,
+                lambda: run_param_discovery(
+                    alive_hosts,
+                    profile=profile,
+                    scan_config=runtime_scan_config,
+                    callback=progress,
+                ),
+                "Probing discovered URLs for hidden parameters",
+            )
+            if param_results is not None:
+                alive_hosts = param_results
 
         if tools["sensitive_files"]:
             sensitive_results = await _run_module_safely(

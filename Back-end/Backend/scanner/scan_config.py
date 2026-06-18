@@ -353,7 +353,7 @@ def prepare_scan_config(req: dict, *, domain: str, default_profile: str = "light
         or raw_config.get("nuclei_template_profile")
         or "public-safe-v1"
     ).strip().lower()
-    if nuclei_profile not in {"public-safe-v1", "lab-app-v1"}:
+    if nuclei_profile not in {"public-safe-v1", "lab-app-v1", "authorized-app-v1"}:
         nuclei_profile = "public-safe-v1"
     lab_mode = bool(is_local and auth_type in LOCAL_AUTH_TYPES)
 

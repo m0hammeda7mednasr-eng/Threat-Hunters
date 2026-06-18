@@ -192,6 +192,98 @@ def _make_capped_wordlist(wordlist: str, max_entries: int | None) -> tuple[str, 
     return temp_path, written, temp_path
 
 
+def _wordlist_dirs() -> list[str]:
+    dirs = [
+        os.path.join(os.path.dirname(__file__), "wordlists"),
+        os.getenv("SCANNER_WORDLIST_DIR", ""),
+        r"D:\recon\wordlists",
+    ]
+    return [path for path in dirs if path and os.path.isdir(path)]
+
+
+def _host_labels(alive_hosts: list[dict]) -> list[str]:
+    labels = []
+    for host in alive_hosts[:3]:
+        for value in (host.get("domain"), host.get("subdomain"), host.get("input_host"), host.get("url")):
+            parsed = urlparse(str(value or "") if "://" in str(value or "") else f"http://{value}")
+            hostname = (parsed.hostname or str(value or "")).strip().lower()
+            if not hostname:
+                continue
+            labels.append(hostname)
+            if hostname.startswith("www."):
+                labels.append(hostname[4:])
+            parts = hostname.split(".")
+            if len(parts) >= 2:
+                labels.append(".".join(parts[-2:]))
+            if len(parts) >= 3:
+                labels.append(parts[-3])
+    seen = set()
+    return [label for label in labels if label and not (label in seen or seen.add(label))]
+
+
+def _custom_wordlists(alive_hosts: list[dict]) -> list[str]:
+    paths = []
+    for directory in _wordlist_dirs():
+        for label in _host_labels(alive_hosts):
+            candidate = os.path.join(directory, f"custom_{label}.txt")
+            if os.path.exists(candidate):
+                paths.append(candidate)
+    seen = set()
+    return [path for path in paths if not (path in seen or seen.add(path))]
+
+
+def _make_combined_capped_wordlist(wordlists: list[str], max_entries: int | None) -> tuple[str, int, str | None]:
+    existing = [path for path in wordlists if path and os.path.exists(path)]
+    if not existing:
+        return "", 0, None
+    if len(existing) == 1:
+        return _make_capped_wordlist(existing[0], max_entries)
+
+    cap = max_entries or sum(_count_wordlist_entries(path) for path in existing)
+    temp_file = tempfile.NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        newline="\n",
+        prefix="scanner-fuzz-combined-",
+        suffix=".txt",
+        delete=False,
+    )
+    temp_path = temp_file.name
+    seen = set()
+    written = 0
+    try:
+        with temp_file:
+            for path in existing:
+                with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+                    for line in handle:
+                        candidate = line.strip()
+                        if not candidate or candidate.startswith("#") or candidate in seen:
+                            continue
+                        seen.add(candidate)
+                        temp_file.write(candidate + "\n")
+                        written += 1
+                        if written >= cap:
+                            break
+                if written >= cap:
+                    break
+    except OSError:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        return _make_capped_wordlist(existing[-1], max_entries)
+
+    if written == 0:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        return _make_capped_wordlist(existing[-1], max_entries)
+
+    log.info(f"[fuzz] Built combined wordlist with {written} entries from {len(existing)} sources.")
+    return temp_path, written, temp_path
+
+
 def _safe_int(value) -> int | None:
     try:
         if value is None or value == "":
@@ -1043,20 +1135,17 @@ async def fuzz_endpoints(alive_hosts: list[dict], profile: str = "light", callba
             await callback("fuzz", "warning", "No wordlist file found. Skipping.")
         return alive_hosts
 
-    custom_wordlist = os.path.join(os.path.dirname(__file__), "wordlists", f"custom_{alive_hosts[0].get('domain', 'target')}.txt")
-    if os.path.exists(custom_wordlist):
-        log.info(f"[fuzz] Found custom wordlist: {custom_wordlist}. We will use both.")
-
     threads = "50" if profile == "deep" else "20"
     delay = "0.5" if profile == "deep" else None
 
-    domain_key = alive_hosts[0].get("subdomain", "").split(".")[-2] if alive_hosts else ""
-    custom_wl = os.path.join(os.path.dirname(__file__), "wordlists", f"custom_{domain_key}.txt")
-    if profile == "deep" and os.path.exists(custom_wl):
-        log.info(f"[fuzz] Using custom CeWL wordlist: {custom_wl}")
-        wordlist = custom_wl
+    custom_wordlists = _custom_wordlists(alive_hosts) if profile == "deep" else []
+    if custom_wordlists:
+        log.info(f"[fuzz] Found {len(custom_wordlists)} custom wordlist(s): {', '.join(custom_wordlists[:3])}")
 
-    wordlist, wordlist_count, capped_wordlist = _make_capped_wordlist(wordlist, _max_wordlist_entries(scan_config))
+    wordlist, wordlist_count, capped_wordlist = _make_combined_capped_wordlist(
+        [*custom_wordlists, wordlist],
+        _max_wordlist_entries(scan_config),
+    )
     log.info(f"[fuzz] Using wordlist: {wordlist}")
 
     async def fuzzer(url: str) -> list[FuzzResult]:

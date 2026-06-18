@@ -266,10 +266,12 @@ async def _run_katana(url: str, profile: str) -> list[str]:
         return []
 
 
-async def _run_gau(url: str) -> list[str]:
+async def _run_gau(url: str, limit: int = 5000) -> list[str]:
+    parsed = urlparse(url)
+    target = parsed.hostname or parsed.netloc or url
     cmd = [
         get_tool_path("gau"),
-        url,
+        target,
         "--threads", "5",
     ]
     try:
@@ -280,13 +282,13 @@ async def _run_gau(url: str) -> list[str]:
         )
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=300)
         output = stdout.decode(errors="replace").strip()
-        return [line.strip() for line in output.splitlines() if line.strip()]
+        return [line.strip() for line in output.splitlines() if line.strip()][:limit]
     except Exception as e:
         log.error(f"[extraction] gau error for {url}: {e}")
         return []
 
 
-async def _run_archive_cdx(url: str) -> list[str]:
+async def _run_archive_cdx(url: str, limit: int = 5000) -> list[str]:
     try:
         parsed = urlparse(url)
         host = parsed.netloc
@@ -299,24 +301,39 @@ async def _run_archive_cdx(url: str) -> list[str]:
             "collapse": "urlkey",
             "output": "text",
             "fl": "original",
-            "limit": "2000",
+            "limit": str(max(1, min(limit, 10000))),
         }
 
         async with httpx.AsyncClient(verify=False, timeout=15.0) as client:
             resp = await client.get(cdx_url, params=params)
             if resp.status_code == 200:
-                return [line.strip() for line in resp.text.splitlines() if line.strip() and line.startswith("http")]
+                return [line.strip() for line in resp.text.splitlines() if line.strip() and line.startswith("http")][:limit]
             return []
     except Exception:
         return []
 
 
-async def run_extraction(alive_hosts: list[dict], profile: str = "light", callback=None) -> list[dict]:
+def _limit_from_config(scan_config: dict | None, default: int = 5000) -> int:
+    if not isinstance(scan_config, dict):
+        return default
+    limits = scan_config.get("limits") if isinstance(scan_config.get("limits"), dict) else {}
+    try:
+        return max(1, min(int(limits.get("max_requests", default)), 50000))
+    except (TypeError, ValueError):
+        return default
+
+
+async def run_extraction(alive_hosts: list[dict], profile: str = "light", callback=None, scan_config: dict | None = None) -> list[dict]:
     has_katana = check_tool("katana")
-    historical_urls_enabled = str(os.environ.get("RECONTOOL_ENABLE_HISTORICAL_URLS", "")).strip().lower() in {
+    historical_env_enabled = str(os.environ.get("RECONTOOL_ENABLE_HISTORICAL_URLS", "")).strip().lower() in {
         "1", "true", "yes", "on",
     }
+    historical_env_disabled = str(os.environ.get("RECONTOOL_DISABLE_HISTORICAL_URLS", "")).strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+    historical_urls_enabled = (profile == "deep" or historical_env_enabled) and not historical_env_disabled
     has_gau = check_tool("gau") if historical_urls_enabled else False
+    extraction_limit = _limit_from_config(scan_config, 5000 if profile == "deep" else 1000)
 
     if not has_katana and not has_gau:
         log.info("[extraction] External tools unavailable; using built-in same-origin crawler.")
@@ -335,6 +352,7 @@ async def run_extraction(alive_hosts: list[dict], profile: str = "light", callba
             urls_to_scan = host_info.get("expanded_urls", [host_info.get("url")])
             all_urls = set()
             all_forms: list[dict] = []
+            source_counts = {"builtin": 0, "katana": 0, "gau": 0, "archive_cdx": 0}
 
             for base_url in urls_to_scan:
                 if not base_url:
@@ -343,19 +361,27 @@ async def run_extraction(alive_hosts: list[dict], profile: str = "light", callba
 
                 builtin_result = await _builtin_same_origin_crawl(url, profile)
                 all_urls.update(builtin_result.get("urls", []))
+                all_urls.update(builtin_result.get("js_files", []))
                 all_forms.extend(builtin_result.get("forms", []))
+                source_counts["builtin"] += len(builtin_result.get("urls", [])) + len(builtin_result.get("js_files", []))
 
                 tasks = []
                 if has_katana:
                     tasks.append(_run_katana(url, profile))
                 if has_gau:
-                    tasks.append(_run_gau(url))
+                    tasks.append(_run_gau(url, extraction_limit))
                 if historical_urls_enabled:
-                    tasks.append(_run_archive_cdx(url))
+                    tasks.append(_run_archive_cdx(url, extraction_limit))
 
                 results = await asyncio.gather(*tasks, return_exceptions=True)
-                for res in results:
+                task_names = [
+                    *("katana" for _ in [1] if has_katana),
+                    *("gau" for _ in [1] if has_gau),
+                    *("archive_cdx" for _ in [1] if historical_urls_enabled),
+                ]
+                for task_name, res in zip(task_names, results):
                     if isinstance(res, list):
+                        source_counts[task_name] += len(res)
                         all_urls.update(res)
 
             js_files = set()
@@ -383,6 +409,13 @@ async def run_extraction(alive_hosts: list[dict], profile: str = "light", callba
             host_info["js_files"] = sorted(js_files)
             host_info["forms"] = _dedupe_forms(all_forms)
             host_info["historical_urls_enabled"] = historical_urls_enabled
+            host_info["extraction_telemetry"] = {
+                "module_name": "extraction",
+                "historical_urls_enabled": historical_urls_enabled,
+                "tools_available": {"katana": has_katana, "gau": has_gau},
+                "source_counts": source_counts,
+                "limit": extraction_limit,
+            }
 
             total_found = len(host_info["extracted_urls"]) + len(host_info["js_files"])
             if total_found > 0:

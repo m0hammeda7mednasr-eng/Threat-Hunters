@@ -22,9 +22,13 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--enable-fuzz", action="store_true", help="Enable rate-limited content discovery.")
     parser.add_argument("--enable-ports", action="store_true", help="Enable safe limited port scanning.")
     parser.add_argument("--enable-crlfuzz", action="store_true", help="Enable CRLF checks.")
+    parser.add_argument("--enable-js-checks", action="store_true", help="Enable JavaScript route/secret mining.")
+    parser.add_argument("--enable-param-discovery", action="store_true", help="Enable hidden parameter discovery.")
     parser.add_argument("--disable-fuzz", action="store_true", help="Disable content discovery even if the selected mode enables it.")
     parser.add_argument("--disable-ports", action="store_true", help="Disable port scanning even if the selected mode enables it.")
     parser.add_argument("--disable-crlfuzz", action="store_true", help="Disable CRLF checks even if the selected mode enables them.")
+    parser.add_argument("--disable-js-checks", action="store_true", help="Disable JavaScript route/secret mining.")
+    parser.add_argument("--disable-param-discovery", action="store_true", help="Disable hidden parameter discovery.")
     parser.add_argument("--max-requests", type=int, default=None, help="Maximum requests per capped module/host, including fuzz wordlist entries.")
     parser.add_argument("--concurrency", type=int, default=None, help="Requested scanner concurrency limit.")
     parser.add_argument("--delay-ms", type=int, default=None, help="Requested delay between rate-limited requests in milliseconds.")
@@ -38,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     module_overrides = {}
-    for module_name in ("fuzz", "ports", "crlfuzz"):
+    for module_name in ("fuzz", "ports", "crlfuzz", "js_checks", "param_discovery"):
         enable = getattr(args, f"enable_{module_name}")
         disable = getattr(args, f"disable_{module_name}")
         if enable and disable:
