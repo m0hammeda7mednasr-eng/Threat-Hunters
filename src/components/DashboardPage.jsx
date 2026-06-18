@@ -36,6 +36,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import AuthNavbar from './AuthNavbar';
 import { scannerAPI } from '../services/api';
+import { buildBrandedPdfBlob, downloadPdfBlob } from '../utils/pdfBuilder';
 import './DashboardPage.css';
 
 const SIDEBAR_ITEMS = [
@@ -210,32 +211,6 @@ const reportToCard = (report) => ({
   raw: report,
 });
 
-const escapePdfText = (value) => String(value || '')
-  .replace(/[^\x20-\x7E]/g, '')
-  .replace(/\\/g, '\\\\')
-  .replace(/\(/g, '\\(')
-  .replace(/\)/g, '\\)');
-
-const addWrappedPdfLines = (lines, label, value, maxLength = 94) => {
-  const text = String(value || 'Not available').replace(/\s+/g, ' ').trim();
-  const prefix = label ? `${label}: ` : '';
-  const availableLength = Math.max(maxLength - prefix.length, 40);
-  const chunks = [];
-
-  for (let index = 0; index < text.length; index += availableLength) {
-    chunks.push(text.slice(index, index + availableLength));
-  }
-
-  if (!chunks.length) {
-    lines.push(prefix || '');
-    return;
-  }
-
-  chunks.forEach((chunk, index) => {
-    lines.push(`${index === 0 ? prefix : '  '}${chunk}`);
-  });
-};
-
 const formatHeaderValue = (value) => {
   const normalizedValue = String(value || 'Missing');
   return normalizedValue.length > 140 ? `${normalizedValue.slice(0, 137)}...` : normalizedValue;
@@ -243,147 +218,135 @@ const formatHeaderValue = (value) => {
 
 const buildScanReportPdf = (report) => {
   const severityCounts = report.summary?.severity_counts || {};
-  const lines = [
-    'Threat Hunters Vulnerability Report',
-    'Professional web exposure assessment',
-    '',
-    'Executive Summary',
-    `Report: ${report.id || 'Live scan'}`,
-    `Reference: ${report.reference || 'Not available'}`,
-    `Target: ${report.target || report.url}`,
-    `Final URL: ${report.url || report.target}`,
-    `Risk: ${report.risk_label || report.risk || 'Unknown'} | Score: ${report.score || `${report.risk_score || 0}/100`}`,
-    `HTTP Status: ${report.http_status || 'Unknown'} | Server: ${report.server || 'Not disclosed'}`,
-    `Content Type: ${report.content_type || 'Unknown'} | Content Length: ${report.content_length || 'Unknown'}`,
-    `Scan Mode: ${report.scan_mode || 'quick'} | Checks Run: ${report.summary?.checks_run || report.checks?.length || 0}`,
-    `Date: ${report.date || ''} ${report.time || ''} | Duration: ${report.duration || ''}`,
-    '',
-    'Severity Breakdown',
-    `Critical: ${severityCounts.Critical || 0} | High: ${severityCounts.High || 0} | Medium: ${severityCounts.Medium || 0} | Low: ${severityCounts.Low || 0}`,
-    '',
-    'TLS Summary',
-    `TLS Valid: ${report.tls?.valid === false ? 'No' : report.tls ? 'Yes' : 'Not applicable'}`,
-    `Issuer: ${report.tls?.issuer || 'Not available'}`,
-    `Expires: ${report.tls?.expires || 'Not available'}`,
-    '',
-  ];
+  const findings = Array.isArray(report.findings) ? report.findings : [];
+  const checks = Array.isArray(report.checks) ? report.checks : [];
+  const headers = report.headers && typeof report.headers === 'object' ? report.headers : {};
+  const recommendations = Array.isArray(report.recommendations) && report.recommendations.length
+    ? report.recommendations
+    : [
+      'Re-run the scan after remediation to confirm risk reduction.',
+      'Prioritize exploitable issues before routine hardening tasks.',
+      'Keep a dated copy of this report with the remediation owner and next review date.',
+    ];
+  const score = report.score || `${report.risk_score || 0}/100`;
+  const risk = report.risk_label || report.risk || 'Unknown Risk';
+  const generatedDate = `${report.date || ''} ${report.time || ''}`.trim() || new Date().toLocaleString('en-US');
 
-  lines.push('Findings');
-  if (report.findings?.length) {
-    report.findings.forEach((finding, index) => {
-      lines.push(`${index + 1}. [${finding.severity || 'Info'}] ${finding.title || finding.code || 'Finding'}`);
-      addWrappedPdfLines(lines, 'Impact', finding.description);
-      addWrappedPdfLines(lines, 'Fix', finding.recommendation);
-      lines.push('');
-    });
-  } else {
-    lines.push('No findings detected by the selected checks.');
-    lines.push('');
-  }
-
-  lines.push('Executed Checks');
-  if (report.checks?.length) {
-    report.checks.forEach((check, index) => {
-      lines.push(`${index + 1}. [${check.status || 'Info'}] ${check.name || 'Check'}`);
-      addWrappedPdfLines(lines, 'Details', check.details);
-      if (check.evidence) addWrappedPdfLines(lines, 'Evidence', check.evidence);
-    });
-  } else {
-    lines.push('No detailed checks were attached to this report.');
-  }
-  lines.push('');
-
-  lines.push('Security Header Snapshot');
-  if (report.headers && Object.keys(report.headers).length) {
-    Object.entries(report.headers).forEach(([header, value]) => {
-      addWrappedPdfLines(lines, header, formatHeaderValue(value));
-    });
-  } else {
-    lines.push('No header snapshot was attached to this report.');
-  }
-  lines.push('');
-
-  lines.push('Prioritized Recommendations');
-  if (report.recommendations?.length) {
-    report.recommendations.forEach((recommendation, index) => {
-      addWrappedPdfLines(lines, `${index + 1}`, recommendation);
-    });
-  } else {
-    lines.push('No recommendations were generated.');
-  }
-
-  const linesPerPage = 44;
-  const pages = [];
-  for (let index = 0; index < lines.length; index += linesPerPage) {
-    pages.push(lines.slice(index, index + linesPerPage));
-  }
-
-  const objects = [
-    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
-    '',
-    '3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
-  ];
-  const pageObjectIds = [];
-
-  pages.forEach((pageLines, pageIndex) => {
-    const pageObjectId = 4 + pageIndex * 2;
-    const contentObjectId = pageObjectId + 1;
-    pageObjectIds.push(pageObjectId);
-
-    const commands = ['BT'];
-    let y = 752;
-    pageLines.forEach((line) => {
-      const isMainTitle = line === 'Threat Hunters Vulnerability Report';
-      const isSectionTitle = [
-        'Executive Summary',
-        'Severity Breakdown',
-        'TLS Summary',
-        'Findings',
-        'Executed Checks',
-        'Security Header Snapshot',
-        'Prioritized Recommendations',
-      ].includes(line);
-      const size = isMainTitle ? 18 : isSectionTitle ? 14 : 9;
-      commands.push(`/F1 ${size} Tf`);
-      commands.push(`1 0 0 1 54 ${y} Tm (${escapePdfText(line).slice(0, 118)}) Tj`);
-      y -= isMainTitle ? 24 : isSectionTitle ? 20 : 14;
-    });
-    commands.push(`/F1 8 Tf`);
-    commands.push(`1 0 0 1 500 28 Tm (Page ${pageIndex + 1} of ${pages.length}) Tj`);
-    commands.push('ET');
-
-    const stream = commands.join('\n');
-    objects.push(`${pageObjectId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectId} 0 R >>\nendobj\n`);
-    objects.push(`${contentObjectId} 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`);
+  return buildBrandedPdfBlob({
+    title: 'Vulnerability Scan Report',
+    subtitle: `Target intelligence pack for ${report.target || report.url || 'selected website'} with evidence, risk lanes, and remediation guidance.`,
+    eyebrow: 'Live Web Exposure Report',
+    generatedAt: generatedDate,
+    classification: 'CLIENT-READY SECURITY REPORT',
+    metrics: [
+      { label: 'Risk', value: risk, fill: '#fff5f6', valueColor: '#d8324a', hint: 'Priority lane' },
+      { label: 'Score', value: score, fill: '#f3f0ff', valueColor: '#6c5ce7', hint: 'Security posture' },
+      { label: 'Findings', value: String(findings.length), fill: '#eef6ff', valueColor: '#0b66c3', hint: 'Detected issues' },
+      { label: 'Checks', value: String(report.summary?.checks_run || checks.length || 0), fill: '#eefbf7', valueColor: '#11855d', hint: 'Signals tested' },
+      { label: 'HTTP', value: String(report.http_status || 'N/A'), fill: '#fff8e8', valueColor: '#b35d00', hint: report.server || 'Server check' },
+      { label: 'Duration', value: report.duration || '0.0s', fill: '#f7f9ff', valueColor: '#151a32', hint: report.scan_mode || 'scan mode' },
+    ],
+    sections: [
+      {
+        title: 'Executive Summary',
+        kicker: 'Overview',
+        body: `Threat Hunters reviewed ${report.target || report.url || 'the target'} and produced a ${risk} assessment with score ${score}. This report is structured for fast decision-making: severity, evidence, technical checks, and recommended next moves.`,
+        accent: '#7c6cff',
+        rows: [
+          { label: 'Report ID', value: report.id || 'Live scan', detail: `Reference: ${report.reference || 'Not available'}` },
+          { label: 'Target', value: report.target || report.url || 'Not available', detail: `Final URL: ${report.url || report.target || 'Not available'}` },
+          { label: 'Response', value: report.http_status || 'Unknown', detail: `Server: ${report.server || 'Not disclosed'} | Content: ${report.content_type || 'Unknown'} | Length: ${report.content_length || 'Unknown'}` },
+        ],
+      },
+      {
+        title: 'Severity Lanes',
+        kicker: 'Risk Radar',
+        body: 'The lanes below show how the detected signals are distributed. Critical and high items should be assigned immediately before lower-risk hygiene tasks.',
+        accent: '#ff5f6d',
+        severityCounts,
+      },
+      {
+        title: 'TLS & Transport Posture',
+        kicker: 'Encrypted Channel',
+        body: 'Transport security is reviewed separately because expired certificates, weak TLS posture, or missing issuer data can turn a clean app into an operational risk.',
+        accent: '#25c799',
+        rows: [
+          {
+            label: 'TLS Validation',
+            value: report.tls?.valid === false ? 'Needs review' : report.tls ? 'Valid' : 'Not scanned',
+            tone: report.tls?.valid === false ? 'High' : report.tls ? 'Success' : 'Info',
+            detail: report.tls?.valid === false
+              ? 'Certificate validation returned a failing signal.'
+              : 'Certificate validation did not surface a blocking issue in the available data.',
+          },
+          {
+            label: 'Issuer',
+            value: report.tls?.issuer || 'Not available',
+            detail: 'Use this to confirm the certificate chain matches the expected provider.',
+          },
+          {
+            label: 'Expiry',
+            value: report.tls?.expires || 'Not available',
+            detail: 'Schedule renewal before expiry and keep monitoring alerts active.',
+          },
+        ],
+      },
+      {
+        title: 'Finding Evidence',
+        kicker: 'What Changed',
+        body: findings.length
+          ? 'Each finding includes the business impact and a clear remediation path so the report can move directly into action.'
+          : 'No findings were returned by the selected checks. Keep monitoring and run a deeper scan for stronger assurance.',
+        accent: '#00c2ff',
+        items: findings.length
+          ? findings.map((finding, index) => ({
+            tone: finding.severity || 'Info',
+            title: `${index + 1}. [${finding.severity || 'Info'}] ${finding.title || finding.code || 'Finding'}`,
+            detail: `${finding.description || 'No impact description supplied.'} Fix: ${finding.recommendation || 'Review manually and document remediation.'}`,
+          }))
+          : ['No findings detected by the selected checks.'],
+      },
+      {
+        title: 'Executed Checks',
+        kicker: 'Validation Path',
+        body: 'These checks show the evidence trail behind the final score. Failed or warning checks deserve follow-up even when the headline risk is low.',
+        accent: '#25c799',
+        rows: checks.length
+          ? checks.slice(0, 18).map((check) => ({
+            label: check.name || 'Security check',
+            value: check.status || 'Info',
+            tone: check.status === 'Failed' ? 'High' : check.status === 'Passed' ? 'Success' : 'Info',
+            detail: `${check.details || 'No details supplied.'}${check.evidence ? ` Evidence: ${check.evidence}` : ''}`,
+          }))
+          : [{ label: 'Checks', value: 'Not attached', detail: 'No detailed checks were attached to this report.' }],
+      },
+      {
+        title: 'Security Header Snapshot',
+        kicker: 'Response Evidence',
+        body: 'Headers help validate browser-side protection and server disclosure. Missing hardening headers should be handled as configuration tasks.',
+        accent: '#ffb347',
+        rows: Object.keys(headers).length
+          ? Object.entries(headers).slice(0, 14).map(([header, value]) => ({
+            label: header,
+            value: 'Captured',
+            detail: formatHeaderValue(value),
+          }))
+          : [{ label: 'Headers', value: 'No snapshot', detail: 'No header snapshot was attached to this report.' }],
+      },
+      {
+        title: 'Prioritized Recommendations',
+        kicker: 'Next Moves',
+        body: 'Use this section as the remediation checklist for the next sprint or handoff conversation.',
+        accent: '#7c6cff',
+        items: recommendations.map((recommendation, index) => `${index + 1}. ${recommendation}`),
+      },
+    ],
   });
-
-  objects[1] = `2 0 obj\n<< /Type /Pages /Kids [${pageObjectIds.map((id) => `${id} 0 R`).join(' ')}] /Count ${pageObjectIds.length} >>\nendobj\n`;
-
-  let pdf = '%PDF-1.4\n';
-  const offsets = [0];
-  for (const object of objects) {
-    offsets.push(pdf.length);
-    pdf += object;
-  }
-  const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (let index = 1; index <= objects.length; index += 1) {
-    pdf += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
-  }
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  return new Blob([pdf], { type: 'application/pdf' });
 };
 
 const downloadScanReport = (report) => {
   const blob = buildScanReportPdf(report);
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${report.id || 'threat-hunters-report'}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  downloadPdfBlob(blob, `${report.id || 'threat-hunters-report'}.pdf`);
 };
 
 const getLinePoints = (values, width, height, padding = 16) => {
