@@ -218,7 +218,90 @@ The admin dashboard now controls:
 - Settings: load and save general, notification, security, and email settings.
 - Web content: edit public page content, add/remove feature and statistic rows, validate OWASP links, and moderate blog posts.
 
-## 9. Blog Coverage
+## 9. Scanner Core Notes
+
+The scanner package supports two runtime modes:
+
+- `light`: safe, bounded checks that work without external scanner tools.
+- `deep`: broader coverage with optional modules enabled where authorized and available.
+
+Scanner dependencies and assets live under `Back-end/Backend/scanner/`.
+
+### Runtime Requirements
+
+- Python 3.10 or newer
+- MongoDB connection for the full Flask backend
+- Authorized target permission before running scans
+
+### Backend Python Requirements
+
+- `flask==3.0.3`
+- `flask-pymongo==2.3.0`
+- `flask-bcrypt==1.0.1`
+- `flask-cors==4.0.0`
+- `pyjwt==2.8.0`
+- `email-validator==2.1.1`
+- `dnspython==2.6.1`
+- `python-dotenv==1.0.1`
+- `httpx>=0.27.0`
+- `beautifulsoup4>=4.12.0`
+- `jinja2>=3.1.0`
+- `markdown>=3.5.0`
+
+### Required Scanner Core Files
+
+- `Back-end/Backend/scanner/__init__.py`
+- `Back-end/Backend/scanner/runner.py`
+- `Back-end/Backend/scanner/wordlists/common.txt`
+- `Back-end/Backend/scanner/wordlists/directory-list-2.3-small.txt`
+- `Back-end/Backend/scanner/wordlists/directory-list-2.3-medium.txt`
+- `Back-end/Backend/scanner/wordlists/raft-large-directories.txt`
+- `Back-end/Backend/scanner/wordlists/api/api-small.txt`
+- `Back-end/Backend/scanner/wordlists/api/debug-internal-small.txt`
+- `Back-end/Backend/scanner/wordlists/api/graphql-seclists.txt`
+- `Back-end/Backend/scanner/wordlists/api/swagger-seclists.txt`
+- `Back-end/Backend/scanner/tools/sqlmap-master/sqlmap.py`
+
+### Main Scanner Tools
+
+Base/light scans can run without external scanner tools. Optional tools are used only when their related module is enabled or available:
+
+1. `sqlmap`
+2. `nuclei`
+3. `ffuf`
+4. `gobuster`
+5. `katana`
+6. `gau`
+7. `dalfox`
+8. `crlfuzz`
+9. `naabu`
+10. `nmap`
+11. `subfinder`
+12. `amass`
+13. `theHarvester`
+14. `gowitness`
+15. `eyewitness`
+
+### Tool Search Paths
+
+The scanner checks these locations for external tools:
+
+- `Back-end/Backend/scanner/tools`
+- `%USERPROFILE%\go\bin`
+- `%USERPROFILE%\.local\bin`
+
+### Optional Provider Environment Variables
+
+Use placeholders only in committed example config files. Do not commit real tokens or API keys.
+
+- `GITHUB_TOKEN`
+- `VIRUSTOTAL_API_KEY`
+- `CENSYS_API_ID`
+- `CENSYS_API_SECRET`
+- `SHODAN_API_KEY`
+- `SECURITYTRAILS_API_KEY`
+
+## 10. Blog Coverage
 
 Blog currently supports:
 
