@@ -22,6 +22,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--enable-fuzz", action="store_true", help="Enable rate-limited content discovery.")
     parser.add_argument("--enable-ports", action="store_true", help="Enable safe limited port scanning.")
     parser.add_argument("--enable-crlfuzz", action="store_true", help="Enable CRLF checks.")
+    parser.add_argument("--debug", action="store_true", help="Print scanner evidence inventory and module debug details.")
     parser.add_argument("--json", action="store_true", help="Print a compact JSON result.")
     return parser
 
@@ -30,11 +31,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    module_overrides = {
-        "fuzz": args.enable_fuzz,
-        "ports": args.enable_ports,
-        "crlfuzz": args.enable_crlfuzz,
-    }
+    module_overrides = {}
+    if args.enable_fuzz:
+        module_overrides["fuzz"] = True
+    if args.enable_ports:
+        module_overrides["ports"] = True
+    if args.enable_crlfuzz:
+        module_overrides["crlfuzz"] = True
 
     try:
         result = run_scan(
@@ -57,6 +60,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.json:
+        report = result.get("report", {}) if isinstance(result.get("report"), dict) else {}
         compact = {
             "scan_id": result.get("scan_id"),
             "report_id": result.get("report_id"),
@@ -66,6 +70,13 @@ def main(argv: list[str] | None = None) -> int:
             "report_files": result.get("report_files", {}),
             "module_telemetry": result.get("module_telemetry", {}),
         }
+        if args.debug:
+            compact["debug"] = {
+                "parameter_inventory": report.get("parameter_inventory", []),
+                "form_inventory": report.get("form_inventory", []),
+                "active_validation_summary": report.get("active_validation_summary", {}),
+                "active_validation_results": report.get("active_validation_results", []),
+            }
         print(json.dumps(compact, indent=2))
         return 0
 
@@ -74,6 +85,25 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Reports directory: {REPORTS_DIR}")
     for name, path in (result.get("report_files") or {}).items():
         print(f"{name.upper()}: {path}")
+    if args.debug:
+        report = result.get("report", {}) if isinstance(result.get("report"), dict) else {}
+        summary = report.get("summary", {}) if isinstance(report.get("summary"), dict) else {}
+        module_telemetry = result.get("module_telemetry", {}) if isinstance(result.get("module_telemetry"), dict) else {}
+        targeted_status = module_telemetry.get("targeted", {}).get("status", "unknown") if isinstance(module_telemetry.get("targeted"), dict) else "unknown"
+        print("Debug evidence:")
+        print(f"  Targeted validation: {targeted_status}")
+        print(f"  discovered_urls_count: {summary.get('discovered_urls_count', 0)}")
+        print(f"  parameter_count: {summary.get('parameter_count', 0)}")
+        print(f"  form_count: {summary.get('form_count', 0)}")
+        print(f"  tested_parameters_count: {summary.get('tested_parameters_count', 0)}")
+        print("  active_validation_summary:")
+        print(json.dumps(report.get("active_validation_summary", {}), indent=2))
+        print("  parameter_inventory_sample:")
+        print(json.dumps((report.get("parameter_inventory") or [])[:10], indent=2))
+        print("  form_inventory_sample:")
+        print(json.dumps((report.get("form_inventory") or [])[:5], indent=2))
+        print("  active_validation_results_sample:")
+        print(json.dumps((report.get("active_validation_results") or [])[:15], indent=2))
     return 0
 
 

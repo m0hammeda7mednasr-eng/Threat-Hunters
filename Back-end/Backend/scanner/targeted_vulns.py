@@ -1515,6 +1515,16 @@ async def _run_dalfox(urls: list[str], profile: str, telemetry: dict, scan_confi
         telemetry["timeout_count"] += 1
         log.warning("[targeted_vulns] Dalfox timed out")
     except FileNotFoundError:
+        for url in urls:
+            for parameter in _parameter_names(url):
+                _record_validation_result(
+                    telemetry,
+                    test_type="dalfox_xss",
+                    url=url,
+                    parameter=parameter,
+                    status="skipped",
+                    reason="missing_tool:dalfox",
+                )
         log.warning("[targeted_vulns] Dalfox not found. Skipping XSS scan.")
     except Exception as exc:
         telemetry["errors_count"] += 1
@@ -1714,6 +1724,16 @@ async def _run_sqlmap(urls: list[str], profile: str, telemetry: dict, scan_confi
 
     sqlmap_py = os.path.join(TOOLS_DIR, "sqlmap-master", "sqlmap.py")
     if not os.path.exists(sqlmap_py):
+        for url in urls:
+            for parameter in _parameter_names(url):
+                _record_validation_result(
+                    telemetry,
+                    test_type="sqlmap_sql_injection",
+                    url=url,
+                    parameter=parameter,
+                    status="skipped",
+                    reason="missing_tool:sqlmap",
+                )
         log.warning(f"[targeted_vulns] sqlmap not found at {sqlmap_py}. Skipping SQLi scan.")
         return []
 
@@ -1934,6 +1954,34 @@ async def _safe_get(
     return response, _decode_response(response)
 
 
+def _record_validation_result(
+    telemetry: dict,
+    *,
+    test_type: str,
+    url: str,
+    parameter: str = "",
+    status: str,
+    reason: str = "",
+    method: str = "GET",
+    payloads_sent: int = 0,
+    response_status: int | None = None,
+    evidence: str = "",
+) -> None:
+    results = telemetry.setdefault("active_validation_results", [])
+    results.append({
+        "module": MODULE_NAME,
+        "test_type": test_type,
+        "method": method.upper(),
+        "url": _redact_text(url),
+        "parameter": parameter,
+        "status": status,
+        "reason": reason,
+        "payloads_sent": payloads_sent,
+        "response_status": response_status,
+        "evidence": _snippet(evidence, limit=220),
+    })
+
+
 def _body_delta_ratio(left: str, right: str) -> float:
     left_len = max(1, len(left or ""))
     return abs(left_len - len(right or "")) / left_len
@@ -1983,23 +2031,54 @@ async def _safe_validate_sqli_url(
     telemetry: dict,
 ) -> list[dict]:
     parsed = urlparse(url)
+    parameters = _parameter_names(url)
     if parsed.path.lower() not in SAFE_SQLI_PATHS:
+        for parameter in parameters:
+            _record_validation_result(
+                telemetry,
+                test_type="sql_injection",
+                url=url,
+                parameter=parameter,
+                status="skipped",
+                reason="safe_sql_validator_not_enabled_for_path",
+            )
         return []
     baseline_response, baseline_body = await _safe_get(client, url, telemetry)
     if baseline_response is None or _is_binary_response(baseline_response):
+        for parameter in parameters:
+            _record_validation_result(
+                telemetry,
+                test_type="sql_injection",
+                url=url,
+                parameter=parameter,
+                status="skipped",
+                reason="baseline_response_unavailable_or_binary",
+            )
         return []
 
     findings: list[dict] = []
-    for parameter in _parameter_names(url):
+    for parameter in parameters:
         payloads = _safe_sql_payloads(url, parameter)
         if not payloads:
+            _record_validation_result(
+                telemetry,
+                test_type="sql_injection",
+                url=url,
+                parameter=parameter,
+                status="skipped",
+                reason="no_safe_payload_for_parameter_shape",
+            )
             continue
         probe_results: list[tuple[str, httpx.Response, str, str]] = []
+        responses_seen = 0
+        last_status = None
         for payload in payloads:
             test_url = _url_with_payload(url, parameter, payload)
             test_response, test_body = await _safe_get(client, test_url, telemetry)
             if test_response is None or _is_binary_response(test_response):
                 continue
+            responses_seen += 1
+            last_status = test_response.status_code
             reason = _response_difference_reason(baseline_response, baseline_body, test_response, test_body)
             if reason:
                 probe_results.append((payload, test_response, test_body, reason))
@@ -2007,6 +2086,17 @@ async def _safe_validate_sqli_url(
         sql_error_probe = next((item for item in probe_results if "sql_error_marker" in item[3]), None)
         if sql_error_probe:
             payload, response, body, reason = sql_error_probe
+            _record_validation_result(
+                telemetry,
+                test_type="sql_injection",
+                url=url,
+                parameter=parameter,
+                status="candidate",
+                reason=reason,
+                payloads_sent=len(payloads),
+                response_status=response.status_code,
+                evidence="SQL error marker observed during safe validation.",
+            )
             findings.append(_make_finding(
                 finding_id="sql_injection_candidate",
                 source_tool="internal",
@@ -2031,6 +2121,17 @@ async def _safe_validate_sqli_url(
         if len(probe_results) >= 2:
             reasons = sorted({item[3] for item in probe_results})
             payload, response, body, reason = probe_results[-1]
+            _record_validation_result(
+                telemetry,
+                test_type="sql_injection",
+                url=url,
+                parameter=parameter,
+                status="candidate",
+                reason="; ".join(reasons[:3]),
+                payloads_sent=len(payloads),
+                response_status=response.status_code,
+                evidence="Consistent response difference across safe SQL probes.",
+            )
             findings.append(_make_finding(
                 finding_id="sql_injection_candidate",
                 source_tool="internal",
@@ -2053,6 +2154,19 @@ async def _safe_validate_sqli_url(
                     "candidate_strength": "strong",
                 },
             ))
+            continue
+
+        _record_validation_result(
+            telemetry,
+            test_type="sql_injection",
+            url=url,
+            parameter=parameter,
+            status="not_confirmed",
+            reason="no_sql_error_or_consistent_differential_evidence",
+            payloads_sent=len(payloads),
+            response_status=last_status,
+            evidence=f"{responses_seen} SQL probe response(s) compared with baseline.",
+        )
     return _finalize_findings(findings)
 
 
@@ -2061,22 +2175,47 @@ async def _safe_validate_xss_url(
     url: str,
     telemetry: dict,
 ) -> list[dict]:
-    parsed = urlparse(url)
-    if not parsed.path.lower().endswith("/search.asp"):
-        return []
     baseline_response, baseline_body = await _safe_get(client, url, telemetry)
+    parameters = _parameter_names(url)
     if baseline_response is None or _is_binary_response(baseline_response):
+        for parameter in parameters:
+            _record_validation_result(
+                telemetry,
+                test_type="xss_reflection",
+                url=url,
+                parameter=parameter,
+                status="skipped",
+                reason="baseline_response_unavailable_or_binary",
+            )
         return []
     findings: list[dict] = []
-    for parameter in _parameter_names(url):
-        if _normalize_parameter_name(parameter) != "tfsearch":
-            continue
+    for parameter in parameters:
         marker_url = _url_with_payload(url, parameter, SAFE_XSS_MARKER)
         response, body = await _safe_get(client, marker_url, telemetry)
         if response is None or _is_binary_response(response):
+            _record_validation_result(
+                telemetry,
+                test_type="xss_reflection",
+                url=url,
+                parameter=parameter,
+                status="skipped",
+                reason="test_response_unavailable_or_binary",
+                payloads_sent=1,
+            )
             continue
         if SAFE_XSS_MARKER in body and SAFE_XSS_MARKER not in baseline_body:
             context = reflection_context(body, SAFE_XSS_MARKER)
+            _record_validation_result(
+                telemetry,
+                test_type="xss_reflection",
+                url=url,
+                parameter=parameter,
+                status="candidate",
+                reason=f"marker_reflected_context:{context or 'unknown'}",
+                payloads_sent=1,
+                response_status=response.status_code,
+                evidence="Harmless XSS marker reflected in response.",
+            )
             findings.append(_make_finding(
                 finding_id="xss_candidate",
                 source_tool="internal",
@@ -2100,6 +2239,18 @@ async def _safe_validate_xss_url(
                     "candidate_strength": "strong",
                 },
             ))
+        else:
+            _record_validation_result(
+                telemetry,
+                test_type="xss_reflection",
+                url=url,
+                parameter=parameter,
+                status="not_confirmed",
+                reason="marker_not_reflected",
+                payloads_sent=1,
+                response_status=response.status_code,
+                evidence="Harmless XSS marker was not reflected in the response body.",
+            )
     return _finalize_findings(findings)
 
 
@@ -2109,29 +2260,79 @@ async def _safe_validate_template_url(
     telemetry: dict,
 ) -> list[dict]:
     parsed = urlparse(url)
+    parameters = _parameter_names(url)
     if parsed.path.lower() not in SAFE_TEMPLATE_PATHS:
+        for parameter in parameters:
+            _record_validation_result(
+                telemetry,
+                test_type="template_lfi",
+                url=url,
+                parameter=parameter,
+                status="skipped",
+                reason="safe_template_validator_not_enabled_for_path",
+            )
         return []
     baseline_response, baseline_body = await _safe_get(client, url, telemetry)
     if baseline_response is None or _is_binary_response(baseline_response):
+        for parameter in parameters:
+            _record_validation_result(
+                telemetry,
+                test_type="template_lfi",
+                url=url,
+                parameter=parameter,
+                status="skipped",
+                reason="baseline_response_unavailable_or_binary",
+            )
         return []
 
     findings: list[dict] = []
-    for parameter in _parameter_names(url):
+    for parameter in parameters:
         if _normalize_parameter_name(parameter) != "item":
+            _record_validation_result(
+                telemetry,
+                test_type="template_lfi",
+                url=url,
+                parameter=parameter,
+                status="skipped",
+                reason="parameter_not_template_selector",
+            )
             continue
         probe_results: list[tuple[str, httpx.Response, str, str]] = []
+        last_status = None
         for payload in SAFE_TEMPLATE_INVALID_VALUES:
             test_url = _url_with_payload(url, parameter, payload)
             response, body = await _safe_get(client, test_url, telemetry)
             if response is None or _is_binary_response(response):
                 continue
+            last_status = response.status_code
             reason = _response_difference_reason(baseline_response, baseline_body, response, body)
             if reason:
                 probe_results.append((payload, response, body, reason))
         if len(probe_results) < 2:
+            _record_validation_result(
+                telemetry,
+                test_type="template_lfi",
+                url=url,
+                parameter=parameter,
+                status="not_confirmed",
+                reason="missing_template_probe_did_not_produce_consistent_difference",
+                payloads_sent=len(SAFE_TEMPLATE_INVALID_VALUES),
+                response_status=last_status,
+            )
             continue
         payload, response, body, reason = probe_results[0]
         reasons = sorted({item[3] for item in probe_results})
+        _record_validation_result(
+            telemetry,
+            test_type="template_lfi",
+            url=url,
+            parameter=parameter,
+            status="candidate",
+            reason="; ".join(reasons[:3]),
+            payloads_sent=len(SAFE_TEMPLATE_INVALID_VALUES),
+            response_status=response.status_code,
+            evidence="Missing template names produced consistent response differences.",
+        )
         findings.append(_make_finding(
             finding_id="lfi_candidate",
             source_tool="internal",
@@ -2831,20 +3032,30 @@ async def run_targeted_vulns(domain: str, alive_hosts: list, profile: str, scan_
     )
 
     route_candidates = _make_route_candidates(routed, domain, route_sources)
-    dalfox_task = _run_dalfox(routed["xss"], profile, telemetry, scan_config=scan_config)
-    sqlmap_task = _run_sqlmap(routed["sqli"], profile, telemetry, scan_config=scan_config)
-    lfi_task = _run_lfi_tester(routed["lfi"], profile, telemetry, scan_config=scan_config)
     safe_validation_task = _run_safe_candidate_validators(routed, profile, telemetry, scan_config=scan_config)
-    command_task = _run_command_injection_tester(routed["command_injection"], profile, telemetry, scan_config=scan_config)
-    stored_task = _run_stored_xss_tester(routed.get("stored_xss", []), profile, telemetry, scan_config=scan_config)
-    dalfox_res, sqlmap_res, lfi_res, safe_validation_res, command_res, stored_res = await asyncio.gather(
-        dalfox_task,
-        sqlmap_task,
-        lfi_task,
-        safe_validation_task,
-        command_task,
-        stored_task,
-    )
+    if str(profile or "").lower() == "deep":
+        dalfox_task = _run_dalfox(routed["xss"], profile, telemetry, scan_config=scan_config)
+        sqlmap_task = _run_sqlmap(routed["sqli"], profile, telemetry, scan_config=scan_config)
+        lfi_task = _run_lfi_tester(routed["lfi"], profile, telemetry, scan_config=scan_config)
+        command_task = _run_command_injection_tester(routed["command_injection"], profile, telemetry, scan_config=scan_config)
+        stored_task = _run_stored_xss_tester(routed.get("stored_xss", []), profile, telemetry, scan_config=scan_config)
+        dalfox_res, sqlmap_res, lfi_res, safe_validation_res, command_res, stored_res = await asyncio.gather(
+            dalfox_task,
+            sqlmap_task,
+            lfi_task,
+            safe_validation_task,
+            command_task,
+            stored_task,
+        )
+    else:
+        telemetry["external_tools_skipped"] = True
+        telemetry["external_tools_skip_reason"] = "light_profile_uses_internal_safe_validators_only"
+        dalfox_res = []
+        sqlmap_res = []
+        lfi_res = []
+        command_res = []
+        stored_res = []
+        safe_validation_res = await safe_validation_task
 
     dalfox_res = _finalize_findings(dalfox_res)
     sqlmap_res = _finalize_findings(sqlmap_res)
@@ -2893,4 +3104,3 @@ async def run_targeted_vulns(domain: str, alive_hosts: list, profile: str, scan_
         "routed_counts": {category: len(urls) for category, urls in routed.items()},
         "total_urls_tested": sum(len(urls) for urls in routed.values()),
     }
-

@@ -297,6 +297,9 @@ export const scannerAPI = {
       body: payload,
     });
   },
+  getReports: async (limit = 12) => {
+    return apiRequest(`/scanner/reports?limit=${limit}`);
+  },
 };
 
 // Website content API calls

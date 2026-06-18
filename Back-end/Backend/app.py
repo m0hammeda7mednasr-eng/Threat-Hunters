@@ -52,10 +52,19 @@ mongo.init_app(app)
 
 
 def ensure_mongo_indexes():
-    if not getattr(mongo, "db", None):
+    if getattr(mongo, "db", None) is None:
         return
     try:
         mongo.db.blogs.create_index("slug", unique=True, name="uq_blogs_slug")
+        mongo.db.scan_reports.create_index(
+            [("user_id", 1), ("created_at", -1)],
+            name="idx_scan_reports_user_created",
+        )
+        mongo.db.scan_reports.create_index(
+            [("report_id", 1), ("user_id", 1)],
+            unique=True,
+            name="uq_scan_reports_report_user",
+        )
     except Exception:
         # Let the app continue if the index already exists or the database is unavailable.
         pass

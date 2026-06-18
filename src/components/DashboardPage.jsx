@@ -185,31 +185,219 @@ const isValidWebsiteHostname = (hostname) => {
 
 const severityTone = (value) => String(value || 'low').toLowerCase();
 
-const countFindingsBySeverity = (report, severity) => (
-  report?.summary?.severity_counts?.[severity]
-  ?? report?.findings?.filter((finding) => finding.severity === severity).length
-  ?? 0
-);
+const severityKey = (value) => String(value || '').trim().toLowerCase();
 
-const reportToCard = (report) => ({
-  id: report.id || 'RPT-LIVE',
-  riskLabel: report.risk_label || `${report.risk || 'Low'} Risk`,
-  riskTone: severityTone(report.risk),
-  url: report.url || report.target,
-  reference: report.reference || report.id || 'LIVE',
-  date: report.date || new Date().toISOString().slice(0, 10),
-  time: report.time || new Date().toTimeString().slice(0, 5),
-  duration: report.duration || '0.0s',
-  score: report.score || `${report.risk_score || 0}/100`,
-  scoreTone: severityTone(report.risk),
-  breakdown: [
-    { label: 'Critical', value: countFindingsBySeverity(report, 'Critical'), tone: 'critical' },
-    { label: 'High', value: countFindingsBySeverity(report, 'High'), tone: 'high' },
-    { label: 'Medium', value: countFindingsBySeverity(report, 'Medium'), tone: 'medium' },
-    { label: 'Low', value: countFindingsBySeverity(report, 'Low'), tone: 'low' },
-  ],
-  raw: report,
-});
+const countFindingsBySeverity = (report, severity) => {
+  const summaryCounts = report?.summary?.severity_counts || {};
+  const wanted = severityKey(severity);
+  const summaryMatch = Object.entries(summaryCounts).find(([key]) => severityKey(key) === wanted);
+  if (summaryMatch) {
+    return Number(summaryMatch[1] || 0);
+  }
+
+  return report?.findings?.filter((finding) => severityKey(finding.severity || finding.status) === wanted).length ?? 0;
+};
+
+const normalizeScanMode = (mode) => {
+  const value = String(mode || '').trim().toLowerCase();
+  if (value === 'deep') return 'deep';
+  if (value === 'quick' || value === 'light' || value === 'fast') return 'light';
+  return 'light';
+};
+
+const deriveRiskScore = (report) => {
+  if (!report || typeof report !== 'object') {
+    return 0;
+  }
+
+  const explicitScore = Number(report.risk_score);
+  if (Number.isFinite(explicitScore)) {
+    return Math.max(0, Math.min(100, Math.round(explicitScore)));
+  }
+
+  const legacyScore = Number(report.score);
+  if (Number.isFinite(legacyScore)) {
+    return Math.max(0, Math.min(100, Math.round(legacyScore)));
+  }
+
+  const severityWeights = {
+    critical: 30,
+    high: 18,
+    medium: 10,
+    low: 4,
+    info: 1,
+    informational: 1,
+    recon: 1,
+    candidate: 6,
+    blocked: 0,
+    inconclusive: 2,
+  };
+
+  const findings = Array.isArray(report.findings) ? report.findings : [];
+  const summary = report.summary && typeof report.summary === 'object' ? report.summary : {};
+  let score = findings.reduce((total, finding) => {
+    if (!finding || typeof finding !== 'object') {
+      return total;
+    }
+    const severity = String(finding.severity || finding.status || '').trim().toLowerCase();
+    return total + (severityWeights[severity] || 2);
+  }, 0);
+
+  score += Number(summary.confirmed_findings || summary.confirmed_vulns || 0) * 25;
+  score += Number(summary.candidate_findings || summary.candidate_issues || 0) * 6;
+  score += Number(summary.blocked_tests || 0) * 1;
+  score += Number(summary.inconclusive_tests || 0) * 1;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+};
+
+const deriveRiskLabel = (report) => {
+  if (report?.risk_label) {
+    return report.risk_label;
+  }
+
+  const score = deriveRiskScore(report);
+  if (score >= 80) return 'Critical Risk';
+  if (score >= 50) return 'High Risk';
+  if (score >= 20) return 'Moderate Risk';
+  if (score > 0) return 'Low Risk';
+  return 'No Risk';
+};
+
+const deriveScanCoverage = (report) => {
+  const summary = report?.summary && typeof report.summary === 'object' ? report.summary : {};
+  const explicitCoverage = Number(report?.scan_coverage ?? summary.scan_coverage);
+  if (Number.isFinite(explicitCoverage)) {
+    return Math.max(0, Math.min(100, Math.round(explicitCoverage)));
+  }
+
+  const executed = Number(summary.modules_executed);
+  const planned = Number(summary.modules_planned);
+  if (Number.isFinite(executed) && Number.isFinite(planned) && planned > 0) {
+    return Math.max(0, Math.min(100, Math.round((executed / planned) * 100)));
+  }
+
+  return 0;
+};
+
+const deriveScanConfidence = (report) => {
+  const summary = report?.summary && typeof report.summary === 'object' ? report.summary : {};
+  const explicitConfidence = Number(report?.scan_confidence ?? summary.scan_confidence);
+  if (Number.isFinite(explicitConfidence)) {
+    return Math.max(0, Math.min(100, Math.round(explicitConfidence)));
+  }
+
+  const coverage = deriveScanCoverage(report);
+  return Math.max(0, Math.min(100, Math.round(coverage * 0.85)));
+};
+
+const riskToneFromReport = (report) => {
+  const score = deriveRiskScore(report);
+  if (score >= 80) return 'critical';
+  if (score >= 50) return 'high';
+  if (score >= 20) return 'medium';
+  return 'low';
+};
+
+const normalizeScanReport = (report) => {
+  if (!report || typeof report !== 'object') {
+    return report;
+  }
+
+  const nestedReport = report.report && typeof report.report === 'object' ? report.report : {};
+  const firstHost = Array.isArray(nestedReport.alive_hosts) && nestedReport.alive_hosts.length
+    ? nestedReport.alive_hosts[0]
+    : {};
+  const firstHostResponse = firstHost?.response_summary && typeof firstHost.response_summary === 'object'
+    ? firstHost.response_summary
+    : {};
+  const mergedReport = {
+    ...nestedReport,
+    ...report,
+    summary: {
+      ...(nestedReport.summary || {}),
+      ...(report.summary || {}),
+    },
+  };
+  const findings = Array.isArray(mergedReport.findings) && mergedReport.findings.length
+    ? mergedReport.findings
+    : Array.isArray(nestedReport.actionable_findings) && nestedReport.actionable_findings.length
+      ? nestedReport.actionable_findings
+      : Array.isArray(nestedReport.confirmed_findings)
+        ? nestedReport.confirmed_findings
+        : [];
+  const checks = Array.isArray(mergedReport.checks) ? mergedReport.checks : [];
+  const parameterInventory = Array.isArray(mergedReport.parameter_inventory) ? mergedReport.parameter_inventory : [];
+  const formInventory = Array.isArray(mergedReport.form_inventory) ? mergedReport.form_inventory : [];
+  const activeValidationResults = Array.isArray(mergedReport.active_validation_results) ? mergedReport.active_validation_results : [];
+  const headers = mergedReport.headers && typeof mergedReport.headers === 'object'
+    ? mergedReport.headers
+    : firstHostResponse.headers && typeof firstHostResponse.headers === 'object'
+      ? firstHostResponse.headers
+      : {};
+  const scanTime = mergedReport.scan_time || report.created_at || '';
+  const riskScore = deriveRiskScore(mergedReport);
+  const riskLabel = deriveRiskLabel(mergedReport);
+  const normalizedMode = normalizeScanMode(mergedReport.scan_mode || mergedReport.profile || mergedReport.mode);
+  const scoreText = mergedReport.score || `${riskScore}/100`;
+
+  return {
+    ...mergedReport,
+    id: mergedReport.id || mergedReport.report_id || mergedReport.scan_id || 'RPT-LIVE',
+    reference: mergedReport.reference || mergedReport.scan_id || mergedReport.report_id || 'LIVE',
+    date: mergedReport.date || String(scanTime).slice(0, 10) || new Date().toISOString().slice(0, 10),
+    time: mergedReport.time || (String(scanTime).includes('T') ? String(scanTime).split('T')[1].slice(0, 5) : new Date().toTimeString().slice(0, 5)),
+    target: mergedReport.target || mergedReport.domain || report.target,
+    url: mergedReport.url || firstHost.url || report.target,
+    final_url: mergedReport.final_url || firstHost.final_url || mergedReport.url || report.target,
+    http_status: mergedReport.http_status || firstHost.status_code || firstHost.status || firstHostResponse.status_code,
+    server: mergedReport.server || firstHost.server || headers.Server || headers.server,
+    content_type: mergedReport.content_type || firstHost.content_type || headers['Content-Type'] || headers['content-type'],
+    content_length: mergedReport.content_length || firstHost.content_length,
+    scan_mode: normalizedMode,
+    profile: normalizedMode,
+    scan_status: mergedReport.scan_status || mergedReport.summary?.scan_status || 'completed',
+    risk_score: riskScore,
+    risk_label: riskLabel,
+    score: scoreText,
+    scan_coverage: deriveScanCoverage(mergedReport),
+    scan_confidence: deriveScanConfidence(mergedReport),
+    findings,
+    checks,
+    parameter_inventory: parameterInventory,
+    form_inventory: formInventory,
+    active_validation_results: activeValidationResults,
+    active_validation_summary: mergedReport.active_validation_summary || {},
+    discovered_urls: Array.isArray(mergedReport.discovered_urls) ? mergedReport.discovered_urls : [],
+    headers,
+    recommendations: Array.isArray(mergedReport.recommendations) ? mergedReport.recommendations : [],
+    report: nestedReport,
+  };
+};
+
+const reportToCard = (report) => {
+  const normalizedReport = normalizeScanReport(report);
+
+  return {
+    id: normalizedReport.id || 'RPT-LIVE',
+    riskLabel: normalizedReport.risk_label || deriveRiskLabel(normalizedReport),
+    riskTone: riskToneFromReport(normalizedReport),
+    url: normalizedReport.url || normalizedReport.target,
+    reference: normalizedReport.reference || normalizedReport.id || 'LIVE',
+    date: normalizedReport.date || new Date().toISOString().slice(0, 10),
+    time: normalizedReport.time || new Date().toTimeString().slice(0, 5),
+    duration: normalizedReport.duration || '0.0s',
+    score: normalizedReport.score || `${normalizedReport.risk_score || 0}/100`,
+    scoreTone: riskToneFromReport(normalizedReport),
+    breakdown: [
+      { label: 'Critical', value: countFindingsBySeverity(normalizedReport, 'Critical'), tone: 'critical' },
+      { label: 'High', value: countFindingsBySeverity(normalizedReport, 'High'), tone: 'high' },
+      { label: 'Medium', value: countFindingsBySeverity(normalizedReport, 'Medium'), tone: 'medium' },
+      { label: 'Low', value: countFindingsBySeverity(normalizedReport, 'Low'), tone: 'low' },
+    ],
+    raw: normalizedReport,
+  };
+};
 
 const formatHeaderValue = (value) => {
   const normalizedValue = String(value || 'Missing');
@@ -217,24 +405,40 @@ const formatHeaderValue = (value) => {
 };
 
 const buildScanReportPdf = (report) => {
-  const severityCounts = report.summary?.severity_counts || {};
-  const findings = Array.isArray(report.findings) ? report.findings : [];
-  const checks = Array.isArray(report.checks) ? report.checks : [];
-  const headers = report.headers && typeof report.headers === 'object' ? report.headers : {};
-  const recommendations = Array.isArray(report.recommendations) && report.recommendations.length
-    ? report.recommendations
+  const normalizedReport = normalizeScanReport(report);
+  const findings = Array.isArray(normalizedReport.findings) ? normalizedReport.findings : [];
+  const checks = Array.isArray(normalizedReport.checks) ? normalizedReport.checks : [];
+  const parameterInventory = Array.isArray(normalizedReport.parameter_inventory) ? normalizedReport.parameter_inventory : [];
+  const formInventory = Array.isArray(normalizedReport.form_inventory) ? normalizedReport.form_inventory : [];
+  const activeValidationResults = Array.isArray(normalizedReport.active_validation_results) ? normalizedReport.active_validation_results : [];
+  const headers = normalizedReport.headers && typeof normalizedReport.headers === 'object' ? normalizedReport.headers : {};
+  const severityCounts = normalizedReport.summary?.severity_counts || findings.reduce((acc, finding) => {
+    if (!finding || typeof finding !== 'object') {
+      return acc;
+    }
+    const severity = String(finding.severity || finding.status || '').trim().toLowerCase();
+    if (!severity) {
+      return acc;
+    }
+    acc[severity] = (acc[severity] || 0) + 1;
+    return acc;
+  }, {});
+  const recommendations = Array.isArray(normalizedReport.recommendations) && normalizedReport.recommendations.length
+    ? normalizedReport.recommendations
     : [
       'Re-run the scan after remediation to confirm risk reduction.',
       'Prioritize exploitable issues before routine hardening tasks.',
       'Keep a dated copy of this report with the remediation owner and next review date.',
     ];
-  const score = report.score || `${report.risk_score || 0}/100`;
-  const risk = report.risk_label || report.risk || 'Unknown Risk';
-  const generatedDate = `${report.date || ''} ${report.time || ''}`.trim() || new Date().toLocaleString('en-US');
+  const score = normalizedReport.score || `${normalizedReport.risk_score || 0}/100`;
+  const risk = normalizedReport.risk_label || normalizedReport.risk || 'Unknown Risk';
+  const coverage = deriveScanCoverage(normalizedReport);
+  const confidence = deriveScanConfidence(normalizedReport);
+  const generatedDate = `${normalizedReport.date || ''} ${normalizedReport.time || ''}`.trim() || new Date().toLocaleString('en-US');
 
   return buildBrandedPdfBlob({
     title: 'Vulnerability Scan Report',
-    subtitle: `Target intelligence pack for ${report.target || report.url || 'selected website'} with evidence, risk lanes, and remediation guidance.`,
+    subtitle: `Target intelligence pack for ${normalizedReport.target || normalizedReport.url || 'selected website'} with evidence, risk lanes, and remediation guidance.`,
     eyebrow: 'Live Web Exposure Report',
     generatedAt: generatedDate,
     classification: 'CLIENT-READY SECURITY REPORT',
@@ -242,20 +446,24 @@ const buildScanReportPdf = (report) => {
       { label: 'Risk', value: risk, fill: '#fff5f6', valueColor: '#d8324a', hint: 'Priority lane' },
       { label: 'Score', value: score, fill: '#f3f0ff', valueColor: '#6c5ce7', hint: 'Security posture' },
       { label: 'Findings', value: String(findings.length), fill: '#eef6ff', valueColor: '#0b66c3', hint: 'Detected issues' },
-      { label: 'Checks', value: String(report.summary?.checks_run || checks.length || 0), fill: '#eefbf7', valueColor: '#11855d', hint: 'Signals tested' },
-      { label: 'HTTP', value: String(report.http_status || 'N/A'), fill: '#fff8e8', valueColor: '#b35d00', hint: report.server || 'Server check' },
-      { label: 'Duration', value: report.duration || '0.0s', fill: '#f7f9ff', valueColor: '#151a32', hint: report.scan_mode || 'scan mode' },
+      { label: 'Params', value: String(parameterInventory.length), fill: '#f8f5ff', valueColor: '#6c5ce7', hint: 'Discovered inputs' },
+      { label: 'Forms', value: String(formInventory.length), fill: '#fff7ed', valueColor: '#b45309', hint: 'Form inventory' },
+      { label: 'Coverage', value: `${coverage}%`, fill: '#eefbf7', valueColor: '#11855d', hint: 'Executed checks' },
+      { label: 'Confidence', value: `${confidence}%`, fill: '#fff1f8', valueColor: '#c0266f', hint: 'Scan quality' },
+      { label: 'Checks', value: String(normalizedReport.summary?.checks_run || checks.length || 0), fill: '#eefbf7', valueColor: '#11855d', hint: 'Signals tested' },
+      { label: 'HTTP', value: String(normalizedReport.http_status || 'N/A'), fill: '#fff8e8', valueColor: '#b35d00', hint: normalizedReport.server || 'Server check' },
+      { label: 'Duration', value: normalizedReport.duration || '0.0s', fill: '#f7f9ff', valueColor: '#151a32', hint: normalizedReport.scan_mode || 'scan mode' },
     ],
     sections: [
       {
         title: 'Executive Summary',
         kicker: 'Overview',
-        body: `Threat Hunters reviewed ${report.target || report.url || 'the target'} and produced a ${risk} assessment with score ${score}. This report is structured for fast decision-making: severity, evidence, technical checks, and recommended next moves.`,
+        body: `Threat Hunters reviewed ${normalizedReport.target || normalizedReport.url || 'the target'} and produced a ${risk} assessment with score ${score}. This report is structured for fast decision-making: severity, evidence, technical checks, and recommended next moves.`,
         accent: '#7c6cff',
         rows: [
-          { label: 'Report ID', value: report.id || 'Live scan', detail: `Reference: ${report.reference || 'Not available'}` },
-          { label: 'Target', value: report.target || report.url || 'Not available', detail: `Final URL: ${report.url || report.target || 'Not available'}` },
-          { label: 'Response', value: report.http_status || 'Unknown', detail: `Server: ${report.server || 'Not disclosed'} | Content: ${report.content_type || 'Unknown'} | Length: ${report.content_length || 'Unknown'}` },
+          { label: 'Report ID', value: normalizedReport.id || 'Live scan', detail: `Reference: ${normalizedReport.reference || 'Not available'}` },
+          { label: 'Target', value: normalizedReport.target || normalizedReport.url || 'Not available', detail: `Final URL: ${normalizedReport.url || normalizedReport.target || 'Not available'}` },
+          { label: 'Response', value: normalizedReport.http_status || 'Unknown', detail: `Server: ${normalizedReport.server || 'Not disclosed'} | Content: ${normalizedReport.content_type || 'Unknown'} | Length: ${normalizedReport.content_length || 'Unknown'}` },
         ],
       },
       {
@@ -273,20 +481,20 @@ const buildScanReportPdf = (report) => {
         rows: [
           {
             label: 'TLS Validation',
-            value: report.tls?.valid === false ? 'Needs review' : report.tls ? 'Valid' : 'Not scanned',
-            tone: report.tls?.valid === false ? 'High' : report.tls ? 'Success' : 'Info',
-            detail: report.tls?.valid === false
+            value: normalizedReport.tls?.valid === false ? 'Needs review' : normalizedReport.tls ? 'Valid' : 'Not scanned',
+            tone: normalizedReport.tls?.valid === false ? 'High' : normalizedReport.tls ? 'Success' : 'Info',
+            detail: normalizedReport.tls?.valid === false
               ? 'Certificate validation returned a failing signal.'
               : 'Certificate validation did not surface a blocking issue in the available data.',
           },
           {
             label: 'Issuer',
-            value: report.tls?.issuer || 'Not available',
+            value: normalizedReport.tls?.issuer || 'Not available',
             detail: 'Use this to confirm the certificate chain matches the expected provider.',
           },
           {
             label: 'Expiry',
-            value: report.tls?.expires || 'Not available',
+            value: normalizedReport.tls?.expires || 'Not available',
             detail: 'Schedule renewal before expiry and keep monitoring alerts active.',
           },
         ],
@@ -301,8 +509,8 @@ const buildScanReportPdf = (report) => {
         items: findings.length
           ? findings.map((finding, index) => ({
             tone: finding.severity || 'Info',
-            title: `${index + 1}. [${finding.severity || 'Info'}] ${finding.title || finding.code || 'Finding'}`,
-            detail: `${finding.description || 'No impact description supplied.'} Fix: ${finding.recommendation || 'Review manually and document remediation.'}`,
+            title: `${index + 1}. [${finding.severity || 'Info'}] ${finding.title || finding.name || finding.code || finding.id || 'Finding'}`,
+            detail: `${finding.description || finding.proof || 'No impact description supplied.'} Fix: ${finding.recommendation || finding.remediation || 'Review manually and document remediation.'}`,
           }))
           : ['No findings detected by the selected checks.'],
       },
@@ -312,13 +520,58 @@ const buildScanReportPdf = (report) => {
         body: 'These checks show the evidence trail behind the final score. Failed or warning checks deserve follow-up even when the headline risk is low.',
         accent: '#25c799',
         rows: checks.length
-          ? checks.slice(0, 18).map((check) => ({
-            label: check.name || 'Security check',
-            value: check.status || 'Info',
-            tone: check.status === 'Failed' ? 'High' : check.status === 'Passed' ? 'Success' : 'Info',
-            detail: `${check.details || 'No details supplied.'}${check.evidence ? ` Evidence: ${check.evidence}` : ''}`,
-          }))
+          ? checks.slice(0, 18).map((check) => {
+            const findingCount = Number.isFinite(Number(check.finding_count)) ? Number(check.finding_count) : null;
+            return {
+              label: check.name || 'Security check',
+              value: check.status || 'Info',
+              tone: check.status === 'Failed' ? 'High' : check.status === 'Passed' ? 'Success' : 'Info',
+              detail: `${check.details || 'No details supplied.'}${findingCount !== null ? ` Findings: ${findingCount}.` : ''}${check.evidence ? ` Evidence: ${check.evidence}` : ''}`,
+            };
+          })
           : [{ label: 'Checks', value: 'Not attached', detail: 'No detailed checks were attached to this report.' }],
+      },
+      {
+        title: 'Parameter Inventory',
+        kicker: 'Attack Surface',
+        body: 'Discovered URL parameters are listed with candidate vulnerability classes and whether active validation touched them.',
+        accent: '#0b66c3',
+        rows: parameterInventory.length
+          ? parameterInventory.slice(0, 18).map((item) => ({
+            label: `${item.method || 'GET'} ${item.endpoint || item.url || 'Endpoint'} :: ${item.parameter || 'parameter'}`,
+            value: item.status || 'not_tested',
+            tone: item.status === 'confirmed' ? 'Critical' : item.status === 'tested_candidate' ? 'Medium' : item.status === 'tested_not_confirmed' ? 'Success' : 'Info',
+            detail: `Candidates: ${(item.candidates || []).join(', ') || 'None'} | Tests: ${(item.tests || []).join(', ') || 'not run'}`,
+          }))
+          : [{ label: 'Parameters', value: 'None', detail: 'No URL parameters were discovered in the captured crawl.' }],
+      },
+      {
+        title: 'Active Validation Results',
+        kicker: 'Test Evidence',
+        body: 'These records show tested and skipped validation groups, including the reason when no proof was produced.',
+        accent: '#25c799',
+        rows: activeValidationResults.length
+          ? activeValidationResults.slice(0, 24).map((item) => ({
+            label: `${item.test_type || 'validation'}${item.parameter ? ` :: ${item.parameter}` : ''}`,
+            value: item.status || 'unknown',
+            tone: item.status === 'confirmed' ? 'Critical' : item.status === 'candidate' ? 'Medium' : item.status === 'not_confirmed' ? 'Success' : item.status === 'skipped' ? 'Info' : 'Info',
+            detail: `${item.method || 'GET'} ${item.url || 'n/a'} | ${item.reason || 'no reason'} | payloads=${item.payloads_sent ?? 0}`,
+          }))
+          : [{ label: 'Validation', value: 'No records', detail: 'No active validation telemetry was attached to this report.' }],
+      },
+      {
+        title: 'Form Inventory',
+        kicker: 'Submitted Surfaces',
+        body: 'Forms discovered during crawling are listed with inputs and CSRF-token visibility so validation gaps are explicit.',
+        accent: '#ffb347',
+        rows: formInventory.length
+          ? formInventory.slice(0, 12).map((form) => ({
+            label: `${form.method || 'GET'} ${form.action || 'Form action'}`,
+            value: `${Array.isArray(form.inputs) ? form.inputs.length : 0} inputs`,
+            tone: form.has_csrf_token ? 'Success' : 'Info',
+            detail: `Page: ${form.page || 'unknown'} | Inputs: ${Array.isArray(form.inputs) ? form.inputs.map((input) => input.name || input).filter(Boolean).slice(0, 8).join(', ') : 'n/a'}`,
+          }))
+          : [{ label: 'Forms', value: 'None', detail: 'No HTML forms were captured by the selected scan profile.' }],
       },
       {
         title: 'Security Header Snapshot',
@@ -367,7 +620,7 @@ const loadStoredScanReports = () => {
   try {
     const storedReports = window.localStorage.getItem(SCAN_REPORTS_STORAGE_KEY);
     const parsedReports = JSON.parse(storedReports || '[]');
-    return Array.isArray(parsedReports) ? parsedReports : [];
+    return Array.isArray(parsedReports) ? parsedReports.map(normalizeScanReport) : [];
   } catch {
     return [];
   }
@@ -482,7 +735,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
         language: result.data.language || 'English (US)',
         timezone: result.data.timezone || 'UTC+02:00 (Cairo)',
       });
-      setScanMode(result.data.scanMode || 'quick');
+      setScanMode(result.data.scanMode === 'deep' ? 'deep' : 'quick');
       setProfileTwoFactorEnabled(Boolean(result.data.twoFactorEnabled));
       setNotificationPrefs((current) => ({
         ...current,
@@ -515,6 +768,29 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
     };
   }, [activeSection, isAdvancedScanOpen]);
 
+  useEffect(() => {
+    let ignore = false;
+
+    const loadServerReports = async () => {
+      try {
+        const payload = await scannerAPI.getReports(12);
+        const items = Array.isArray(payload?.items) ? payload.items.map(normalizeScanReport) : [];
+        if (!ignore && items.length) {
+          setScanReports(items);
+          storeScanReports(items);
+        }
+      } catch {
+        // Local reports remain available when the authenticated report endpoint is unavailable.
+      }
+    };
+
+    loadServerReports();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const navigateToSection = (section) => {
     setActiveSection(section);
     if (!onNavigate) return;
@@ -533,20 +809,22 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
       const enabledScanTypes = Object.entries(dashboardScanTypes)
         .filter(([, enabled]) => enabled)
         .map(([key]) => key);
+      const scanModeForBackend = enabledScanTypes.includes('deep') ? 'deep' : 'light';
 
       setScanError('');
       setIsScanning(true);
 
       const result = await scannerAPI.scanWebsite({
         target,
-        scan_mode: enabledScanTypes.includes('deep') ? 'deep' : 'quick',
+        scan_mode: scanModeForBackend,
         modules: {
           dashboard: enabledScanTypes,
           advanced: advancedScanChecks,
         },
       });
 
-      const nextReports = [result, ...scanReports].slice(0, 12);
+      const normalizedResult = normalizeScanReport(result);
+      const nextReports = [normalizedResult, ...scanReports].slice(0, 12);
       storeScanReports(nextReports);
       setScanReports(nextReports);
       navigateToSection('reports');
@@ -558,7 +836,10 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   };
 
   const toggleDashboardScanType = (key) => {
-    setDashboardScanTypes((prev) => ({ ...prev, [key]: !prev[key] }));
+    setDashboardScanTypes({
+      quick: key === 'quick',
+      deep: key === 'deep',
+    });
   };
 
   const toggleAdvancedScanCheck = (key) => {
@@ -675,6 +956,10 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
 
   const reportCards = scanReports.map(reportToCard);
   const latestReport = scanReports[0] || null;
+  const latestRiskScore = latestReport ? deriveRiskScore(latestReport) : 0;
+  const latestRiskLabel = latestReport ? deriveRiskLabel(latestReport) : 'No scan completed yet';
+  const latestScanCoverage = latestReport ? deriveScanCoverage(latestReport) : 0;
+  const latestScanConfidence = latestReport ? deriveScanConfidence(latestReport) : 0;
   const profileDisplayName = profileForm.username || (user?.email ? user.email.split('@')[0] : '') || 'Threat Hunters User';
   const profileEmail = profileForm.email || user?.email || 'No email available';
   const profileInitial = profileDisplayName.trim().charAt(0).toUpperCase() || 'U';
@@ -1015,15 +1300,17 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
                   r="34"
                   className="db-risk-progress"
                   strokeDasharray={2 * Math.PI * 34}
-                  strokeDashoffset={toDashOffset(latestReport?.risk_score || 0)}
+                  strokeDashoffset={toDashOffset(latestRiskScore)}
                 />
               </svg>
-              <strong>{latestReport ? `${latestReport.risk_score}%` : '0%'}</strong>
+              <strong>{latestReport ? `${latestRiskScore}%` : '0%'}</strong>
             </div>
             <p className="db-risk-copy">
-              {latestReport ? latestReport.risk_label : 'No scan completed yet'}
+              {latestReport ? latestRiskLabel : 'No scan completed yet'}
               <br />
               {latestReport ? latestReport.target : 'Start a scan to calculate risk'}
+              <br />
+              {latestReport ? `Coverage ${latestScanCoverage}% · Confidence ${latestScanConfidence}%` : ''}
             </p>
           </article>
         </section>

@@ -316,14 +316,14 @@ def _default_tools(scan_mode: str, enable_nuclei: bool) -> dict:
         "extraction": True,
         "security_headers": True,
         "sensitive_files": deep,
-        "targeted": deep,
+        "targeted": True,
         "forms": deep,
         "crlfuzz": False,
         "websocket": deep,
-        "vulns": bool(deep and enable_nuclei),
+        "vulns": deep,
         "ports": False,
-        "fuzz": False,
-        "archive_cdx": False,
+        "fuzz": deep,
+        "archive_cdx": deep,
     }
 
 
@@ -364,9 +364,21 @@ def _record_module_state(
 
 
 def _record_disabled_modules(scan_data: dict, tools: dict) -> None:
+    disabled_reasons = {
+        "crlfuzz": "Disabled by scan mode or options. Enable CRLF checks explicitly for this scan.",
+        "ports": "Disabled by scan mode or options. Enable safe port checks explicitly for this scan.",
+        "fuzz": "Content discovery disabled by scan mode or options.",
+        "vulns": "Nuclei checks disabled by scan mode or options.",
+        "archive_cdx": "Archive URL collection disabled by scan mode or options.",
+    }
     for module_name, enabled in tools.items():
         if not enabled:
-            _record_module_state(scan_data, module_name, "skipped", "Disabled by scan mode or options.")
+            _record_module_state(
+                scan_data,
+                module_name,
+                "skipped",
+                disabled_reasons.get(module_name, "Disabled by scan mode or options."),
+            )
 
 
 async def _run_module_safely(module_name: str, scan_data: dict, progress, call, message: str = ""):
@@ -444,7 +456,7 @@ async def _run_scan_async(
     runtime_scan_config = prepared["runtime"]
     normalized_modules = _normalize_tool_overrides(modules)
     tools = _merge_tool_overrides(_default_tools(profile, enable_nuclei), modules)
-    if tools.get("vulns") and not (profile == "deep" and enable_nuclei):
+    if tools.get("vulns") and profile != "deep":
         tools["vulns"] = False
     scan_id = uuid.uuid4().hex[:12]
     progress_events: list[dict] = []
@@ -580,15 +592,19 @@ async def _run_scan_async(
                 _merge_hosts(alive_hosts, crlf_results)
 
         if tools["vulns"]:
-            nuclei_results = await _run_module_safely(
-                "vulns",
-                scan_data,
-                progress,
-                lambda: run_nuclei(copy.deepcopy(alive_hosts), profile=profile, scan_config=runtime_scan_config, callback=progress),
-                "Running Nuclei with configured safe profile",
-            )
-            if nuclei_results is not None:
-                _merge_hosts(alive_hosts, nuclei_results)
+            if get_available_tool("vulns") != "nuclei":
+                _record_module_state(scan_data, "vulns", "skipped", "missing_tool:nuclei")
+                await progress("vulns", "skipped", "Nuclei not installed; safe profile checks not run.")
+            else:
+                nuclei_results = await _run_module_safely(
+                    "vulns",
+                    scan_data,
+                    progress,
+                    lambda: run_nuclei(copy.deepcopy(alive_hosts), profile=profile, scan_config=runtime_scan_config, callback=progress),
+                    "Running Nuclei with configured safe profile",
+                )
+                if nuclei_results is not None:
+                    _merge_hosts(alive_hosts, nuclei_results)
         else:
             await progress("vulns", "done", "Nuclei skipped by mode/options")
 
