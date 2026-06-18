@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Bell,
   ChevronDown,
@@ -18,6 +18,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { adminAPI } from '../services/api';
 import './AdminDashboardPage.css';
 import './AdminSettingsPage.css';
 
@@ -140,8 +141,72 @@ function AdminSettingsPage({ onNavigate, onLogout, currentPage = 'admin-settings
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('general');
   const [settingsState, setSettingsState] = useState(initialSettings);
+  const [notice, setNotice] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const currentTab = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
+
+  const loadSettings = useCallback(async () => {
+    try {
+      setNotice('Loading admin settings...');
+      const payload = await adminAPI.getSettings();
+      setSettingsState((prev) => ({
+        ...prev,
+        ...payload,
+        general: { ...prev.general, ...(payload.general || {}) },
+        notifications: { ...prev.notifications, ...(payload.notifications || {}) },
+        security: { ...prev.security, ...(payload.security || {}) },
+        email: { ...prev.email, ...(payload.email || {}) },
+      }));
+      setNotice('');
+    } catch (error) {
+      setNotice(error.message || 'Using local settings until the backend is available.');
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  const validateSettings = () => {
+    if (!settingsState.general.siteName.trim()) {
+      return 'Site name is required.';
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+    if (!emailPattern.test(settingsState.email.senderAddress) || !emailPattern.test(settingsState.email.replyTo)) {
+      return 'Sender and reply-to must be valid email addresses.';
+    }
+
+    return '';
+  };
+
+  const saveSettings = async () => {
+    const validationError = validateSettings();
+    if (validationError) {
+      setNotice(validationError);
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setNotice('Saving admin settings...');
+      const payload = await adminAPI.updateSettings(settingsState);
+      setSettingsState((prev) => ({
+        ...prev,
+        ...payload,
+        general: { ...prev.general, ...(payload.general || {}) },
+        notifications: { ...prev.notifications, ...(payload.notifications || {}) },
+        security: { ...prev.security, ...(payload.security || {}) },
+        email: { ...prev.email, ...(payload.email || {}) },
+      }));
+      setNotice('Admin settings saved to backend.');
+    } catch (error) {
+      setNotice(error.message || 'Unable to save admin settings.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const updateField = (section, field, value) => {
     setSettingsState((prev) => ({
@@ -396,11 +461,13 @@ function AdminSettingsPage({ onNavigate, onLogout, currentPage = 'admin-settings
               <p>Manage your system settings and preferences</p>
             </div>
 
-            <button type="button" className="admin-settings-save-btn">
+            <button type="button" className="admin-settings-save-btn" onClick={saveSettings} disabled={isSaving}>
               <Save size={18} />
-              <span>Save All Changes</span>
+              <span>{isSaving ? 'Saving...' : 'Save All Changes'}</span>
             </button>
           </section>
+
+          {notice && <div className="admin-users-notice admin-card">{notice}</div>}
 
           <section className="admin-settings-layout">
             <div className="admin-settings-tab-list">

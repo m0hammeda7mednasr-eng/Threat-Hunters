@@ -17,7 +17,9 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { adminAPI } from '../services/api';
 import './AdminDashboardPage.css';
 import './AdminPricingPage.css';
 
@@ -113,8 +115,106 @@ function getPlanTone(plan) {
   return 'is-free';
 }
 
+function formatPricingDate(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value || 'Recently';
+  }
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' }) {
   const { theme, toggleTheme } = useTheme();
+  const [planItems, setPlanItems] = useState(plans);
+  const [transactionItems, setTransactionItems] = useState(transactions);
+  const [pricingStats, setPricingStats] = useState(null);
+  const [notice, setNotice] = useState('');
+
+  const loadPricing = useCallback(async () => {
+    try {
+      setNotice('Loading pricing from backend...');
+      const payload = await adminAPI.getPricing();
+      setPlanItems(payload.plans?.length ? payload.plans : plans);
+      setTransactionItems(payload.transactions?.length ? payload.transactions : transactions);
+      setPricingStats(payload.stats || null);
+      setNotice('');
+    } catch (error) {
+      setPlanItems(plans);
+      setTransactionItems(transactions);
+      setPricingStats(null);
+      setNotice(error.message || 'Using local pricing data until the backend is available.');
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      loadPricing();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadPricing]);
+
+  const computedStatCards = useMemo(() => {
+    if (!pricingStats) {
+      return statCards;
+    }
+
+    return [
+      { label: 'Total Revenue', value: pricingStats.totalRevenue || '$0', change: 'live', icon: DollarSign, tone: 'admin-tone-indigo', changeTone: 'is-positive' },
+      { label: 'Active Subscriptions', value: String(pricingStats.activeSubscriptions || 0), change: 'live', icon: Users, tone: 'admin-tone-green', changeTone: 'is-positive' },
+      { label: 'MRR', value: pricingStats.mrr || '$0', change: 'live', icon: TrendingUp, tone: 'admin-tone-orange', changeTone: 'is-positive' },
+      { label: 'Churn Rate', value: pricingStats.churnRate || '0%', change: 'live', icon: BarChart3, tone: 'admin-tone-indigo', changeTone: 'is-positive' },
+    ];
+  }, [pricingStats]);
+
+  const addPricingPlan = async () => {
+    try {
+      setNotice('Adding new pricing plan...');
+      await adminAPI.addPricingPlan({
+        name: 'Growth',
+        price: '$99',
+        description: 'For growing security teams that need more automation',
+        subscribers: 0,
+        badge: 'New',
+        tone: 'is-professional',
+      });
+      await loadPricing();
+      setNotice('Pricing plan added.');
+    } catch (error) {
+      setNotice(error.message || 'Unable to add pricing plan.');
+    }
+  };
+
+  const editPricingPlan = async (plan) => {
+    const nextPrice = window.prompt(`New monthly price for ${plan.name}`, plan.price);
+    if (nextPrice === null) {
+      return;
+    }
+
+    const trimmedPrice = nextPrice.trim();
+    if (!/^\$?\d+(\.\d{1,2})?$/.test(trimmedPrice)) {
+      setNotice('Enter a valid price, for example $49 or 49.99.');
+      return;
+    }
+
+    try {
+      setNotice('Saving pricing plan...');
+      await adminAPI.updatePricingPlan(plan.id, {
+        ...plan,
+        price: trimmedPrice.startsWith('$') ? trimmedPrice : `$${trimmedPrice}`,
+      });
+      await loadPricing();
+      setNotice(`${plan.name} plan updated.`);
+    } catch (error) {
+      setNotice(error.message || 'Unable to update pricing plan.');
+    }
+  };
 
   return (
     <div className="admin-pricing-page">
@@ -190,14 +290,16 @@ function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' 
               <p>Manage subscription plans and pricing</p>
             </div>
 
-            <button type="button" className="admin-pricing-add-btn">
+            <button type="button" className="admin-pricing-add-btn" onClick={addPricingPlan}>
               <Plus size={18} />
               <span>Add New Plan</span>
             </button>
           </section>
 
+          {notice && <div className="admin-users-notice admin-card">{notice}</div>}
+
           <section className="admin-pricing-stats">
-            {statCards.map((item) => {
+            {computedStatCards.map((item) => {
               const Icon = item.icon;
 
               return (
@@ -219,7 +321,7 @@ function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' 
           </section>
 
           <section className="admin-pricing-plan-grid">
-            {plans.map((plan) => (
+            {planItems.map((plan) => (
               <article
                 key={plan.name}
                 className={`admin-pricing-plan-card admin-card ${plan.badge ? 'is-featured' : ''}`}
@@ -263,7 +365,7 @@ function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' 
                     <strong>{plan.subscribers}</strong>
                   </div>
 
-                  <button type="button" className={`admin-pricing-edit-btn ${plan.tone}`}>
+                  <button type="button" className={`admin-pricing-edit-btn ${plan.tone}`} onClick={() => editPricingPlan(plan)}>
                     Edit Plan
                   </button>
                 </div>
@@ -288,8 +390,8 @@ function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' 
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((transaction) => (
-                    <tr key={`${transaction.customer}-${transaction.date}`}>
+                  {transactionItems.map((transaction) => (
+                    <tr key={transaction.id || `${transaction.customer}-${transaction.date}`}>
                       <td>{transaction.customer}</td>
                       <td>
                         <span className={`admin-pricing-plan-pill ${getPlanTone(transaction.plan)}`}>
@@ -297,7 +399,7 @@ function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' 
                         </span>
                       </td>
                       <td>{transaction.amount}</td>
-                      <td>{transaction.date}</td>
+                      <td>{formatPricingDate(transaction.date)}</td>
                       <td>
                         <span className={`admin-pricing-status is-${transaction.status}`}>
                           {transaction.status}

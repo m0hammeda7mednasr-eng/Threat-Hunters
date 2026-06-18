@@ -54,6 +54,167 @@ const defaultUserSettings = {
   },
 };
 
+const defaultAdminSettings = {
+  general: {
+    siteName: 'Threat Hunters',
+    siteDescription: 'Smart AI-Powered Web Vulnerability Scanner',
+    language: 'English',
+    timezone: 'UTC+02:00 Cairo',
+  },
+  notifications: {
+    emailAlerts: true,
+    criticalOnly: true,
+    weeklyReports: true,
+    productUpdates: false,
+    digestFrequency: 'Daily digest',
+  },
+  security: {
+    requireTwoFactor: true,
+    loginAlerts: true,
+    sessionTimeout: '30 minutes',
+    passwordRotation: 'Every 90 days',
+  },
+  email: {
+    senderName: 'Threat Hunters',
+    senderAddress: 'alerts@threathunters.ai',
+    replyTo: 'support@threathunters.ai',
+    footerNote: 'AI-powered vulnerability scanning to protect your web applications.',
+  },
+};
+
+const defaultAdminTeam = [
+  {
+    id: 'team-super-admin',
+    initials: 'MN',
+    name: 'Mohamed Nasr',
+    email: 'admin@threathunters.com',
+    status: 'active',
+    time: 'Online now',
+    role: 'Super Admin',
+    badges: ['Full Access', 'User Management', 'System Config'],
+  },
+  {
+    id: 'team-security-lead',
+    initials: 'SA',
+    name: 'Sarah Ahmed',
+    email: 'sarah@threathunters.com',
+    status: 'active',
+    time: '2 hours ago',
+    role: 'Admin',
+    badges: ['Scan Management', 'Reports', 'User Support'],
+  },
+  {
+    id: 'team-analyst',
+    initials: 'OA',
+    name: 'Omar Ali',
+    email: 'omar@threathunters.com',
+    status: 'away',
+    time: '1 day ago',
+    role: 'Security Analyst',
+    badges: ['Scan Management', 'Reports'],
+  },
+];
+
+const defaultAdminPricing = {
+  plans: [
+    {
+      id: 'plan-free',
+      name: 'Free',
+      price: '$0',
+      description: 'Perfect for trying out our service',
+      subscribers: 456,
+      badge: '',
+      tone: 'is-free',
+      features: [
+        { label: 'Basic vulnerability scanning', included: true },
+        { label: '1 active project', included: true },
+        { label: 'Email notifications', included: true },
+        { label: 'Advanced reporting', included: false },
+        { label: 'Priority support', included: false },
+      ],
+    },
+    {
+      id: 'plan-professional',
+      name: 'Professional',
+      price: '$49',
+      description: 'For professionals and small teams',
+      subscribers: 234,
+      badge: 'Most Popular',
+      tone: 'is-professional',
+      features: [
+        { label: 'Advanced vulnerability scanning', included: true },
+        { label: '10 active projects', included: true },
+        { label: 'Detailed PDF reports', included: true },
+        { label: 'Priority email support', included: true },
+        { label: 'Team collaboration tools', included: false },
+      ],
+    },
+    {
+      id: 'plan-enterprise',
+      name: 'Enterprise',
+      price: '$199',
+      description: 'For large teams and organizations',
+      subscribers: 123,
+      badge: '',
+      tone: 'is-enterprise',
+      features: [
+        { label: 'Unlimited vulnerability scans', included: true },
+        { label: 'Unlimited active projects', included: true },
+        { label: 'Custom reports and exports', included: true },
+        { label: 'Dedicated success manager', included: true },
+        { label: 'SSO and advanced access control', included: true },
+      ],
+    },
+  ],
+  transactions: [
+    { id: 'txn-1', customer: 'Mohamed Ahmed', plan: 'Professional', amount: '$49', date: '2026-06-11T09:20:00.000Z', status: 'completed' },
+    { id: 'txn-2', customer: 'Sarah Ali', plan: 'Enterprise', amount: '$199', date: '2026-06-10T14:10:00.000Z', status: 'completed' },
+    { id: 'txn-3', customer: 'Hassan Omar', plan: 'Professional', amount: '$49', date: '2026-06-09T16:45:00.000Z', status: 'completed' },
+    { id: 'txn-4', customer: 'Nour Salem', plan: 'Enterprise', amount: '$199', date: '2026-06-08T11:30:00.000Z', status: 'pending' },
+  ],
+};
+
+const defaultAdminReports = [
+  {
+    id: 'report-monthly-security',
+    title: 'Monthly Security Report',
+    subtitle: 'Comprehensive security analysis for the current workspace',
+    date: '2026-06-14T12:00:00.000Z',
+    size: '2.4 MB',
+    type: 'JSON',
+    status: 'ready',
+    scanCount: 135,
+    vulnerabilities: 168,
+    critical: 12,
+    score: 82,
+    downloads: 18,
+    findings: [
+      'Review high-risk public endpoints weekly.',
+      'Keep blog moderation and account controls audited.',
+      'Prioritize critical and high severity issues first.',
+    ],
+  },
+  {
+    id: 'report-blog-risk',
+    title: 'Content & Blog Moderation Report',
+    subtitle: 'Admin view of published posts, comments, likes, and shares',
+    date: '2026-06-11T10:00:00.000Z',
+    size: '1.8 MB',
+    type: 'JSON',
+    status: 'ready',
+    scanCount: 42,
+    vulnerabilities: 36,
+    critical: 2,
+    score: 91,
+    downloads: 9,
+    findings: [
+      'Published posts are visible to users.',
+      'Hidden posts remain admin-only.',
+      'Engagement counters are backed by the API.',
+    ],
+  },
+];
+
 const seedDb = () => ({
   users: [
     {
@@ -65,6 +226,9 @@ const seedDb = () => ({
       role: 'admin',
       phone: '+20 100 000 0000',
       bio: 'Platform administrator and security lead.',
+      plan: 'Enterprise',
+      scans: 76,
+      vulnerabilities: 18,
       createdAt: baseNow.toISOString(),
     },
     {
@@ -76,6 +240,9 @@ const seedDb = () => ({
       role: 'user',
       phone: '+20 111 222 3333',
       bio: 'Security analyst focused on awareness and reporting.',
+      plan: 'Professional',
+      scans: 24,
+      vulnerabilities: 5,
       createdAt: baseNow.toISOString(),
     },
   ],
@@ -246,6 +413,10 @@ const seedDb = () => ({
     },
   },
   passwordResetRequests: [],
+  adminSettings: defaultAdminSettings,
+  adminTeam: defaultAdminTeam,
+  adminPricing: defaultAdminPricing,
+  adminReports: defaultAdminReports,
 });
 
 function hashPassword(password) {
@@ -258,15 +429,23 @@ function createToken(user) {
 }
 
 function sanitizeUser(user) {
+  const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'User';
+
   return {
     id: user.id,
     firstName: user.firstName,
     lastName: user.lastName,
+    name: fullName,
     email: user.email,
     role: user.role,
+    status: user.disabled ? 'disabled' : 'active',
+    plan: user.plan || (user.role === 'admin' ? 'Enterprise' : 'Free'),
+    scans: Number(user.scans || 0),
+    vulnerabilities: Number(user.vulnerabilities || 0),
     phone: user.phone || '',
     bio: user.bio || '',
     createdAt: user.createdAt,
+    joined: user.createdAt,
     lastLogin: user.lastLogin || null,
   };
 }
@@ -356,6 +535,21 @@ function reconcileDemoAuth(db) {
       existingUser.bio = demoUser.bio;
       changed = true;
     }
+
+    if (!existingUser.plan) {
+      existingUser.plan = demoUser.role === 'admin' ? 'Enterprise' : 'Professional';
+      changed = true;
+    }
+
+    if (existingUser.scans === undefined) {
+      existingUser.scans = demoUser.role === 'admin' ? 76 : 24;
+      changed = true;
+    }
+
+    if (existingUser.vulnerabilities === undefined) {
+      existingUser.vulnerabilities = demoUser.role === 'admin' ? 18 : 5;
+      changed = true;
+    }
   }
 
   if (!Array.isArray(db.sessions)) {
@@ -383,12 +577,32 @@ function reconcileDemoAuth(db) {
     changed = true;
   }
 
+  if (!db.adminSettings) {
+    db.adminSettings = defaultAdminSettings;
+    changed = true;
+  }
+
+  if (!Array.isArray(db.adminTeam)) {
+    db.adminTeam = defaultAdminTeam;
+    changed = true;
+  }
+
+  if (!db.adminPricing) {
+    db.adminPricing = defaultAdminPricing;
+    changed = true;
+  }
+
+  if (!Array.isArray(db.adminReports)) {
+    db.adminReports = defaultAdminReports;
+    changed = true;
+  }
+
   return changed;
 }
 
 async function loadDb() {
   await ensureDataFile();
-  const raw = await readFile(dataFile, 'utf8');
+  const raw = (await readFile(dataFile, 'utf8')).replace(/^\uFEFF/, '');
   const db = JSON.parse(raw);
   const changed = reconcileDemoAuth(db);
 
@@ -473,31 +687,117 @@ function articleCounts(db) {
   return { totalLikes, totalComments };
 }
 
+function totalVulnerabilityCount(db) {
+  return db.users.reduce((sum, user) => sum + Number(user.vulnerabilities || 0), 0)
+    + db.posts.filter((post) => post.status === 'hidden').length * 2
+    + Math.max(db.posts.length - 1, 0);
+}
+
 function buildDashboardStats(db) {
   const { totalLikes, totalComments } = articleCounts(db);
+  const activeUsers = db.users.filter((user) => !user.disabled).length;
+  const totalScans = db.users.reduce((sum, user) => sum + Number(user.scans || 0), 0);
+  const totalReports = db.adminReports?.length || 0;
+
   return [
-    { label: 'Total Scans', value: '135', subtitle: 'Completed this month' },
-    { label: 'Critical Issues', value: '23', subtitle: 'Need immediate remediation' },
+    { label: 'Total Users', value: String(db.users.length), subtitle: `${activeUsers} active account(s)` },
+    { label: 'Total Scans', value: String(totalScans || 0), subtitle: 'User scan activity tracked by backend' },
+    { label: 'Admin Reports', value: String(totalReports), subtitle: 'Generated reports available for download' },
     { label: 'Blog Likes', value: String(totalLikes), subtitle: 'Across published articles' },
     { label: 'Comments', value: String(totalComments), subtitle: 'Reader discussions' },
   ];
 }
 
 function buildRecentActivities(db) {
+  const latestPosts = [...db.posts]
+    .sort((a, b) => new Date(b.updatedAt || b.publishedAt || 0) - new Date(a.updatedAt || a.publishedAt || 0))
+    .slice(0, 2)
+    .map((post) => ({
+      title: 'Blog content updated',
+      detail: `${post.title} is ${post.status || 'published'}`,
+      time: post.updatedAt || post.publishedAt || new Date().toISOString(),
+    }));
+
+  const latestReports = [...(db.adminReports || [])]
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+    .slice(0, 2)
+    .map((report) => ({
+      title: 'Admin report ready',
+      detail: `${report.title} scored ${report.score || 'N/A'}/100`,
+      time: report.date || new Date().toISOString(),
+    }));
+
   return [
-    { title: 'Blog engagement updated', detail: `Total posts: ${db.posts.length}` },
-    { title: 'Security notes published', detail: 'New mitigation tips added to the knowledge base' },
-    { title: 'Account activity synced', detail: 'Login and password reset endpoints are active' },
+    ...latestReports,
+    ...latestPosts,
+    { title: 'Account activity synced', detail: `${db.users.length} account(s) available for admin review`, time: new Date().toISOString() },
+  ].slice(0, 5);
+}
+
+function buildSecurityMetrics(db = null) {
+  const total = db ? totalVulnerabilityCount(db) : 168;
+  const critical = Math.max(db?.posts?.filter((post) => post.status === 'hidden').length || 0, 2);
+  const high = Math.max(Math.round(total * 0.25), 4);
+  const medium = Math.max(Math.round(total * 0.45), 8);
+  const low = Math.max(total - critical - high - medium, 0);
+
+  return [
+    { label: 'Critical', value: critical, subtitle: 'Needs immediate remediation' },
+    { label: 'High', value: high, subtitle: 'Prioritize in this sprint' },
+    { label: 'Medium', value: medium, subtitle: 'Track and schedule fixes' },
+    { label: 'Low', value: low, subtitle: 'Hygiene and hardening backlog' },
   ];
 }
 
-function buildSecurityMetrics() {
-  return [
-    { label: 'Critical', value: 12 },
-    { label: 'High', value: 27 },
-    { label: 'Medium', value: 41 },
-    { label: 'Low', value: 88 },
-  ];
+function buildAdminReport(db, options = {}) {
+  const now = new Date();
+  const { totalLikes, totalComments } = articleCounts(db);
+  const vulnerabilities = totalVulnerabilityCount(db);
+  const critical = buildSecurityMetrics(db).find((metric) => metric.label === 'Critical')?.value || 0;
+  const scanCount = db.users.reduce((sum, user) => sum + Number(user.scans || 0), 0);
+  const score = Math.max(50, Math.min(98, 100 - critical * 3 - Math.round(vulnerabilities / 12)));
+  const title = String(options.title || 'Admin Security Snapshot').trim() || 'Admin Security Snapshot';
+
+  return {
+    id: `report-${crypto.randomUUID()}`,
+    title,
+    subtitle: String(options.subtitle || 'Generated from current users, blog, reports, and security metrics').trim(),
+    date: now.toISOString(),
+    size: `${(1.6 + Math.min(vulnerabilities, 120) / 100).toFixed(1)} MB`,
+    type: 'JSON',
+    status: 'ready',
+    scanCount,
+    vulnerabilities,
+    critical,
+    score,
+    downloads: 0,
+    findings: [
+      `${db.users.length} account(s) under admin management.`,
+      `${db.posts.length} blog post(s), ${totalLikes} like(s), and ${totalComments} comment/reply item(s).`,
+      `${critical} critical signal(s) need immediate review.`,
+      'Use admin user controls to disable risky accounts and content moderation to hide unsafe posts.',
+    ],
+  };
+}
+
+function pricingStats(pricing) {
+  const plans = pricing?.plans || [];
+  const transactions = pricing?.transactions || [];
+  const activeSubscriptions = plans.reduce((sum, plan) => sum + Number(plan.subscribers || 0), 0);
+  const monthlyRevenue = plans.reduce((sum, plan) => {
+    const price = Number(String(plan.price || '0').replace(/[^0-9.]/g, '')) || 0;
+    return sum + price * Number(plan.subscribers || 0);
+  }, 0);
+  const completed = transactions.filter((item) => item.status === 'completed').length;
+  const churnRate = activeSubscriptions ? Math.max(1.2, Math.min(4.5, 100 / activeSubscriptions)).toFixed(1) : '0.0';
+
+  return {
+    totalRevenue: `$${monthlyRevenue.toLocaleString('en-US')}`,
+    activeSubscriptions,
+    mrr: `$${monthlyRevenue.toLocaleString('en-US')}`,
+    churnRate: `${churnRate}%`,
+    completedTransactions: completed,
+  };
 }
 
 function buildAwarenessContent() {
@@ -1885,7 +2185,7 @@ async function handleRequest(req, res) {
   }
 
   if (pathname === '/api/dashboard/security-metrics') {
-    send(200, buildSecurityMetrics());
+    send(200, buildSecurityMetrics(db));
     return;
   }
 
@@ -1932,6 +2232,10 @@ async function handleRequest(req, res) {
     if (req.method === 'PUT') {
       const body = await readBody(req);
       if (body.role) target.role = String(body.role);
+      if (body.status) target.disabled = String(body.status) === 'disabled';
+      if (body.plan !== undefined) target.plan = String(body.plan || 'Free');
+      if (body.scans !== undefined) target.scans = Number(body.scans || 0);
+      if (body.vulnerabilities !== undefined) target.vulnerabilities = Number(body.vulnerabilities || 0);
       if (body.phone !== undefined) target.phone = String(body.phone);
       if (body.bio !== undefined) target.bio = String(body.bio);
       await saveDb(db);
@@ -1940,11 +2244,263 @@ async function handleRequest(req, res) {
     }
 
     if (req.method === 'DELETE') {
+      if (target.id === user.id) {
+        sendError(400, 'You cannot delete your own admin account.');
+        return;
+      }
       db.users = db.users.filter((item) => item.id !== userId);
       await saveDb(db);
       send(200, { message: 'User deleted.' });
       return;
     }
+  }
+
+  if (pathname === '/api/admin/settings') {
+    const user = requireUser(db, req);
+    if (!user || !isAdmin(user)) {
+      sendError(401, 'Admin access required.');
+      return;
+    }
+
+    if (req.method === 'GET') {
+      send(200, db.adminSettings || defaultAdminSettings);
+      return;
+    }
+
+    if (req.method === 'PUT') {
+      const body = await readBody(req);
+      db.adminSettings = {
+        ...defaultAdminSettings,
+        ...(db.adminSettings || {}),
+        ...body,
+        general: {
+          ...defaultAdminSettings.general,
+          ...((db.adminSettings || {}).general || {}),
+          ...(body.general || {}),
+        },
+        notifications: {
+          ...defaultAdminSettings.notifications,
+          ...((db.adminSettings || {}).notifications || {}),
+          ...(body.notifications || {}),
+        },
+        security: {
+          ...defaultAdminSettings.security,
+          ...((db.adminSettings || {}).security || {}),
+          ...(body.security || {}),
+        },
+        email: {
+          ...defaultAdminSettings.email,
+          ...((db.adminSettings || {}).email || {}),
+          ...(body.email || {}),
+        },
+      };
+      await saveDb(db);
+      send(200, db.adminSettings);
+      return;
+    }
+  }
+
+  if (pathname === '/api/admin/team' && req.method === 'GET') {
+    const user = requireUser(db, req);
+    if (!user || !isAdmin(user)) {
+      sendError(401, 'Admin access required.');
+      return;
+    }
+    send(200, { items: db.adminTeam || defaultAdminTeam });
+    return;
+  }
+
+  if (pathname === '/api/admin/team' && req.method === 'POST') {
+    const user = requireUser(db, req);
+    if (!user || !isAdmin(user)) {
+      sendError(401, 'Admin access required.');
+      return;
+    }
+    const body = await readBody(req);
+    const name = String(body.name || 'New Admin').trim();
+    const email = String(body.email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)) {
+      sendError(400, 'Enter a valid admin email address.');
+      return;
+    }
+    const member = {
+      id: `team-${crypto.randomUUID()}`,
+      initials: name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'NA',
+      name,
+      email,
+      status: body.status || 'pending',
+      time: 'Invite pending',
+      role: body.role || 'Admin',
+      badges: Array.isArray(body.badges) ? body.badges : ['Reports', 'User Support'],
+    };
+    db.adminTeam = [...(db.adminTeam || []), member];
+    await saveDb(db);
+    send(201, member);
+    return;
+  }
+
+  const adminTeamMatch = pathname.match(/^\/api\/admin\/team\/([^/]+)$/);
+  if (adminTeamMatch) {
+    const [, memberId] = adminTeamMatch;
+    const user = requireUser(db, req);
+    if (!user || !isAdmin(user)) {
+      sendError(401, 'Admin access required.');
+      return;
+    }
+    const member = (db.adminTeam || []).find((item) => item.id === memberId);
+    if (!member) {
+      sendError(404, 'Team member not found.');
+      return;
+    }
+
+    if (req.method === 'PUT') {
+      const body = await readBody(req);
+      Object.assign(member, {
+        name: String(body.name ?? member.name).trim() || member.name,
+        email: String(body.email ?? member.email).trim().toLowerCase() || member.email,
+        role: String(body.role ?? member.role).trim() || member.role,
+        status: String(body.status ?? member.status).trim() || member.status,
+        time: String(body.time ?? member.time).trim() || member.time,
+        badges: Array.isArray(body.badges) ? body.badges : member.badges,
+      });
+      member.initials = member.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || member.initials;
+      await saveDb(db);
+      send(200, member);
+      return;
+    }
+
+    if (req.method === 'DELETE') {
+      db.adminTeam = (db.adminTeam || []).filter((item) => item.id !== memberId);
+      await saveDb(db);
+      send(200, { message: 'Team member removed.' });
+      return;
+    }
+  }
+
+  if (pathname === '/api/admin/pricing') {
+    const user = requireUser(db, req);
+    if (!user || !isAdmin(user)) {
+      sendError(401, 'Admin access required.');
+      return;
+    }
+
+    if (req.method === 'GET') {
+      const pricing = db.adminPricing || defaultAdminPricing;
+      send(200, { ...pricing, stats: pricingStats(pricing) });
+      return;
+    }
+
+    if (req.method === 'PUT') {
+      const body = await readBody(req);
+      db.adminPricing = {
+        plans: Array.isArray(body.plans) ? body.plans : (db.adminPricing?.plans || defaultAdminPricing.plans),
+        transactions: Array.isArray(body.transactions) ? body.transactions : (db.adminPricing?.transactions || defaultAdminPricing.transactions),
+      };
+      await saveDb(db);
+      send(200, { ...db.adminPricing, stats: pricingStats(db.adminPricing) });
+      return;
+    }
+  }
+
+  if (pathname === '/api/admin/pricing/plans' && req.method === 'POST') {
+    const user = requireUser(db, req);
+    if (!user || !isAdmin(user)) {
+      sendError(401, 'Admin access required.');
+      return;
+    }
+    const body = await readBody(req);
+    const plan = {
+      id: `plan-${crypto.randomUUID()}`,
+      name: String(body.name || 'New Plan').trim(),
+      price: String(body.price || '$99').trim(),
+      description: String(body.description || 'Custom security plan').trim(),
+      subscribers: Number(body.subscribers || 0),
+      badge: String(body.badge || '').trim(),
+      tone: body.tone || 'is-professional',
+      features: Array.isArray(body.features) ? body.features : [
+        { label: 'Security scanning', included: true },
+        { label: 'PDF reports', included: true },
+        { label: 'Priority support', included: false },
+      ],
+    };
+    db.adminPricing = db.adminPricing || defaultAdminPricing;
+    db.adminPricing.plans = [...(db.adminPricing.plans || []), plan];
+    await saveDb(db);
+    send(201, plan);
+    return;
+  }
+
+  const pricingPlanMatch = pathname.match(/^\/api\/admin\/pricing\/plans\/([^/]+)$/);
+  if (pricingPlanMatch && req.method === 'PUT') {
+    const [, planId] = pricingPlanMatch;
+    const user = requireUser(db, req);
+    if (!user || !isAdmin(user)) {
+      sendError(401, 'Admin access required.');
+      return;
+    }
+    db.adminPricing = db.adminPricing || defaultAdminPricing;
+    const plan = (db.adminPricing.plans || []).find((item) => item.id === planId);
+    if (!plan) {
+      sendError(404, 'Pricing plan not found.');
+      return;
+    }
+    const body = await readBody(req);
+    Object.assign(plan, {
+      name: String(body.name ?? plan.name).trim() || plan.name,
+      price: String(body.price ?? plan.price).trim() || plan.price,
+      description: String(body.description ?? plan.description).trim() || plan.description,
+      subscribers: Number(body.subscribers ?? plan.subscribers ?? 0),
+      badge: String(body.badge ?? plan.badge ?? '').trim(),
+      tone: String(body.tone ?? plan.tone ?? 'is-professional'),
+      features: Array.isArray(body.features) ? body.features : plan.features,
+    });
+    await saveDb(db);
+    send(200, plan);
+    return;
+  }
+
+  if (pathname === '/api/admin/reports' && req.method === 'GET') {
+    const user = requireUser(db, req);
+    if (!user || !isAdmin(user)) {
+      sendError(401, 'Admin access required.');
+      return;
+    }
+    const reports = [...(db.adminReports || [])].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    send(200, { items: reports });
+    return;
+  }
+
+  if (pathname === '/api/admin/reports' && req.method === 'POST') {
+    const user = requireUser(db, req);
+    if (!user || !isAdmin(user)) {
+      sendError(401, 'Admin access required.');
+      return;
+    }
+    const body = await readBody(req);
+    const report = buildAdminReport(db, body);
+    db.adminReports = [report, ...(db.adminReports || [])].slice(0, 25);
+    await saveDb(db);
+    send(201, report);
+    return;
+  }
+
+  const reportDownloadMatch = pathname.match(/^\/api\/admin\/reports\/([^/]+)\/download$/);
+  if (reportDownloadMatch && req.method === 'POST') {
+    const [, reportId] = reportDownloadMatch;
+    const user = requireUser(db, req);
+    if (!user || !isAdmin(user)) {
+      sendError(401, 'Admin access required.');
+      return;
+    }
+    const report = (db.adminReports || []).find((item) => item.id === reportId);
+    if (!report) {
+      sendError(404, 'Report not found.');
+      return;
+    }
+    report.downloads = Number(report.downloads || 0) + 1;
+    await saveDb(db);
+    send(200, report);
+    return;
   }
 
   if (pathname === '/api/web-content' && req.method === 'GET') {

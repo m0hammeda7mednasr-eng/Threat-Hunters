@@ -206,6 +206,19 @@ function AdminWebEditPage({ onNavigate, onLogout, currentPage = 'admin-web-edit'
   }, [selectedPage]);
 
   const handlePublish = async () => {
+    if (!String(pageContent.title || '').trim()) {
+      setSaveStatus('Page title is required before publishing.');
+      return;
+    }
+
+    if (selectedPage === 'blog') {
+      const postCount = Number(pageContent.postsToDisplay || 0);
+      if (!Number.isFinite(postCount) || postCount < 1) {
+        setSaveStatus('Number of posts to display must be at least 1.');
+        return;
+      }
+    }
+
     try {
       setSaveStatus('Saving to backend...');
       await contentAPI.updateContent(selectedPage, pageContent);
@@ -240,6 +253,10 @@ function AdminWebEditPage({ onNavigate, onLogout, currentPage = 'admin-web-edit'
   };
 
   const deleteBlogPost = async (postId) => {
+    if (!window.confirm('Delete this blog post permanently?')) {
+      return;
+    }
+
     try {
       setBlogPostStatus('Deleting post...');
       await blogAPI.deletePost(postId);

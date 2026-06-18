@@ -32,6 +32,23 @@ const emptyComposer = {
   imageName: "",
 };
 
+const MAX_BLOG_IMAGE_BYTES = 2 * 1024 * 1024;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+
+const isValidEmail = (value) => EMAIL_PATTERN.test(String(value || "").trim());
+
+const isValidImageSource = (value) => {
+  const source = String(value || "").trim();
+  if (!source) return true;
+  if (/^data:image\//i.test(source)) return true;
+  try {
+    const parsed = new URL(source);
+    return ["http:", "https:"].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+};
+
 const formatDate = (value) => {
   if (!value) return "Today";
   const date = new Date(value);
@@ -96,7 +113,7 @@ const ImagePlaceholder = ({ badge, tone = "blue", compact = false }) => (
 const PostImage = ({ badge, tone = "blue", compact = false, imageUrl = "", alt = "Post preview" }) => {
   const [failedImageUrl, setFailedImageUrl] = useState("");
 
-  if (imageUrl && failedImageUrl !== imageUrl) {
+  if (imageUrl && isValidImageSource(imageUrl) && failedImageUrl !== imageUrl) {
     return (
       <div className={`blog-image-placeholder blog-image-placeholder--photo ${compact ? "blog-image-placeholder--compact" : ""}`}>
         {badge ? <span className={`blog-image-placeholder__badge blog-image-placeholder__badge--${tone}`}>{badge}</span> : null}
@@ -336,6 +353,18 @@ const BlogPage = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith("image/")) {
+      setComposerStatus("Upload a valid image file.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_BLOG_IMAGE_BYTES) {
+      setComposerStatus("Image is too large. Upload an image under 2 MB.");
+      event.target.value = "";
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       setComposer((current) => ({
@@ -343,6 +372,7 @@ const BlogPage = ({
         imageUrl: typeof reader.result === "string" ? reader.result : "",
         imageName: file.name,
       }));
+      setComposerStatus("");
     };
     reader.readAsDataURL(file);
   };
@@ -354,6 +384,11 @@ const BlogPage = ({
   const submitComposer = async () => {
     if (!composer.title.trim() || !composer.description.trim() || !composer.content.trim()) {
       setComposerStatus("Fill title, description, and content first.");
+      return;
+    }
+
+    if (composer.imageUrl.trim() && !isValidImageSource(composer.imageUrl)) {
+      setComposerStatus("Enter a valid image URL or upload an image file.");
       return;
     }
 
@@ -515,7 +550,7 @@ const BlogPage = ({
 
   const handleSubscribe = () => {
     const email = subscribeEmail.trim();
-    if (!email || !email.includes("@") || !email.includes(".")) {
+    if (!isValidEmail(email)) {
       setSubscribeStatus("Enter a valid email address.");
       return;
     }

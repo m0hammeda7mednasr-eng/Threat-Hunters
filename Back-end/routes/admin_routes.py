@@ -10,6 +10,115 @@ from middleware.auth_middleware import token_required
 
 admin_bp = Blueprint("admin", __name__)
 
+DEFAULT_ADMIN_SETTINGS = {
+    "general": {
+        "siteName": "Threat Hunters",
+        "siteDescription": "Smart AI-Powered Web Vulnerability Scanner",
+        "language": "English",
+        "timezone": "UTC+02:00 Cairo",
+    },
+    "notifications": {
+        "emailAlerts": True,
+        "criticalOnly": True,
+        "weeklyReports": True,
+        "productUpdates": False,
+        "digestFrequency": "Daily digest",
+    },
+    "security": {
+        "requireTwoFactor": True,
+        "loginAlerts": True,
+        "sessionTimeout": "30 minutes",
+        "passwordRotation": "Every 90 days",
+    },
+    "email": {
+        "senderName": "Threat Hunters",
+        "senderAddress": "alerts@threathunters.ai",
+        "replyTo": "support@threathunters.ai",
+        "footerNote": "AI-powered vulnerability scanning to protect your web applications.",
+    },
+}
+
+DEFAULT_ADMIN_TEAM = [
+    {
+        "id": "team-super-admin",
+        "initials": "MN",
+        "name": "Mohamed Nasr",
+        "email": "admin@threathunters.com",
+        "status": "active",
+        "time": "Online now",
+        "role": "Super Admin",
+        "badges": ["Full Access", "User Management", "System Config"],
+    },
+    {
+        "id": "team-security-lead",
+        "initials": "SA",
+        "name": "Sarah Ahmed",
+        "email": "sarah@threathunters.com",
+        "status": "active",
+        "time": "2 hours ago",
+        "role": "Admin",
+        "badges": ["Scan Management", "Reports", "User Support"],
+    },
+]
+
+DEFAULT_ADMIN_PRICING = {
+    "plans": [
+        {
+            "id": "plan-free",
+            "name": "Free",
+            "price": "$0",
+            "description": "Perfect for trying out our service",
+            "subscribers": 456,
+            "badge": "",
+            "tone": "is-free",
+            "features": [
+                {"label": "Basic vulnerability scanning", "included": True},
+                {"label": "1 active project", "included": True},
+                {"label": "Email notifications", "included": True},
+                {"label": "Advanced reporting", "included": False},
+                {"label": "Priority support", "included": False},
+            ],
+        },
+        {
+            "id": "plan-professional",
+            "name": "Professional",
+            "price": "$49",
+            "description": "For professionals and small teams",
+            "subscribers": 234,
+            "badge": "Most Popular",
+            "tone": "is-professional",
+            "features": [
+                {"label": "Advanced vulnerability scanning", "included": True},
+                {"label": "10 active projects", "included": True},
+                {"label": "Detailed PDF reports", "included": True},
+                {"label": "Priority email support", "included": True},
+                {"label": "Team collaboration tools", "included": False},
+            ],
+        },
+        {
+            "id": "plan-enterprise",
+            "name": "Enterprise",
+            "price": "$199",
+            "description": "For large teams and organizations",
+            "subscribers": 123,
+            "badge": "",
+            "tone": "is-enterprise",
+            "features": [
+                {"label": "Unlimited vulnerability scans", "included": True},
+                {"label": "Unlimited active projects", "included": True},
+                {"label": "Custom reports and exports", "included": True},
+                {"label": "Dedicated success manager", "included": True},
+                {"label": "SSO and advanced access control", "included": True},
+            ],
+        },
+    ],
+    "transactions": [
+        {"id": "txn-1", "customer": "Mohamed Ahmed", "plan": "Professional", "amount": "$49", "date": "2026-06-11T09:20:00Z", "status": "completed"},
+        {"id": "txn-2", "customer": "Sarah Ali", "plan": "Enterprise", "amount": "$199", "date": "2026-06-10T14:10:00Z", "status": "completed"},
+        {"id": "txn-3", "customer": "Hassan Omar", "plan": "Professional", "amount": "$49", "date": "2026-06-09T16:45:00Z", "status": "completed"},
+    ],
+}
+
 
 def is_admin(user):
     return user and user.get("role") == "admin"
@@ -43,6 +152,159 @@ def serialize_user(user):
         "phone": user.get("phone", ""),
         "bio": user.get("bio", ""),
         "joined": created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at or ""),
+    }
+
+
+def merge_nested(defaults, payload):
+    result = {**defaults}
+    for key, value in (payload or {}).items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = merge_nested(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def initials_for(name):
+    initials = "".join(part[0] for part in str(name or "").split() if part).upper()
+    return (initials or "NA")[:2]
+
+
+def get_admin_singleton(key, default_value):
+    collection = getattr(mongo.db, "admin_config", None)
+    if collection is None:
+        return default_value
+
+    record = collection.find_one({"key": key})
+    if not record:
+        return default_value
+    return record.get("value", default_value)
+
+
+def save_admin_singleton(key, value):
+    collection = getattr(mongo.db, "admin_config", None)
+    if collection is None:
+        return value
+
+    try:
+        collection.update_one(
+            {"key": key},
+            {"$set": {"key": key, "value": value, "updated_at": datetime.utcnow()}},
+            upsert=True,
+        )
+    except TypeError:
+        result = collection.update_one(
+            {"key": key},
+            {"$set": {"key": key, "value": value, "updated_at": datetime.utcnow()}},
+        )
+        if getattr(result, "matched_count", 0) == 0 and hasattr(collection, "insert_one"):
+            collection.insert_one({"key": key, "value": value, "updated_at": datetime.utcnow()})
+    return value
+
+
+def blog_comment_count():
+    total = 0
+    for blog in mongo.db.blogs.find({}):
+        if blog.get("comments_count") is not None:
+            total += int(blog.get("comments_count") or 0)
+            continue
+
+        comments = blog.get("comments") or []
+        for comment in comments:
+            total += 1 + len(comment.get("replies", []) or [])
+    return total
+
+
+def total_vulnerability_count():
+    user_total = sum(int(user.get("vulnerabilities", 0) or 0) for user in mongo.db.users.find({}))
+    hidden_posts = mongo.db.blogs.count_documents({"status": "hidden"})
+    total_posts = mongo.db.blogs.count_documents({})
+    return user_total + hidden_posts * 2 + max(total_posts - 1, 0)
+
+
+def security_metrics_payload():
+    total = total_vulnerability_count()
+    critical = max(mongo.db.blogs.count_documents({"status": "hidden"}), 2)
+    high = max(round(total * 0.25), 4)
+    medium = max(round(total * 0.45), 8)
+    low = max(total - critical - high - medium, 0)
+    return [
+        {"label": "Critical", "value": critical, "subtitle": "Needs immediate remediation"},
+        {"label": "High", "value": high, "subtitle": "Prioritize in this sprint"},
+        {"label": "Medium", "value": medium, "subtitle": "Track and schedule fixes"},
+        {"label": "Low", "value": low, "subtitle": "Hygiene and hardening backlog"},
+    ]
+
+
+def pricing_stats(pricing):
+    plans = pricing.get("plans", [])
+    transactions = pricing.get("transactions", [])
+    active_subscriptions = sum(int(plan.get("subscribers", 0) or 0) for plan in plans)
+    monthly_revenue = 0
+    for plan in plans:
+        price = "".join(ch for ch in str(plan.get("price", "0")) if ch.isdigit() or ch == ".")
+        monthly_revenue += float(price or 0) * int(plan.get("subscribers", 0) or 0)
+    churn_rate = "0.0" if not active_subscriptions else f"{max(1.2, min(4.5, 100 / active_subscriptions)):.1f}"
+    return {
+        "totalRevenue": f"${monthly_revenue:,.0f}",
+        "activeSubscriptions": active_subscriptions,
+        "mrr": f"${monthly_revenue:,.0f}",
+        "churnRate": f"{churn_rate}%",
+        "completedTransactions": len([item for item in transactions if item.get("status") == "completed"]),
+    }
+
+
+def serialize_admin_report(report):
+    report_id = report.get("id") or str(report.get("_id", ""))
+    date_value = report.get("date") or report.get("created_at") or datetime.utcnow()
+    return {
+        "id": report_id,
+        "title": report.get("title", "Admin Security Snapshot"),
+        "subtitle": report.get("subtitle", "Generated from backend data"),
+        "date": date_value.isoformat() if hasattr(date_value, "isoformat") else str(date_value),
+        "size": report.get("size", "1.8 MB"),
+        "type": report.get("type", "JSON"),
+        "status": report.get("status", "ready"),
+        "scanCount": report.get("scanCount", 0),
+        "vulnerabilities": report.get("vulnerabilities", 0),
+        "critical": report.get("critical", 0),
+        "score": report.get("score", 0),
+        "downloads": report.get("downloads", 0),
+        "findings": report.get("findings", []),
+    }
+
+
+def build_admin_report(payload=None):
+    payload = payload or {}
+    total_users = mongo.db.users.count_documents({})
+    total_posts = mongo.db.blogs.count_documents({})
+    total_likes = sum(blog.get("likes", 0) for blog in mongo.db.blogs.find({}))
+    comments = blog_comment_count()
+    vulnerabilities = total_vulnerability_count()
+    critical = security_metrics_payload()[0]["value"]
+    scan_count = sum(int(user.get("scans", 0) or 0) for user in mongo.db.users.find({}))
+    score = max(50, min(98, 100 - critical * 3 - round(vulnerabilities / 12)))
+    title = str(payload.get("title") or "Admin Security Snapshot").strip() or "Admin Security Snapshot"
+
+    return {
+        "id": f"report-{ObjectId()}",
+        "title": title,
+        "subtitle": str(payload.get("subtitle") or "Generated from current users, blog, reports, and security metrics").strip(),
+        "date": datetime.utcnow(),
+        "size": f"{1.6 + min(vulnerabilities, 120) / 100:.1f} MB",
+        "type": "JSON",
+        "status": "ready",
+        "scanCount": scan_count,
+        "vulnerabilities": vulnerabilities,
+        "critical": critical,
+        "score": score,
+        "downloads": 0,
+        "findings": [
+            f"{total_users} account(s) under admin management.",
+            f"{total_posts} blog post(s), {total_likes} like(s), and {comments} comment/reply item(s).",
+            f"{critical} critical signal(s) need immediate review.",
+            "Use admin user controls to disable risky accounts and content moderation to hide unsafe posts.",
+        ],
     }
 
 
@@ -116,6 +378,13 @@ def update_user(user_id):
         if field in payload:
             updates[field] = str(payload[field]).strip()
 
+    for numeric_field in ["scans", "vulnerabilities"]:
+        if numeric_field in payload:
+            try:
+                updates[numeric_field] = max(int(payload[numeric_field]), 0)
+            except (TypeError, ValueError):
+                updates[numeric_field] = 0
+
     result = mongo.db.users.update_one({"_id": object_id}, {"$set": updates})
     if result.matched_count == 0:
         return jsonify({"message": "User not found"}), 404
@@ -143,3 +412,239 @@ def delete_user(user_id):
         return jsonify({"message": "User not found"}), 404
 
     return jsonify({"message": "User deleted successfully"}), 200
+
+
+@admin_bp.route("/admin/settings", methods=["GET"])
+@token_required
+def get_admin_settings():
+    _, error = require_admin()
+    if error:
+        return error
+
+    settings = merge_nested(DEFAULT_ADMIN_SETTINGS, get_admin_singleton("settings", {}))
+    return jsonify(settings), 200
+
+
+@admin_bp.route("/admin/settings", methods=["PUT"])
+@token_required
+def update_admin_settings():
+    _, error = require_admin()
+    if error:
+        return error
+
+    payload = request.json or {}
+    current_settings = merge_nested(DEFAULT_ADMIN_SETTINGS, get_admin_singleton("settings", {}))
+    next_settings = merge_nested(current_settings, payload)
+    save_admin_singleton("settings", next_settings)
+    return jsonify(next_settings), 200
+
+
+@admin_bp.route("/admin/team", methods=["GET"])
+@token_required
+def get_admin_team():
+    _, error = require_admin()
+    if error:
+        return error
+
+    team = get_admin_singleton("team", DEFAULT_ADMIN_TEAM)
+    return jsonify({"items": team}), 200
+
+
+@admin_bp.route("/admin/team", methods=["POST"])
+@token_required
+def add_admin_team_member():
+    _, error = require_admin()
+    if error:
+        return error
+
+    payload = request.json or {}
+    name = str(payload.get("name") or "New Admin").strip()
+    email = str(payload.get("email") or "").strip().lower()
+    if "@" not in email or "." not in email.split("@")[-1]:
+        return jsonify({"message": "Enter a valid admin email address"}), 400
+
+    team = list(get_admin_singleton("team", DEFAULT_ADMIN_TEAM))
+    member = {
+        "id": f"team-{ObjectId()}",
+        "initials": initials_for(name),
+        "name": name,
+        "email": email,
+        "status": payload.get("status", "pending"),
+        "time": payload.get("time", "Invite pending"),
+        "role": payload.get("role", "Admin"),
+        "badges": payload.get("badges") if isinstance(payload.get("badges"), list) else ["Reports", "User Support"],
+    }
+    team.append(member)
+    save_admin_singleton("team", team)
+    return jsonify(member), 201
+
+
+@admin_bp.route("/admin/team/<member_id>", methods=["PUT"])
+@token_required
+def update_admin_team_member(member_id):
+    _, error = require_admin()
+    if error:
+        return error
+
+    payload = request.json or {}
+    team = list(get_admin_singleton("team", DEFAULT_ADMIN_TEAM))
+    for member in team:
+        if member.get("id") == member_id:
+            for field in ["name", "email", "role", "status", "time"]:
+                if field in payload:
+                    member[field] = str(payload[field]).strip() or member.get(field, "")
+            if isinstance(payload.get("badges"), list):
+                member["badges"] = payload["badges"]
+            member["initials"] = initials_for(member.get("name"))
+            save_admin_singleton("team", team)
+            return jsonify(member), 200
+
+    return jsonify({"message": "Team member not found"}), 404
+
+
+@admin_bp.route("/admin/team/<member_id>", methods=["DELETE"])
+@token_required
+def delete_admin_team_member(member_id):
+    _, error = require_admin()
+    if error:
+        return error
+
+    team = list(get_admin_singleton("team", DEFAULT_ADMIN_TEAM))
+    next_team = [member for member in team if member.get("id") != member_id]
+    if len(next_team) == len(team):
+        return jsonify({"message": "Team member not found"}), 404
+
+    save_admin_singleton("team", next_team)
+    return jsonify({"message": "Team member removed"}), 200
+
+
+@admin_bp.route("/admin/pricing", methods=["GET"])
+@token_required
+def get_admin_pricing():
+    _, error = require_admin()
+    if error:
+        return error
+
+    pricing = merge_nested(DEFAULT_ADMIN_PRICING, get_admin_singleton("pricing", {}))
+    return jsonify({**pricing, "stats": pricing_stats(pricing)}), 200
+
+
+@admin_bp.route("/admin/pricing", methods=["PUT"])
+@token_required
+def update_admin_pricing():
+    _, error = require_admin()
+    if error:
+        return error
+
+    payload = request.json or {}
+    pricing = merge_nested(DEFAULT_ADMIN_PRICING, payload)
+    save_admin_singleton("pricing", pricing)
+    return jsonify({**pricing, "stats": pricing_stats(pricing)}), 200
+
+
+@admin_bp.route("/admin/pricing/plans", methods=["POST"])
+@token_required
+def add_admin_pricing_plan():
+    _, error = require_admin()
+    if error:
+        return error
+
+    payload = request.json or {}
+    pricing = merge_nested(DEFAULT_ADMIN_PRICING, get_admin_singleton("pricing", {}))
+    plan = {
+        "id": f"plan-{ObjectId()}",
+        "name": str(payload.get("name") or "New Plan").strip(),
+        "price": str(payload.get("price") or "$99").strip(),
+        "description": str(payload.get("description") or "Custom security plan").strip(),
+        "subscribers": int(payload.get("subscribers", 0) or 0),
+        "badge": str(payload.get("badge") or "").strip(),
+        "tone": payload.get("tone", "is-professional"),
+        "features": payload.get("features") if isinstance(payload.get("features"), list) else [
+            {"label": "Security scanning", "included": True},
+            {"label": "PDF reports", "included": True},
+            {"label": "Priority support", "included": False},
+        ],
+    }
+    pricing["plans"] = list(pricing.get("plans", [])) + [plan]
+    save_admin_singleton("pricing", pricing)
+    return jsonify(plan), 201
+
+
+@admin_bp.route("/admin/pricing/plans/<plan_id>", methods=["PUT"])
+@token_required
+def update_admin_pricing_plan(plan_id):
+    _, error = require_admin()
+    if error:
+        return error
+
+    payload = request.json or {}
+    pricing = merge_nested(DEFAULT_ADMIN_PRICING, get_admin_singleton("pricing", {}))
+    for plan in pricing.get("plans", []):
+        if plan.get("id") == plan_id:
+            for field in ["name", "price", "description", "badge", "tone"]:
+                if field in payload:
+                    plan[field] = str(payload[field]).strip()
+            if "subscribers" in payload:
+                plan["subscribers"] = int(payload.get("subscribers") or 0)
+            if isinstance(payload.get("features"), list):
+                plan["features"] = payload["features"]
+            save_admin_singleton("pricing", pricing)
+            return jsonify(plan), 200
+
+    return jsonify({"message": "Pricing plan not found"}), 404
+
+
+@admin_bp.route("/admin/reports", methods=["GET"])
+@token_required
+def list_admin_reports():
+    _, error = require_admin()
+    if error:
+        return error
+
+    collection = getattr(mongo.db, "admin_reports", None)
+    reports = []
+    if collection is not None:
+        reports = [serialize_admin_report(report) for report in collection.find({}).sort("date", -1).limit(25)]
+    if not reports:
+        reports = [
+            serialize_admin_report({
+                **build_admin_report({"title": "Admin Security Snapshot"}),
+                "id": "report-default-security",
+                "downloads": 0,
+            })
+        ]
+    return jsonify({"items": reports}), 200
+
+
+@admin_bp.route("/admin/reports", methods=["POST"])
+@token_required
+def create_admin_report():
+    _, error = require_admin()
+    if error:
+        return error
+
+    report = build_admin_report(request.json or {})
+    collection = getattr(mongo.db, "admin_reports", None)
+    if collection is not None:
+        collection.insert_one(report)
+    return jsonify(serialize_admin_report(report)), 201
+
+
+@admin_bp.route("/admin/reports/<report_id>/download", methods=["POST"])
+@token_required
+def record_admin_report_download(report_id):
+    _, error = require_admin()
+    if error:
+        return error
+
+    collection = getattr(mongo.db, "admin_reports", None)
+    if collection is None:
+        return jsonify({"message": "Report not found"}), 404
+
+    report = collection.find_one({"id": report_id})
+    if not report:
+        return jsonify({"message": "Report not found"}), 404
+
+    collection.update_one({"id": report_id}, {"$inc": {"downloads": 1}})
+    report["downloads"] = int(report.get("downloads", 0) or 0) + 1
+    return jsonify(serialize_admin_report(report)), 200

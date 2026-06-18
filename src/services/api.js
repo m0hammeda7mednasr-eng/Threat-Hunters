@@ -323,6 +323,86 @@ export const userAPI = {
   },
 };
 
+// Admin workspace API calls
+export const adminAPI = {
+  getSettings: async () => {
+    return apiRequest("/admin/settings");
+  },
+
+  updateSettings: async (settingsData) => {
+    return apiRequest("/admin/settings", {
+      method: "PUT",
+      body: settingsData,
+    });
+  },
+
+  getTeam: async () => {
+    return apiRequest("/admin/team");
+  },
+
+  addTeamMember: async (memberData) => {
+    return apiRequest("/admin/team", {
+      method: "POST",
+      body: memberData,
+    });
+  },
+
+  updateTeamMember: async (id, memberData) => {
+    return apiRequest(`/admin/team/${id}`, {
+      method: "PUT",
+      body: memberData,
+    });
+  },
+
+  deleteTeamMember: async (id) => {
+    return apiRequest(`/admin/team/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  getPricing: async () => {
+    return apiRequest("/admin/pricing");
+  },
+
+  updatePricing: async (pricingData) => {
+    return apiRequest("/admin/pricing", {
+      method: "PUT",
+      body: pricingData,
+    });
+  },
+
+  addPricingPlan: async (planData) => {
+    return apiRequest("/admin/pricing/plans", {
+      method: "POST",
+      body: planData,
+    });
+  },
+
+  updatePricingPlan: async (id, planData) => {
+    return apiRequest(`/admin/pricing/plans/${id}`, {
+      method: "PUT",
+      body: planData,
+    });
+  },
+
+  getReports: async () => {
+    return apiRequest("/admin/reports");
+  },
+
+  generateReport: async (reportData = {}) => {
+    return apiRequest("/admin/reports", {
+      method: "POST",
+      body: reportData,
+    });
+  },
+
+  recordReportDownload: async (id) => {
+    return apiRequest(`/admin/reports/${id}/download`, {
+      method: "POST",
+    });
+  },
+};
+
 // Utility functions
 export const utils = {
   // Test API connection
@@ -387,5 +467,6 @@ export default {
   dashboard: dashboardAPI,
   content: contentAPI,
   user: userAPI,
+  admin: adminAPI,
   utils,
 };

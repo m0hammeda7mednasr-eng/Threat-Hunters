@@ -106,6 +106,7 @@ function AdminUsersPage({ onNavigate, onLogout, currentPage = 'admin-users' }) {
   const [query, setQuery] = useState('');
   const [managedUsers, setManagedUsers] = useState(users);
   const [notice, setNotice] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const loadUsers = useCallback(async () => {
     try {
@@ -144,17 +145,22 @@ function AdminUsersPage({ onNavigate, onLogout, currentPage = 'admin-users' }) {
   const filteredUsers = useMemo(() => {
     const normalized = query.trim().toLowerCase();
 
-    if (!normalized) {
-      return managedUsers;
-    }
-
     return managedUsers.filter((user) => {
+      const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+      if (!matchesStatus) {
+        return false;
+      }
+
+      if (!normalized) {
+        return true;
+      }
+
       return (
         user.name.toLowerCase().includes(normalized)
         || user.email.toLowerCase().includes(normalized)
       );
     });
-  }, [managedUsers, query]);
+  }, [managedUsers, query, statusFilter]);
 
   const computedStatCards = useMemo(() => {
     const total = managedUsers.length;
@@ -184,6 +190,10 @@ function AdminUsersPage({ onNavigate, onLogout, currentPage = 'admin-users' }) {
   };
 
   const deleteUser = async (user) => {
+    if (!window.confirm(`Delete ${user.name}? This cannot be undone.`)) {
+      return;
+    }
+
     try {
       setNotice('Deleting user...');
       await userAPI.deleteUser(user.id);
@@ -192,6 +202,14 @@ function AdminUsersPage({ onNavigate, onLogout, currentPage = 'admin-users' }) {
     } catch (error) {
       setNotice(error.message || 'Unable to delete user.');
     }
+  };
+
+  const cycleStatusFilter = () => {
+    setStatusFilter((current) => {
+      if (current === 'all') return 'active';
+      if (current === 'active') return 'disabled';
+      return 'all';
+    });
   };
 
   return (
@@ -298,9 +316,9 @@ function AdminUsersPage({ onNavigate, onLogout, currentPage = 'admin-users' }) {
               />
             </label>
 
-            <button type="button" className="admin-users-filter-btn">
+            <button type="button" className="admin-users-filter-btn" onClick={cycleStatusFilter}>
               <Filter size={16} />
-              <span>Filters</span>
+              <span>{statusFilter === 'all' ? 'All Users' : statusFilter}</span>
             </button>
           </section>
 
@@ -347,9 +365,9 @@ function AdminUsersPage({ onNavigate, onLogout, currentPage = 'admin-users' }) {
                       </td>
                       <td>
                         <div className="admin-users-actions">
-                          <button type="button" className="admin-users-icon-btn" aria-label={`Email ${user.name}`}>
+                          <a className="admin-users-icon-btn" href={`mailto:${user.email}?subject=Threat%20Hunters%20Account%20Support`} aria-label={`Email ${user.name}`}>
                             <Mail size={14} />
-                          </button>
+                          </a>
                           <button type="button" className="admin-users-icon-btn" onClick={() => toggleUserStatus(user)} aria-label={`Toggle access for ${user.name}`}>
                             <Lock size={14} />
                           </button>

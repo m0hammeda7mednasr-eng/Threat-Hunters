@@ -21,7 +21,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import { dashboardAPI } from '../services/api';
+import { adminAPI, dashboardAPI } from '../services/api';
 import './AdminDashboardPage.css';
 
 const fallbackTopMetrics = [
@@ -204,6 +204,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
   const [dashboardStats, setDashboardStats] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [securityMetrics, setSecurityMetrics] = useState([]);
+  const [adminReports, setAdminReports] = useState([]);
   const [dashboardError, setDashboardError] = useState('');
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -216,10 +217,11 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
       setDashboardError('');
 
       try {
-        const [stats, activities, metrics] = await Promise.all([
+        const [stats, activities, metrics, reportsPayload] = await Promise.all([
           dashboardAPI.getStats(),
           dashboardAPI.getRecentActivities(),
           dashboardAPI.getSecurityMetrics(),
+          adminAPI.getReports().catch(() => ({ items: [] })),
         ]);
 
         if (cancelled) {
@@ -229,6 +231,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
         setDashboardStats(Array.isArray(stats) ? stats : []);
         setRecentActivities(Array.isArray(activities) ? activities : []);
         setSecurityMetrics(Array.isArray(metrics) ? metrics : []);
+        setAdminReports(Array.isArray(reportsPayload.items) ? reportsPayload.items : []);
       } catch (error) {
         if (!cancelled) {
           setDashboardError(error.message || 'Unable to load dashboard data.');
@@ -298,6 +301,31 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
     }));
   }, [recentActivities]);
 
+  const issueRows = useMemo(() => {
+    if (!adminReports.length) {
+      return scanRows;
+    }
+
+    const rows = adminReports.map((report) => {
+      const date = new Date(report.date);
+      return {
+        target: report.title,
+        date: Number.isNaN(date.getTime())
+          ? 'Recent'
+          : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        rawDate: Number.isNaN(date.getTime()) ? 0 : date.getTime(),
+        status: Number(report.score || 0) < 70 || Number(report.critical || 0) > 5 ? 'Critical' : 'Completed',
+        vulnerabilities: Number(report.critical || report.vulnerabilities || 0),
+      };
+    });
+
+    return {
+      recent: rows,
+      vulnerable: [...rows].sort((a, b) => b.vulnerabilities - a.vulnerabilities),
+      oldest: [...rows].sort((a, b) => a.rawDate - b.rawDate),
+    };
+  }, [adminReports]);
+
   return (
     <div className="admin-dashboard-page">
       <nav className="admin-nav">
@@ -366,6 +394,11 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
         </aside>
 
         <main className="admin-main">
+          <section className="admin-section-head admin-cardless">
+            <h1>Admin Dashboard</h1>
+            <p>Control users, reports, content, pricing, and security activity from one backend-backed workspace</p>
+          </section>
+
           <section className="admin-top-metrics">
             {topMetrics.map((metric) => {
               const Icon = metric.icon;
@@ -517,11 +550,11 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
             </div>
 
             <div className="admin-alert-grid">
-              {activityCards.map((alert) => {
+              {activityCards.map((alert, index) => {
                 const Icon = alert.icon;
 
                 return (
-                  <article key={alert.title} className={`admin-alert-card admin-card is-${alert.tone}`}>
+                  <article key={`${alert.title}-${alert.detail}-${index}`} className={`admin-alert-card admin-card is-${alert.tone}`}>
                     <div className="admin-alert-title">
                       <Icon size={16} />
                       <h3>{alert.title}</h3>
@@ -550,7 +583,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
             <div className="admin-table-top">
               <div className="admin-section-head">
                 <h2>Recent Issues</h2>
-                <p>Static table remains as a design placeholder until scan jobs are exposed by the backend</p>
+                <p>Backend-backed report queue sorted by recency, severity, and age</p>
               </div>
 
               <div className="admin-table-tabs">
@@ -578,7 +611,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
                   </tr>
                 </thead>
                 <tbody>
-                  {scanRows[activeTab].map((row) => (
+                  {issueRows[activeTab].map((row) => (
                     <tr key={`${activeTab}-${row.target}`}>
                       <td className="admin-table-target">{row.target}</td>
                       <td>{row.date}</td>
@@ -589,7 +622,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
                         <span className={`admin-table-vuln ${getVulnerabilityTone(row.vulnerabilities)}`}>{row.vulnerabilities}</span>
                       </td>
                       <td className="admin-table-action-cell">
-                        <button type="button" className="admin-table-action">
+                        <button type="button" className="admin-table-action" onClick={() => onNavigate('admin-reports')}>
                           <Eye size={14} />
                           <span>View Report</span>
                         </button>

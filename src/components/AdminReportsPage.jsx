@@ -15,7 +15,9 @@ import {
   Sun,
   Users,
 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { adminAPI } from '../services/api';
 import './AdminDashboardPage.css';
 import './AdminReportsPage.css';
 
@@ -37,14 +39,7 @@ const sidebarItems = [
   { id: 'settings', label: 'Settings', icon: Settings, route: 'admin-settings' },
 ];
 
-const stats = [
-  { label: 'Total Reports', value: '156', icon: FileText, tone: 'admin-tone-indigo' },
-  { label: 'Generated This Month', value: '23', icon: CalendarDays, tone: 'admin-tone-green' },
-  { label: 'Downloads', value: '892', icon: Download, tone: 'admin-tone-orange' },
-  { label: 'Avg. Report Size', value: '3.2 MB', icon: BarChart3, tone: 'admin-tone-indigo' },
-];
-
-const scanActivity = [
+const fallbackScanActivity = [
   { label: 'Jan', value: 4.2 },
   { label: 'Feb', value: 5.1 },
   { label: 'Mar', value: 6.3 },
@@ -53,7 +48,7 @@ const scanActivity = [
   { label: 'Jun', value: 7.2 },
 ];
 
-const vulnerabilityTrends = [
+const fallbackVulnerabilityTrends = [
   { label: 'Jan', value: 8 },
   { label: 'Feb', value: 7 },
   { label: 'Mar', value: 8.4 },
@@ -62,36 +57,80 @@ const vulnerabilityTrends = [
   { label: 'Jun', value: 5.4 },
 ];
 
-const reports = [
+const fallbackReports = [
   {
+    id: 'fallback-monthly-security',
     title: 'Monthly Security Report',
     subtitle: 'Comprehensive security analysis for June 2025',
-    date: 'Jul 1, 2025',
+    date: '2026-06-14T12:00:00.000Z',
     size: '2.4 MB',
-    type: 'PDF',
+    type: 'JSON',
+    scanCount: 135,
+    vulnerabilities: 168,
+    critical: 12,
+    score: 82,
+    downloads: 0,
+    findings: ['Backend report endpoint is unavailable, using local fallback.'],
   },
   {
+    id: 'fallback-vulnerability-assessment',
     title: 'Vulnerability Assessment Q2',
     subtitle: 'Quarterly vulnerability trends and analysis',
-    date: 'Jul 1, 2025',
+    date: '2026-06-11T10:00:00.000Z',
     size: '5.1 MB',
-    type: 'PDF',
-  },
-  {
-    title: 'Executive Summary',
-    subtitle: 'High-level security overview for stakeholders',
-    date: 'Jun 30, 2025',
-    size: '1.2 MB',
-    type: 'PDF',
-  },
-  {
-    title: 'Compliance Report',
-    subtitle: 'OWASP Top 10 compliance check results',
-    date: 'Jun 28, 2025',
-    size: '3.8 MB',
-    type: 'PDF',
+    type: 'JSON',
+    scanCount: 42,
+    vulnerabilities: 36,
+    critical: 2,
+    score: 91,
+    downloads: 0,
+    findings: ['Review API connectivity to generate a fresh report.'],
   },
 ];
+
+const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+
+function formatReportDate(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Recently generated';
+  }
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function buildMonthlyPoints(items, field) {
+  const base = monthLabels.map((label) => ({ label, value: 0 }));
+
+  items.forEach((item) => {
+    const date = new Date(item.date);
+    const monthIndex = Number.isNaN(date.getTime()) ? base.length - 1 : date.getMonth();
+    const visibleIndex = Math.max(0, Math.min(base.length - 1, monthIndex));
+    base[visibleIndex].value += Number(item[field] || 0);
+  });
+
+  return base.map((item, index) => ({
+    ...item,
+    value: item.value || fallbackScanActivity[index]?.value || 1,
+  }));
+}
+
+function downloadJsonFile(filename, payload) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
 
 function LineChart({ points }) {
   const max = Math.max(...points.map((item) => item.value));
@@ -127,7 +166,7 @@ function LineChart({ points }) {
 }
 
 function BarChart({ bars }) {
-  const max = Math.max(...bars.map((item) => item.value));
+  const max = Math.max(...bars.map((item) => item.value), 1);
 
   return (
     <div className="admin-reports-barchart">
@@ -147,6 +186,90 @@ function BarChart({ bars }) {
 
 function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' }) {
   const { theme, toggleTheme } = useTheme();
+  const [reportItems, setReportItems] = useState(fallbackReports);
+  const [notice, setNotice] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const loadReports = useCallback(async () => {
+    try {
+      setNotice('Loading reports from backend...');
+      const payload = await adminAPI.getReports();
+      const items = payload.items || payload.reports || [];
+      setReportItems(items.length ? items : fallbackReports);
+      setNotice('');
+    } catch (error) {
+      setReportItems(fallbackReports);
+      setNotice(error.message || 'Using local report data until the backend is available.');
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
+
+  const computedStats = useMemo(() => {
+    const totalReports = reportItems.length;
+    const thisMonth = reportItems.filter((report) => {
+      const date = new Date(report.date);
+      const now = new Date();
+      return !Number.isNaN(date.getTime()) && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).length;
+    const downloads = reportItems.reduce((sum, report) => sum + Number(report.downloads || 0), 0);
+    const avgScore = reportItems.length
+      ? Math.round(reportItems.reduce((sum, report) => sum + Number(report.score || 0), 0) / reportItems.length)
+      : 0;
+
+    return [
+      { label: 'Total Reports', value: String(totalReports), icon: FileText, tone: 'admin-tone-indigo' },
+      { label: 'Generated This Month', value: String(thisMonth), icon: CalendarDays, tone: 'admin-tone-green' },
+      { label: 'Downloads', value: String(downloads), icon: Download, tone: 'admin-tone-orange' },
+      { label: 'Avg. Security Score', value: `${avgScore}/100`, icon: BarChart3, tone: 'admin-tone-indigo' },
+    ];
+  }, [reportItems]);
+
+  const scanActivity = useMemo(() => buildMonthlyPoints(reportItems, 'scanCount'), [reportItems]);
+  const vulnerabilityTrends = useMemo(() => {
+    const points = buildMonthlyPoints(reportItems, 'vulnerabilities');
+    return points.map((point, index) => ({
+      ...point,
+      value: point.value || fallbackVulnerabilityTrends[index]?.value || 1,
+    }));
+  }, [reportItems]);
+
+  const handleGenerateReport = async () => {
+    try {
+      setIsGenerating(true);
+      setNotice('Generating a fresh admin report...');
+      const report = await adminAPI.generateReport({
+        title: 'Admin Security Snapshot',
+        subtitle: 'Generated from the latest users, blog, pricing, and security metrics',
+      });
+      setReportItems((prev) => [report, ...prev.filter((item) => item.id !== report.id)]);
+      setNotice('New admin report generated successfully.');
+    } catch (error) {
+      setNotice(error.message || 'Unable to generate a new report.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleDownloadReport = async (report) => {
+    try {
+      const updatedReport = report.id?.startsWith('fallback-')
+        ? report
+        : await adminAPI.recordReportDownload(report.id);
+      setReportItems((prev) => prev.map((item) => (item.id === report.id ? updatedReport : item)));
+      const safeTitle = report.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'admin-report';
+      downloadJsonFile(`${safeTitle}.json`, {
+        generatedBy: 'Threat Hunters Admin Dashboard',
+        downloadedAt: new Date().toISOString(),
+        report: updatedReport,
+      });
+      setNotice('Report downloaded and tracked.');
+    } catch (error) {
+      setNotice(error.message || 'Unable to download report.');
+    }
+  };
 
   return (
     <div className="admin-reports-page">
@@ -222,14 +345,16 @@ function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' 
               <p>Generate, view, and download security reports</p>
             </div>
 
-            <button type="button" className="admin-reports-generate-btn">
+            <button type="button" className="admin-reports-generate-btn" onClick={handleGenerateReport} disabled={isGenerating}>
               <Plus size={18} />
-              <span>Generate New Report</span>
+              <span>{isGenerating ? 'Generating...' : 'Generate New Report'}</span>
             </button>
           </section>
 
+          {notice && <div className="admin-users-notice admin-card">{notice}</div>}
+
           <section className="admin-reports-stats">
-            {stats.map((item) => {
+            {computedStats.map((item) => {
               const Icon = item.icon;
 
               return (
@@ -268,8 +393,8 @@ function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' 
             </div>
 
             <div className="admin-reports-list">
-              {reports.map((report) => (
-                <article key={report.title} className="admin-reports-list-item">
+              {reportItems.map((report) => (
+                <article key={report.id || report.title} className="admin-reports-list-item">
                   <div className="admin-reports-item-left">
                     <span className="admin-reports-file-icon">
                       <FileText size={18} />
@@ -279,7 +404,7 @@ function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' 
                       <strong>{report.title}</strong>
                       <p>{report.subtitle}</p>
                       <div className="admin-reports-item-meta">
-                        <span>{report.date}</span>
+                        <span>{formatReportDate(report.date)}</span>
                         <span className="admin-reports-dot">•</span>
                         <span>{report.size}</span>
                         <span className="admin-reports-dot">•</span>
@@ -288,7 +413,7 @@ function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' 
                     </div>
                   </div>
 
-                  <button type="button" className="admin-reports-download-btn">
+                  <button type="button" className="admin-reports-download-btn" onClick={() => handleDownloadReport(report)}>
                     <Download size={16} />
                     <span>Download</span>
                   </button>

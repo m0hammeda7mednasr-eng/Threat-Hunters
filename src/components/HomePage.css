@@ -143,6 +143,11 @@
   gap: 0.95rem;
 }
 
+.home-browser-window.is-invalid {
+  border-color: rgba(255, 111, 97, 0.75);
+  box-shadow: 0 0 0 3px rgba(255, 111, 97, 0.12);
+}
+
 .home-browser-dots {
   display: flex;
   align-items: center;
@@ -175,11 +180,18 @@
   color: rgba(255, 255, 255, 0.52);
   font-size: 1rem;
   letter-spacing: 0.01em;
-  pointer-events: none;
 }
 
 .home-url-input::placeholder {
   color: rgba(255, 255, 255, 0.52);
+}
+
+.home-scan-error {
+  margin: -1.35rem 0 0;
+  color: var(--accent-coral);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: left;
 }
 
 .home-primary-button,

@@ -4,7 +4,46 @@ import './Footer.css';
 const Footer = () => {
   const currentYear = new Date().getFullYear();
   const githubUrl = 'https://github.com/m0hammeda7mednasr-eng/Threat-Hunters';
-  const supportEmail = 'mailto:admin@threathunters.com';
+  const documentationUrl = `${githubUrl}#readme`;
+  const issuesUrl = `${githubUrl}/issues/new`;
+  const contactEmail = 'mailto:admin@threathunters.com?subject=Threat%20Hunters%20Contact';
+  const supportEmail = 'mailto:admin@threathunters.com?subject=Threat%20Hunters%20Support%20Request';
+
+  const footerGroups = [
+    {
+      title: 'Community',
+      links: [
+        { label: 'GitHub', href: githubUrl, external: true },
+        { label: 'Contact', href: contactEmail },
+        { label: 'Blog', href: '#blog' },
+      ],
+    },
+    {
+      title: 'Support',
+      links: [
+        { label: 'Help Center', href: '#tools' },
+        { label: 'Documentation', href: documentationUrl, external: true },
+        { label: 'FAQs', href: '#awareness' },
+        { label: 'Report an Issue', href: issuesUrl, external: true },
+        { label: 'Contact Support', href: supportEmail },
+      ],
+    },
+    {
+      title: 'Security & Legal',
+      links: [
+        { label: 'Privacy Policy', href: '/legal/privacy-policy.html' },
+        { label: 'Terms of Service', href: '/legal/terms-of-service.html' },
+        { label: 'Responsible Disclosure', href: '/legal/responsible-disclosure.html' },
+        { label: 'Data Protection', href: '/legal/data-protection.html' },
+      ],
+    },
+  ];
+
+  const linkProps = (link) => (
+    link.external
+      ? { target: '_blank', rel: 'noreferrer' }
+      : {}
+  );
 
   return (
     <footer className="footer">
@@ -56,59 +95,18 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="footer-section">
-          <h3>Community</h3>
-          <ul>
-            <li>
-              <a href={githubUrl} target="_blank" rel="noreferrer">GitHub</a>
-            </li>
-            <li>
-              <a href={supportEmail}>Contact</a>
-            </li>
-            <li>
-              <a href="#blog">Blog</a>
-            </li>
-          </ul>
-        </div>
-
-        <div className="footer-section">
-          <h3>Support</h3>
-          <ul>
-            <li>
-              <a href="#tools">Help Center</a>
-            </li>
-            <li>
-              <a href={githubUrl} target="_blank" rel="noreferrer">Documentation</a>
-            </li>
-            <li>
-              <a href="#awareness">FAQs</a>
-            </li>
-            <li>
-              <a href={`${githubUrl}/issues`} target="_blank" rel="noreferrer">Report an Issue</a>
-            </li>
-            <li>
-              <a href={supportEmail}>Contact Support</a>
-            </li>
-          </ul>
-        </div>
-
-        <div className="footer-section">
-          <h3>Security & Legal</h3>
-          <ul>
-            <li>
-              <a href="#signup">Privacy Policy</a>
-            </li>
-            <li>
-              <a href="#signup">Terms of Service</a>
-            </li>
-            <li>
-              <a href={supportEmail}>Responsible Disclosure</a>
-            </li>
-            <li>
-              <a href="#awareness">Data Protection</a>
-            </li>
-          </ul>
-        </div>
+        {footerGroups.map((group) => (
+          <div className="footer-section" key={group.title}>
+            <h3>{group.title}</h3>
+            <ul>
+              {group.links.map((link) => (
+                <li key={link.label}>
+                  <a href={link.href} {...linkProps(link)}>{link.label}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
 
       <div className="footer-bottom">

@@ -17,7 +17,9 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { adminAPI } from '../services/api';
 import './AdminDashboardPage.css';
 import './AdminTeamPage.css';
 
@@ -37,12 +39,6 @@ const sidebarItems = [
   { id: 'web-edit', label: 'Web edit', icon: PenSquare, route: 'admin-web-edit', expandable: true },
   { id: 'pricing', label: 'pricing', icon: DollarSign, route: 'admin-pricing' },
   { id: 'settings', label: 'Settings', icon: Settings, route: 'admin-settings' },
-];
-
-const teamStats = [
-  { label: 'Total Admins', value: '4', icon: ShieldCheck, tone: 'admin-tone-indigo' },
-  { label: 'Active Now', value: '2', icon: Crown, tone: 'admin-tone-green' },
-  { label: 'Pending Invites', value: '1', icon: Mail, tone: 'admin-tone-orange' },
 ];
 
 const teamMembers = [
@@ -93,6 +89,93 @@ const recentActivity = [
 
 function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
   const { theme, toggleTheme } = useTheme();
+  const [members, setMembers] = useState(teamMembers);
+  const [activity, setActivity] = useState(recentActivity);
+  const [notice, setNotice] = useState('');
+
+  const loadTeam = useCallback(async () => {
+    try {
+      setNotice('Loading admin team...');
+      const payload = await adminAPI.getTeam();
+      const items = payload.items || payload.team || [];
+      setMembers(items.length ? items : teamMembers);
+      setActivity((items.length ? items : teamMembers).slice(0, 4).map((member) => ({
+        actor: member.name,
+        action: `${member.role} is ${member.status}`,
+        time: member.time || 'Synced from backend',
+      })));
+      setNotice('');
+    } catch (error) {
+      setMembers(teamMembers);
+      setActivity(recentActivity);
+      setNotice(error.message || 'Using local team data until the backend is available.');
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      loadTeam();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadTeam]);
+
+  const computedTeamStats = useMemo(() => {
+    const totalAdmins = members.length;
+    const activeNow = members.filter((member) => member.status === 'active').length;
+    const pendingInvites = members.filter((member) => member.status === 'pending').length;
+
+    return [
+      { label: 'Total Admins', value: String(totalAdmins), icon: ShieldCheck, tone: 'admin-tone-indigo' },
+      { label: 'Active Now', value: String(activeNow), icon: Crown, tone: 'admin-tone-green' },
+      { label: 'Pending Invites', value: String(pendingInvites), icon: Mail, tone: 'admin-tone-orange' },
+    ];
+  }, [members]);
+
+  const addTeamMember = async () => {
+    const suffix = Date.now().toString().slice(-5);
+    try {
+      setNotice('Creating admin invite...');
+      await adminAPI.addTeamMember({
+        name: 'New Admin',
+        email: `new.admin.${suffix}@threathunters.com`,
+        role: 'Admin',
+        status: 'pending',
+        badges: ['Reports', 'User Support'],
+      });
+      await loadTeam();
+      setNotice('Admin invite created. Edit the member from the backend data when ready.');
+    } catch (error) {
+      setNotice(error.message || 'Unable to create admin invite.');
+    }
+  };
+
+  const toggleMemberStatus = async (member) => {
+    const nextStatus = member.status === 'active' ? 'away' : 'active';
+    try {
+      setNotice('Updating team member...');
+      await adminAPI.updateTeamMember(member.id, { ...member, status: nextStatus, time: nextStatus === 'active' ? 'Online now' : 'Away' });
+      await loadTeam();
+      setNotice(`${member.name} is now ${nextStatus}.`);
+    } catch (error) {
+      setNotice(error.message || 'Unable to update team member.');
+    }
+  };
+
+  const removeTeamMember = async (member) => {
+    if (!window.confirm(`Remove ${member.name} from the admin team?`)) {
+      return;
+    }
+
+    try {
+      setNotice('Removing team member...');
+      await adminAPI.deleteTeamMember(member.id);
+      await loadTeam();
+      setNotice('Team member removed.');
+    } catch (error) {
+      setNotice(error.message || 'Unable to remove team member.');
+    }
+  };
 
   return (
     <div className="admin-team-page">
@@ -168,14 +251,16 @@ function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
               <p>Manage your administrative team members and their permissions</p>
             </div>
 
-            <button type="button" className="admin-team-add-btn">
+            <button type="button" className="admin-team-add-btn" onClick={addTeamMember}>
               <UserPlus size={18} />
               <span>Add New Admin</span>
             </button>
           </section>
 
+          {notice && <div className="admin-users-notice admin-card">{notice}</div>}
+
           <section className="admin-team-stats">
-            {teamStats.map((item) => {
+            {computedTeamStats.map((item) => {
               const Icon = item.icon;
 
               return (
@@ -198,7 +283,7 @@ function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
             </div>
 
             <div className="admin-team-members-list">
-              {teamMembers.map((member) => (
+              {members.map((member) => (
                 <article key={member.email} className="admin-team-member-card">
                   <div className="admin-team-member-left">
                     <div className="admin-team-avatar">{member.initials}</div>
@@ -228,10 +313,10 @@ function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
                   <div className="admin-team-member-right">
                     <span className="admin-team-role">{member.role}</span>
                     <div className="admin-team-actions">
-                      <button type="button" className="admin-team-icon-btn" aria-label={`Edit ${member.name}`}>
+                      <button type="button" className="admin-team-icon-btn" onClick={() => toggleMemberStatus(member)} aria-label={`Toggle ${member.name} status`}>
                         <Settings2 size={15} />
                       </button>
-                      <button type="button" className="admin-team-icon-btn is-danger" aria-label={`Remove ${member.name}`}>
+                      <button type="button" className="admin-team-icon-btn is-danger" onClick={() => removeTeamMember(member)} aria-label={`Remove ${member.name}`}>
                         <Trash2 size={15} />
                       </button>
                     </div>
@@ -247,7 +332,7 @@ function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
             </div>
 
             <div className="admin-team-activity-list">
-              {recentActivity.map((entry) => (
+              {activity.map((entry) => (
                 <article key={`${entry.actor}-${entry.time}`} className="admin-team-activity-item">
                   <div className="admin-team-activity-copy">
                     <span className="admin-team-activity-actor">{entry.actor}</span>
