@@ -66,6 +66,13 @@ cd D:\
 python -m scanner.cli --target http://127.0.0.1:8081 --mode deep
 ```
 
+For a longer authorized deep run, raise the request cap:
+
+```powershell
+cd D:\
+python -m scanner.cli --target http://127.0.0.1:8081 --mode deep --max-requests 20000
+```
+
 You can still turn those heavier deep defaults off:
 
 ```powershell
@@ -115,7 +122,7 @@ D:\scanner\provider-config.yaml
 
 ## Wordlists And Safety Defaults
 
-Content discovery is off in light mode and on by default in deep mode. Light mode can still enable it explicitly with `--enable-fuzz`. Fuzzing uses `common.txt` first in light mode and `directory-list-2.3-medium.txt` first in deep mode, capped by the scan `max_requests` limit before handing the list to external tools. The runner does not use a huge raft-large-first default.
+Content discovery is off in light mode and on by default in deep mode. Light mode can still enable it explicitly with `--enable-fuzz`. Fuzzing uses `common.txt` first in light mode and `directory-list-2.3-medium.txt` first in deep mode, capped by the scan `max_requests` limit before handing the list to external tools. The default cap is 1000 for light and 5000 for deep, and it can be changed with `--max-requests`. The runner does not use a huge raft-large-first default.
 
 Port scanning is off in light mode and on by default in deep mode. It remains bounded rather than running full destructive or exhaustive checks, and can be disabled with `--disable-ports`.
 

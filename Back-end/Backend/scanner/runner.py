@@ -35,6 +35,20 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 REPORTS_DIR = Path(os.getenv("SCANNER_REPORTS_DIR", str(PACKAGE_DIR / "reports"))).expanduser()
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_REPORT_SUFFIXES = {".json", ".md", ".html"}
+DEFAULT_LIMITS_BY_PROFILE = {
+    "light": {
+        "max_requests": 1000,
+        "concurrency": 3,
+        "delay_ms": 500,
+        "timeout_seconds": 10,
+    },
+    "deep": {
+        "max_requests": 5000,
+        "concurrency": 5,
+        "delay_ms": 250,
+        "timeout_seconds": 15,
+    },
+}
 
 
 def _is_local_target_identifier(value: str) -> bool:
@@ -281,6 +295,17 @@ def _merge_tool_overrides(defaults: dict, overrides: dict | None) -> dict:
     return tools
 
 
+def _profile_limits(profile: str, overrides: dict | None = None) -> dict:
+    limits = dict(DEFAULT_LIMITS_BY_PROFILE.get(profile, DEFAULT_LIMITS_BY_PROFILE["light"]))
+    if not isinstance(overrides, dict):
+        return limits
+    for key in ("max_requests", "concurrency", "delay_ms", "timeout_seconds"):
+        if overrides.get(key) is None:
+            continue
+        limits[key] = overrides[key]
+    return limits
+
+
 def _record_module_state(
     scan_data: dict,
     module_name: str,
@@ -357,6 +382,7 @@ async def _run_scan_async(
     confirm_permission: bool = False,
     nuclei_profile: str = "public-safe-v1",
     modules: dict | None = None,
+    limits: dict | None = None,
 ) -> dict:
     target_info = normalize_target(target)
     domain = target_info["domain"]
@@ -383,6 +409,7 @@ async def _run_scan_async(
             "headers": headers,
             "nuclei_profile": nuclei_profile,
             "external_tool_auth_allowed": False,
+            "limits": _profile_limits(profile, limits),
         },
     }
     prepared = prepare_scan_config(req, domain=domain, default_profile=profile)
@@ -595,6 +622,7 @@ def run_scan(
     confirm_permission: bool = False,
     nuclei_profile: str = "public-safe-v1",
     modules: dict | None = None,
+    limits: dict | None = None,
 ) -> dict:
     return asyncio.run(_run_scan_async(
         target,
@@ -604,6 +632,7 @@ def run_scan(
         confirm_permission=confirm_permission,
         nuclei_profile=nuclei_profile,
         modules=modules,
+        limits=limits,
     ))
 
 

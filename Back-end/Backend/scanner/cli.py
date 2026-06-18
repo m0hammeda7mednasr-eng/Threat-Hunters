@@ -25,6 +25,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--disable-fuzz", action="store_true", help="Disable content discovery even if the selected mode enables it.")
     parser.add_argument("--disable-ports", action="store_true", help="Disable port scanning even if the selected mode enables it.")
     parser.add_argument("--disable-crlfuzz", action="store_true", help="Disable CRLF checks even if the selected mode enables them.")
+    parser.add_argument("--max-requests", type=int, default=None, help="Maximum requests per capped module/host, including fuzz wordlist entries.")
+    parser.add_argument("--concurrency", type=int, default=None, help="Requested scanner concurrency limit.")
+    parser.add_argument("--delay-ms", type=int, default=None, help="Requested delay between rate-limited requests in milliseconds.")
+    parser.add_argument("--timeout-seconds", type=int, default=None, help="Requested per-request timeout in seconds.")
     parser.add_argument("--json", action="store_true", help="Print a compact JSON result.")
     return parser
 
@@ -44,6 +48,19 @@ def main(argv: list[str] | None = None) -> int:
         elif disable:
             module_overrides[module_name] = False
 
+    limits = {}
+    for arg_name, config_name in (
+        ("max_requests", "max_requests"),
+        ("concurrency", "concurrency"),
+        ("delay_ms", "delay_ms"),
+        ("timeout_seconds", "timeout_seconds"),
+    ):
+        value = getattr(args, arg_name)
+        if value is not None:
+            if value < 0:
+                parser.error(f"--{arg_name.replace('_', '-')} must be zero or greater")
+            limits[config_name] = value
+
     try:
         result = run_scan(
             args.target,
@@ -53,6 +70,7 @@ def main(argv: list[str] | None = None) -> int:
             confirm_permission=args.confirm_permission,
             nuclei_profile=args.nuclei_profile,
             modules=module_overrides,
+            limits=limits or None,
         )
     except ScanConfigError as exc:
         print(f"Scan configuration error: {exc}", file=sys.stderr)
