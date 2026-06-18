@@ -24,7 +24,6 @@ import './AdminDashboardPage.css';
 import './AdminTeamPage.css';
 
 const topNavItems = [
-  { label: 'Home', route: 'admin-dashboard' },
   { label: 'More Tools', route: 'tools' },
   { label: 'Security Awareness', route: 'awareness' },
   { label: 'Blog', route: 'blog' },

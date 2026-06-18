@@ -43,7 +43,9 @@ Main frontend areas:
 - `src/components/AdminPricingPage.jsx`
 - `src/components/AdminSettingsPage.jsx`
 - `src/components/AdminWebEditPage.jsx`
+- `src/components/SupportPage.jsx`
 - `src/components/Footer.jsx`
+- `src/utils/pdfBuilder.js`
 
 ## 3. Backend Stack
 
@@ -285,19 +287,26 @@ Reports include:
 - Findings.
 - Checks.
 - Recommendations.
-- Download/export support from the user console and admin reports page.
+- Branded PDF downloads with Threat Hunters styling, logo treatment, metric cards, sections, and footer details.
+- Download/export support from the user console, security awareness resources, and admin reports page.
 
 ## 12. Legal And Footer Pages
 
-Static legal pages exist under:
+Footer links route to professional in-app pages with navigation and footer:
 
-- `public/legal/privacy-policy.html`
-- `public/legal/terms-of-service.html`
-- `public/legal/responsible-disclosure.html`
-- `public/legal/data-protection.html`
-- `public/legal/legal.css`
+- `#help-center`
+- `#documentation`
+- `#faqs`
+- `#report-issue`
+- `#contact-support`
+- `#privacy-policy`
+- `#terms-of-service`
+- `#responsible-disclosure`
+- `#data-protection`
 
-Footer links point to real local pages or appropriate project/support links.
+The page implementation is `src/components/SupportPage.jsx` with styling in `src/components/SupportPage.css`.
+
+The admin dashboard shell also includes the shared footer, and admin top navigation no longer shows a separate `Home` item.
 
 ## 13. Validation And Quality Controls
 
@@ -356,6 +365,10 @@ npm run dev
 
 Browser smoke verification covered:
 
+- `#admin-dashboard`
+- `#admin-reports`
+- `#help-center`
+- `#awareness`
 - `#admin-team`
 - `#admin-pricing`
 - `#admin-users`
@@ -368,6 +381,9 @@ Final admin smoke verification covered:
 - Admin Users UI create/edit/delete.
 - Admin Web Edit publish to backend and restore original content.
 - Admin API validation for negative user counters, negative pricing subscribers, and duplicate team emails.
+- Admin dashboard footer visibility and removal of the admin nav `Home` item.
+- Footer link routing into the in-app Help Center page with admin nav and shared footer.
+- Branded PDF download verification for admin reports and security awareness resources.
 
 No test data was left in the mock database after the final smoke tests.
 

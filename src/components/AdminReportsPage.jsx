@@ -18,11 +18,11 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { adminAPI } from '../services/api';
+import { buildBrandedPdfBlob, downloadPdfBlob } from '../utils/pdfBuilder';
 import './AdminDashboardPage.css';
 import './AdminReportsPage.css';
 
 const topNavItems = [
-  { label: 'Home', route: 'admin-dashboard' },
   { label: 'More Tools', route: 'tools' },
   { label: 'Security Awareness', route: 'awareness' },
   { label: 'Blog', route: 'blog' },
@@ -64,7 +64,7 @@ const fallbackReports = [
     subtitle: 'Comprehensive security analysis for June 2025',
     date: '2026-06-14T12:00:00.000Z',
     size: '2.4 MB',
-    type: 'JSON',
+    type: 'PDF',
     scanCount: 135,
     vulnerabilities: 168,
     critical: 12,
@@ -78,7 +78,7 @@ const fallbackReports = [
     subtitle: 'Quarterly vulnerability trends and analysis',
     date: '2026-06-11T10:00:00.000Z',
     size: '5.1 MB',
-    type: 'JSON',
+    type: 'PDF',
     scanCount: 42,
     vulnerabilities: 36,
     critical: 2,
@@ -120,16 +120,52 @@ function buildMonthlyPoints(items, field) {
   }));
 }
 
-function downloadJsonFile(filename, payload) {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+function buildAdminReportPdf(report) {
+  const score = Number(report.score || 0);
+  const critical = Number(report.critical || 0);
+  const vulnerabilities = Number(report.vulnerabilities || 0);
+  const scans = Number(report.scanCount || 0);
+  const findings = Array.isArray(report.findings) && report.findings.length
+    ? report.findings
+    : [
+      'Review the latest admin metrics and investigate unusual changes.',
+      'Prioritize critical and high risk issues before routine hardening work.',
+      'Track ownership and remediation progress in the reports workspace.',
+    ];
+
+  return buildBrandedPdfBlob({
+    title: report.title || 'Admin Security Snapshot',
+    subtitle: report.subtitle || 'Generated from the Threat Hunters admin dashboard.',
+    eyebrow: 'Admin Intelligence Report',
+    generatedAt: formatReportDate(report.date),
+    metrics: [
+      { label: 'Score', value: `${score}/100`, fill: '#f3f0ff', valueColor: score >= 80 ? '#11855d' : '#b35d00' },
+      { label: 'Critical', value: String(critical), fill: '#fff0f0', valueColor: '#c62828' },
+      { label: 'Findings', value: String(vulnerabilities), fill: '#eef6ff', valueColor: '#0b66c3' },
+      { label: 'Scans', value: String(scans), fill: '#eefbf7', valueColor: '#11855d' },
+    ],
+    sections: [
+      {
+        title: 'Executive Summary',
+        body: `This report summarizes the latest admin security posture. The current security score is ${score}/100 with ${critical} critical signal(s) requiring immediate attention.`,
+        accent: '#8b7cff',
+      },
+      {
+        title: 'Key Findings',
+        items: findings,
+        accent: '#00b8d9',
+      },
+      {
+        title: 'Recommended Actions',
+        items: [
+          'Assign owners for every critical item before the next review cycle.',
+          'Disable risky accounts or hidden content from the admin dashboard when needed.',
+          'Regenerate this report after remediation to confirm score movement and download history.',
+        ],
+        accent: '#18a058',
+      },
+    ],
+  });
 }
 
 function LineChart({ points }) {
@@ -195,7 +231,7 @@ function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' 
       setNotice('Loading reports from backend...');
       const payload = await adminAPI.getReports();
       const items = payload.items || payload.reports || [];
-      setReportItems(items.length ? items : fallbackReports);
+      setReportItems(items.length ? items.map((report) => ({ ...report, type: 'PDF' })) : fallbackReports);
       setNotice('');
     } catch (error) {
       setReportItems(fallbackReports);
@@ -260,12 +296,8 @@ function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' 
         : await adminAPI.recordReportDownload(report.id);
       setReportItems((prev) => prev.map((item) => (item.id === report.id ? updatedReport : item)));
       const safeTitle = report.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'admin-report';
-      downloadJsonFile(`${safeTitle}.json`, {
-        generatedBy: 'Threat Hunters Admin Dashboard',
-        downloadedAt: new Date().toISOString(),
-        report: updatedReport,
-      });
-      setNotice('Report downloaded and tracked.');
+      downloadPdfBlob(buildAdminReportPdf(updatedReport), `${safeTitle}.pdf`);
+      setNotice('Professional PDF report downloaded and tracked.');
     } catch (error) {
       setNotice(error.message || 'Unable to download report.');
     }
@@ -408,7 +440,7 @@ function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' 
                         <span className="admin-reports-dot">•</span>
                         <span>{report.size}</span>
                         <span className="admin-reports-dot">•</span>
-                        <span className="admin-reports-filetype">{report.type}</span>
+                        <span className="admin-reports-filetype">PDF</span>
                       </div>
                     </div>
                   </div>

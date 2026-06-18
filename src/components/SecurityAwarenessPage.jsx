@@ -25,6 +25,7 @@ import './SecurityAwarenessPage.css';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { securityAPI } from '../services/api';
+import { buildBrandedPdfBlob, downloadPdfBlob } from '../utils/pdfBuilder';
 
 const securityTips = [
   {
@@ -255,94 +256,50 @@ const resolveIcon = (icon) => {
   return iconRegistry[icon] || ShieldCheck;
 };
 
-const escapePdfText = (value) => String(value || '')
-  .replace(/[^\x20-\x7E]/g, '')
-  .replace(/\\/g, '\\\\')
-  .replace(/\(/g, '\\(')
-  .replace(/\)/g, '\\)');
-
-const wrapPdfLine = (value, maxLength = 88) => {
-  const words = String(value || '').split(/\s+/).filter(Boolean);
-  const lines = [];
-  let current = '';
-
-  for (const word of words) {
-    const next = current ? `${current} ${word}` : word;
-    if (next.length > maxLength && current) {
-      lines.push(current);
-      current = word;
-      continue;
-    }
-    current = next;
-  }
-
-  if (current) {
-    lines.push(current);
-  }
-
-  return lines.length ? lines : [''];
-};
-
 const buildPdfBlob = (resource) => {
-  const contentLines = [
-    'Threat Hunters Security Awareness',
-    resource.title,
-    resource.description,
-    `Generated: ${new Date().toLocaleString('en-US')}`,
-    '',
-    ...(resource.sections || []).flatMap((item, index) => (
-      wrapPdfLine(`${index + 1}. ${item}`)
-    )),
+  const checklist = resource.sections?.length ? resource.sections : [
+    'Start with the highest risk behavior and turn it into a weekly habit.',
+    'Use the checklist during onboarding and quarterly awareness refreshers.',
+    'Escalate suspicious activity early and keep evidence in one place.',
   ];
 
-  let y = 760;
-  const textCommands = ['BT', '/F1 12 Tf'];
-  for (const line of contentLines) {
-    const fontSize = line === resource.title ? 18 : line === 'Threat Hunters Security Awareness' ? 14 : 12;
-    textCommands.push(`/F1 ${fontSize} Tf`);
-    textCommands.push(`72 ${y} Td (${escapePdfText(line)}) Tj`);
-    textCommands.push(`-72 0 Td`);
-    y -= fontSize + 8;
-  }
-  textCommands.push('ET');
-
-  const stream = textCommands.join('\n');
-  const objects = [
-    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
-    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
-    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n',
-    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
-    `5 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`,
-  ];
-
-  let pdf = '%PDF-1.4\n';
-  const offsets = [0];
-  for (const object of objects) {
-    offsets.push(pdf.length);
-    pdf += object;
-  }
-
-  const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += '0000000000 65535 f \n';
-  for (let index = 1; index <= objects.length; index += 1) {
-    pdf += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
-  }
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-
-  return new Blob([pdf], { type: 'application/pdf' });
+  return buildBrandedPdfBlob({
+    title: resource.title,
+    subtitle: resource.description,
+    eyebrow: 'Security Awareness Playbook',
+    metrics: [
+      { label: 'Format', value: 'PDF', fill: '#ffffff', valueColor: '#141935' },
+      { label: 'Level', value: 'Team', fill: '#f3f0ff', valueColor: '#6c5ce7' },
+      { label: 'Use Case', value: 'Training', fill: '#eefbf7', valueColor: '#11855d' },
+      { label: 'Action', value: 'Ready', fill: '#fff4e4', valueColor: '#b35d00' },
+    ],
+    sections: [
+      {
+        title: 'Executive Brief',
+        body: 'This Threat Hunters resource converts security awareness into practical behaviors teams can repeat during onboarding, reviews, and incident readiness sessions.',
+        accent: '#8b7cff',
+      },
+      {
+        title: 'Checklist',
+        items: checklist,
+        accent: '#00b8d9',
+      },
+      {
+        title: 'Recommended Follow-Up',
+        items: [
+          'Assign an owner for the next awareness review.',
+          'Turn the top two checklist items into weekly operating habits.',
+          'Use the Threat Hunters scanner and reports when technical validation is needed.',
+        ],
+        accent: '#18a058',
+      },
+    ],
+  });
 };
 
 const downloadPdfResource = (resource) => {
   const blob = buildPdfBlob(resource);
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${resource.id || 'security-awareness'}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  downloadPdfBlob(blob, `${resource.id || 'security-awareness'}.pdf`);
 };
 
 const SecurityAwarenessPage = ({

@@ -19,6 +19,7 @@ const AdminReportsPage = lazy(() => import('./components/AdminReportsPage'));
 const AdminWebEditPage = lazy(() => import('./components/AdminWebEditPage'));
 const AdminPricingPage = lazy(() => import('./components/AdminPricingPage'));
 const AdminSettingsPage = lazy(() => import('./components/AdminSettingsPage'));
+const SupportPage = lazy(() => import('./components/SupportPage'));
 
 const STORAGE_KEYS = Object.freeze({
   loginState: 'isLoggedIn',
@@ -30,9 +31,20 @@ const SESSION_KEYS = Object.freeze({
   splashSeen: 'threatHuntersSplashSeen',
 });
 
-const PUBLIC_PAGES = new Set(['home', 'signin', 'signup', 'blog', 'awareness', 'tools']);
+const SUPPORT_PAGES = new Set([
+  'help-center',
+  'documentation',
+  'faqs',
+  'report-issue',
+  'contact-support',
+  'privacy-policy',
+  'terms-of-service',
+  'responsible-disclosure',
+  'data-protection',
+]);
+const PUBLIC_PAGES = new Set(['home', 'signin', 'signup', 'blog', 'awareness', 'tools', ...SUPPORT_PAGES]);
 const ADMIN_PAGES = new Set(['admin-dashboard', 'admin-team', 'admin-users', 'admin-reports', 'admin-web-edit', 'admin-pricing', 'admin-settings']);
-const PRIVATE_PAGES = new Set(['dashboard', ...ADMIN_PAGES, 'blog', 'awareness', 'tools']);
+const PRIVATE_PAGES = new Set(['dashboard', ...ADMIN_PAGES, 'blog', 'awareness', 'tools', ...SUPPORT_PAGES]);
 const DASHBOARD_SECTIONS = new Set(['dashboard', 'reports', 'settings', 'profile']);
 
 const safeStorage = {
@@ -504,7 +516,10 @@ function App() {
           )}
 
           {currentPage === 'admin-dashboard' && isLoggedIn && (
-            <AdminDashboardPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+            <>
+              <AdminDashboardPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+              <Footer />
+            </>
           )}
 
           {currentPage === 'admin-team' && isLoggedIn && (
@@ -585,6 +600,18 @@ function App() {
             </div>
           )}
 
+          {isLoggedIn && SUPPORT_PAGES.has(currentPage) && (
+            <div className="logged-in-page">
+              {userRole === 'admin' ? (
+                <AdminTopNav onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+              ) : (
+                <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              )}
+              <SupportPage {...publicNavigationProps} pageKey={currentPage} isLoggedIn />
+              <Footer />
+            </div>
+          )}
+
           {!isLoggedIn && currentPage === 'home' && (
             <HomePage {...publicNavigationProps} onLogin={handleLogin} />
           )}
@@ -615,6 +642,10 @@ function App() {
 
           {!isLoggedIn && currentPage === 'tools' && (
             <MoreToolsPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn={false} />
+          )}
+
+          {!isLoggedIn && SUPPORT_PAGES.has(currentPage) && (
+            <SupportPage {...publicNavigationProps} pageKey={currentPage} isLoggedIn={false} />
           )}
 
           {isLoggedIn && !PRIVATE_PAGES.has(currentPage) && (

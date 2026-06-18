@@ -8,9 +8,11 @@ Threat Hunters is a full-stack cybersecurity platform for website scanning, brea
 - Authentication, profile, settings, password reset, and account controls.
 - User console with scan activity, reports, PDF-style exports, and profile management.
 - Security tools for email exposure checks and password breach checks through the backend.
-- Security awareness page backed by API content, learning resources, and downloads.
+- Security awareness page backed by API content, learning resources, and branded PDF downloads.
 - Blog system with posts, images, likes, shares, comments, replies, hidden/published moderation, and admin controls.
 - Admin dashboard for users, reports, team, pricing, settings, and website content editing.
+- Professional footer routes for help, documentation, FAQs, issue reporting, contact support, privacy, terms, responsible disclosure, and data protection.
+- Shared branded PDF generator for admin reports and security awareness resources.
 - Flask backend with MongoDB support.
 - Local mock backend for development when MongoDB is not available.
 
@@ -103,6 +105,20 @@ Local demo admin account:
 ```text
 admin@threathunters.com / Admin@12345
 ```
+
+## In-App Footer Pages
+
+Footer links open routed React pages instead of dead anchors:
+
+- `#help-center`
+- `#documentation`
+- `#faqs`
+- `#report-issue`
+- `#contact-support`
+- `#privacy-policy`
+- `#terms-of-service`
+- `#responsible-disclosure`
+- `#data-protection`
 
 ## Documentation
 
