@@ -36,8 +36,8 @@ const sidebarItems = [
   { id: 'admin-team', label: 'Admin Team', icon: Shield, route: 'admin-team' },
   { id: 'users', label: 'Users', icon: Users, route: 'admin-users' },
   { id: 'reports', label: 'Reports', icon: FileText, route: 'admin-reports' },
-  { id: 'web-edit', label: 'Web edit', icon: PenSquare, route: 'admin-web-edit', expandable: true },
-  { id: 'pricing', label: 'pricing', icon: DollarSign, route: 'admin-pricing' },
+  { id: 'web-edit', label: 'Web Edit', icon: PenSquare, route: 'admin-web-edit', expandable: true },
+  { id: 'pricing', label: 'Pricing', icon: DollarSign, route: 'admin-pricing' },
   { id: 'settings', label: 'Settings', icon: Settings, route: 'admin-settings' },
 ];
 

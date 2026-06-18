@@ -68,7 +68,7 @@ const Navbar = ({
 
         <div className="nav-center">
           <a
-            href="#"
+            href="#home"
             className={`nav-link ${isActive('home') ? 'active' : ''}`}
             aria-current={isActive('home') ? 'page' : undefined}
             onClick={(event) => {
@@ -79,7 +79,7 @@ const Navbar = ({
             Home
           </a>
           <a
-            href="#"
+            href="#tools"
             className={`nav-link ${isActive('tools') ? 'active' : ''}`}
             aria-current={isActive('tools') ? 'page' : undefined}
             onClick={(event) => {
@@ -90,7 +90,7 @@ const Navbar = ({
             More Tools
           </a>
           <a
-            href="#"
+            href="#awareness"
             className={`nav-link ${isActive('awareness') ? 'active' : ''}`}
             aria-current={isActive('awareness') ? 'page' : undefined}
             onClick={(event) => {
@@ -101,7 +101,7 @@ const Navbar = ({
             Security Awareness
           </a>
           <a
-            href="#"
+            href="#blog"
             className={`nav-link ${isActive('blog') ? 'active' : ''}`}
             aria-current={isActive('blog') ? 'page' : undefined}
             onClick={(event) => {
@@ -155,7 +155,7 @@ const Navbar = ({
       <div id="public-mobile-menu" className={`mobile-menu ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="mobile-menu-content">
           <a
-            href="#"
+            href="#home"
             className={`mobile-nav-link ${isActive('home') ? 'active' : ''}`}
             onClick={(event) => {
               event.preventDefault();
@@ -169,7 +169,7 @@ const Navbar = ({
             <span>Home</span>
           </a>
           <a
-            href="#"
+            href="#tools"
             className={`mobile-nav-link ${isActive('tools') ? 'active' : ''}`}
             onClick={(event) => {
               event.preventDefault();
@@ -182,7 +182,7 @@ const Navbar = ({
             <span>More Tools</span>
           </a>
           <a
-            href="#"
+            href="#awareness"
             className={`mobile-nav-link ${isActive('awareness') ? 'active' : ''}`}
             onClick={(event) => {
               event.preventDefault();
@@ -195,7 +195,7 @@ const Navbar = ({
             <span>Security Awareness</span>
           </a>
           <a
-            href="#"
+            href="#blog"
             className={`mobile-nav-link ${isActive('blog') ? 'active' : ''}`}
             onClick={(event) => {
               event.preventDefault();

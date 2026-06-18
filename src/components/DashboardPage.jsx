@@ -989,6 +989,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
 
     return (
       <div className="db-dashboard-layout">
+        <h1 className="db-sr-only">User Console Dashboard</h1>
         <section className="db-overview-grid">
           {dashboardOverviewCards.map((card) => (
             <article key={card.label} className="db-overview-card">

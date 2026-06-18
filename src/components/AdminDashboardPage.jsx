@@ -140,8 +140,8 @@ const sidebarItems = [
   { id: 'admin-team', label: 'Admin Team', icon: Shield, route: 'admin-team' },
   { id: 'users', label: 'Users', icon: Users, route: 'admin-users' },
   { id: 'reports', label: 'Reports', icon: FileText, route: 'admin-reports' },
-  { id: 'web-edit', label: 'Web edit', icon: PenSquare, route: 'admin-web-edit', expandable: true },
-  { id: 'pricing', label: 'pricing', icon: DollarSign, route: 'admin-pricing' },
+  { id: 'web-edit', label: 'Web Edit', icon: PenSquare, route: 'admin-web-edit', expandable: true },
+  { id: 'pricing', label: 'Pricing', icon: DollarSign, route: 'admin-pricing' },
   { id: 'settings', label: 'Settings', icon: Settings, route: 'admin-settings' },
 ];
 
@@ -196,6 +196,21 @@ function getStatusTone(status) {
   if (status === 'Completed') return 'is-complete';
   if (status === 'Critical') return 'is-critical';
   return 'is-warning';
+}
+
+const MOJIBAKE_CODES = new Set([195, 194, 216, 217, 197, 65533]);
+
+function looksCorruptedText(value) {
+  const text = String(value || '').trim();
+  if (!text) return false;
+  const mojibakeHits = [...text].filter((char) => MOJIBAKE_CODES.has(char.charCodeAt(0))).length;
+  const readableHits = (text.match(/[a-z0-9\u0600-\u06ff]/gi) || []).length;
+  return mojibakeHits >= 2 || (mojibakeHits >= 1 && readableHits < 4);
+}
+
+function cleanDashboardText(value, fallback) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  return !text || looksCorruptedText(text) ? fallback : text;
 }
 
 function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboard' }) {
@@ -292,8 +307,13 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
     const tones = ['warning', 'success', 'danger'];
 
     return recentActivities.map((activity, index) => ({
-      title: activity.title,
-      detail: activity.detail,
+      title: cleanDashboardText(activity.title, 'Workspace activity updated'),
+      detail: cleanDashboardText(
+        activity.detail,
+        activity.title === 'Blog content updated'
+          ? 'A blog post is published and ready for moderation.'
+          : 'Activity synced from backend.',
+      ),
       time: 'Just now',
       icon: icons[index % icons.length],
       tone: tones[index % tones.length],

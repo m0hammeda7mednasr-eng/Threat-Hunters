@@ -68,21 +68,89 @@ const formatReadTime = (content = "") => {
 };
 
 const normalizePosts = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.posts)) return payload.posts;
-  return [];
+  const posts = Array.isArray(payload) ? payload : Array.isArray(payload?.posts) ? payload.posts : [];
+  return posts.map(sanitizePost);
+};
+
+const MOJIBAKE_CODES = new Set([195, 194, 216, 217, 197, 65533]);
+
+const looksCorruptedText = (value) => {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  const mojibakeHits = [...text].filter((char) => MOJIBAKE_CODES.has(char.charCodeAt(0))).length;
+  const readableHits = (text.match(/[a-z0-9\u0600-\u06ff]/gi) || []).length;
+  return mojibakeHits >= 2 || (mojibakeHits >= 1 && readableHits < 4);
+};
+
+const cleanText = (value, fallback = "") => {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text || looksCorruptedText(text)) return fallback;
+  return text;
+};
+
+const cleanSlug = (value, fallback = "web-security") => {
+  const text = cleanText(value, fallback).toLowerCase().trim();
+  const slug = text.replace(/[^a-z0-9-]+/g, "-").replace(/(^-|-$)/g, "");
+  return slug || fallback;
+};
+
+const cleanTagList = (tags = []) => (
+  Array.isArray(tags)
+    ? tags
+        .map((tag) => cleanText(tag, ""))
+        .filter(Boolean)
+        .filter((tag, index, list) => list.findIndex((item) => item.toLowerCase() === tag.toLowerCase()) === index)
+        .slice(0, 8)
+    : []
+);
+
+const sanitizeComment = (comment) => ({
+  ...comment,
+  author: cleanText(comment.author, "Threat Hunters Reader"),
+  content: cleanText(comment.content, "This comment needs an editorial review before it can be displayed."),
+  replies: Array.isArray(comment.replies) ? comment.replies.map(sanitizeComment) : [],
+});
+
+const sanitizePost = (post) => {
+  const category = cleanSlug(post.category, "web-security");
+
+  return {
+    ...post,
+    title: cleanText(post.title, "Community Security Update"),
+    description: cleanText(post.description, "Security insight awaiting an editorial pass from the Threat Hunters team."),
+    content: cleanText(
+      post.content,
+      "This article was imported from draft content and needs an editorial pass before publication. Admins can update the post details from the blog editor.",
+    ),
+    category,
+    tags: cleanTagList(post.tags),
+    badge: cleanText(post.badge, "New"),
+    author: cleanText(post.author, "Threat Hunters Team"),
+    comments: Array.isArray(post.comments) ? post.comments.map(sanitizeComment) : [],
+  };
+};
+
+const formatCategoryLabel = (value) => {
+  const slug = cleanSlug(value, "web-security");
+  const labels = {
+    "web-security": "Web Security",
+    "threat-intelligence": "Threat Intelligence",
+    "security-awareness": "Security Awareness",
+  };
+
+  return labels[slug] || slug.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
 const normalizeComments = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.comments)) return payload.comments;
+  if (Array.isArray(payload)) return payload.map(sanitizeComment);
+  if (Array.isArray(payload?.comments)) return payload.comments.map(sanitizeComment);
   return [];
 };
 
 const buildTopics = (posts) => {
   const counts = new Map();
   posts.forEach((post) => {
-    (post.tags || []).forEach((tag) => {
+    cleanTagList(post.tags).forEach((tag) => {
       counts.set(tag, (counts.get(tag) || 0) + 1);
     });
   });
@@ -188,7 +256,8 @@ const BlogPage = ({
 
   const categories = useMemo(() => {
     const counts = posts.reduce((acc, post) => {
-      acc[post.category] = (acc[post.category] || 0) + 1;
+      const category = cleanSlug(post.category, "web-security");
+      acc[category] = (acc[category] || 0) + 1;
       return acc;
     }, {});
 
@@ -196,7 +265,7 @@ const BlogPage = ({
       { id: "all", label: "All Posts", count: posts.length },
       ...Object.entries(counts).map(([id, count]) => ({
         id,
-        label: id.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()),
+        label: formatCategoryLabel(id),
         count,
       })),
     ];
@@ -229,7 +298,7 @@ const BlogPage = ({
       ]);
 
       const detail = Array.isArray(postPayload) ? postPayload[0] : postPayload;
-      setSelectedPost(detail || null);
+      setSelectedPost(detail ? sanitizePost(detail) : null);
       setSelectedComments(normalizeComments(commentsPayload));
     } catch (err) {
       setError(err.message || "Failed to load post details.");

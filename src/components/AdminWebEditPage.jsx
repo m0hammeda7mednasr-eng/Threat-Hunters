@@ -36,8 +36,8 @@ const sidebarItems = [
   { id: 'admin-team', label: 'Admin Team', icon: Shield, route: 'admin-team' },
   { id: 'users', label: 'Users', icon: Users, route: 'admin-users' },
   { id: 'reports', label: 'Reports', icon: FileText, route: 'admin-reports' },
-  { id: 'web-edit', label: 'Web edit', icon: PenSquare, route: 'admin-web-edit', expandable: true },
-  { id: 'pricing', label: 'pricing', icon: DollarSign, route: 'admin-pricing' },
+  { id: 'web-edit', label: 'Web Edit', icon: PenSquare, route: 'admin-web-edit', expandable: true },
+  { id: 'pricing', label: 'Pricing', icon: DollarSign, route: 'admin-pricing' },
   { id: 'settings', label: 'Settings', icon: Settings, route: 'admin-settings' },
 ];
 
@@ -127,6 +127,29 @@ const initialContent = {
 };
 
 const WEB_EDITOR_STORAGE_KEY = 'threatHuntersAdminWebContent';
+const MOJIBAKE_CODES = new Set([195, 194, 216, 217, 197, 65533]);
+
+const looksCorruptedText = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return false;
+  const mojibakeHits = [...text].filter((char) => MOJIBAKE_CODES.has(char.charCodeAt(0))).length;
+  const readableHits = (text.match(/[a-z0-9\u0600-\u06ff]/gi) || []).length;
+  return mojibakeHits >= 2 || (mojibakeHits >= 1 && readableHits < 4);
+};
+
+const cleanAdminText = (value, fallback) => {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  return !text || looksCorruptedText(text) ? fallback : text;
+};
+
+const sanitizeModerationPost = (post) => ({
+  ...post,
+  title: cleanAdminText(post.title, 'Community Security Update'),
+  description: cleanAdminText(
+    post.description || post.content,
+    'This post needs an editorial pass before it is highlighted publicly.',
+  ),
+});
 
 const getInitialEditorContent = () => {
   try {
@@ -187,7 +210,7 @@ function AdminWebEditPage({ onNavigate, onLogout, currentPage = 'admin-web-edit'
         const payload = await blogAPI.getPosts({ includeHidden: true });
         const nextPosts = Array.isArray(payload) ? payload : payload?.posts || [];
         if (isMounted) {
-          setBlogPosts(nextPosts);
+          setBlogPosts(nextPosts.map(sanitizeModerationPost));
           setBlogPostStatus('');
         }
       } catch (error) {
@@ -249,7 +272,8 @@ function AdminWebEditPage({ onNavigate, onLogout, currentPage = 'admin-web-edit'
     try {
       setBlogPostStatus('Refreshing posts...');
       const payload = await blogAPI.getPosts({ includeHidden: true });
-      setBlogPosts(Array.isArray(payload) ? payload : payload?.posts || []);
+      const nextPosts = Array.isArray(payload) ? payload : payload?.posts || [];
+      setBlogPosts(nextPosts.map(sanitizeModerationPost));
       setBlogPostStatus('');
     } catch (error) {
       setBlogPostStatus(error.message || 'Unable to refresh blog posts.');
