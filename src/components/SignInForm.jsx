@@ -98,11 +98,7 @@ const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
     const result = await requestPasswordReset({ email });
     if (result.success) {
       setForgotStep("reset");
-      setForgotStatus(`OTP sent to ${result.data.email}.`);
-      setForgotForm((current) => ({
-        ...current,
-        code: result.data.resetCode || result.data.resetToken || current.code,
-      }));
+      setForgotStatus(`OTP sent to ${result.data.email}. Check your inbox and paste it below.`);
     } else {
       setForgotStatus(result.error || "Unable to prepare password reset.");
     }
@@ -242,11 +238,11 @@ const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
 
         {forgotOpen && (
           <div className="signin-forgot-panel" aria-live="polite">
-            <p className="signin-forgot-panel__title">Password recovery</p>
-            <p className="signin-forgot-panel__copy">
-              1. Request an OTP for your email.
-              <br />
-              2. Paste the OTP below, choose a new password, and confirm it.
+              <p className="signin-forgot-panel__title">Password recovery</p>
+              <p className="signin-forgot-panel__copy">
+                1. Request an OTP for your email.
+                <br />
+                2. Paste the OTP below, choose a new password, and confirm it.
             </p>
 
             <label className="signin-field">
@@ -313,9 +309,14 @@ const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
 
             <div className="signin-forgot-actions">
               <button type="button" className="signin-forgot-action" onClick={handleForgotRequest}>
-                Send OTP
+                {forgotStep === "reset" ? "Resend OTP" : "Send OTP"}
               </button>
-              <button type="button" className="signin-forgot-action primary" onClick={handleForgotReset}>
+              <button
+                type="button"
+                className="signin-forgot-action primary"
+                onClick={handleForgotReset}
+                disabled={forgotStep !== "reset"}
+              >
                 Reset password
               </button>
             </div>

@@ -405,8 +405,7 @@ def request_password_reset(data):
     return jsonify({
         "message": "Password reset OTP prepared",
         "email": email,
-        "resetToken": token,
-        "resetCode": reset_code
+        "resetToken": token
     }), 200
 
 

@@ -300,7 +300,7 @@ def generate_markdown_report(report_data: dict, output_path: str):
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(md_content)
     except Exception as e:
-        from utils import log
+        from .utils import log
         log.error(f"[reporter] Failed to generate markdown: {e}")
 
 
@@ -342,6 +342,5 @@ def generate_html_report(report_data: dict, output_path: str):
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(full_html)
     except Exception as e:
-        from utils import log
+        from .utils import log
         log.error(f"[reporter] Failed to generate html: {e}")
-

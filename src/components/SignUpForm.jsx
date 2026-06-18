@@ -76,7 +76,7 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
 
         if (result.success) {
           setError("");
-          setSuccess("Account created successfully! Please sign in.");
+          setSuccess("Account created successfully! Check your email for the OTP, verify the account, then sign in.");
 
           // Reset form
           setFormData({
@@ -87,11 +87,6 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
             confirmPassword: "",
             agreeToTerms: false,
           });
-
-          // Optionally auto-switch to sign in after a delay
-          setTimeout(() => {
-            onSwitchToSignIn?.();
-          }, 2000);
         } else {
           setError(result.error || "Registration failed. Please try again.");
         }
