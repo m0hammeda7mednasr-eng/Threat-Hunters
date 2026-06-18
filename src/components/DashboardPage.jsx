@@ -402,7 +402,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   const [advancedScanChecks, setAdvancedScanChecks] = useState(() => ({ ...ADVANCED_SCAN_DEFAULTS }));
   const [dashboardScanTypes, setDashboardScanTypes] = useState({
     quick: true,
-    deep: true,
+    deep: false,
   });
   const [reportSearchQuery, setReportSearchQuery] = useState('');
   const [profileTwoFactorEnabled, setProfileTwoFactorEnabled] = useState(false);

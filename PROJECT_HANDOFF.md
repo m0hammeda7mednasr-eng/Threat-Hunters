@@ -14,7 +14,7 @@ Threat Hunters is a cybersecurity web application with:
 - Blog publishing and engagement.
 - Admin dashboard for platform control.
 
-The app is designed to run locally with a React/Vite frontend and a backend API. In development, `npm run dev` starts the frontend and a local mock backend. The Flask backend remains available for MongoDB-backed operation.
+The app is designed to run locally with a React/Vite frontend and a Flask backend API backed by MongoDB Atlas. In development, `npm run dev` starts the frontend and the Flask backend together.
 
 ## 2. Frontend Stack
 
@@ -69,30 +69,9 @@ Main backend files:
 - `Back-end/services/*.py`
 - `Back-end/tests/*.py`
 
-## 4. Local Mock Backend
+## 4. Database Design
 
-The local development backend is:
-
-- `server/mock-backend.mjs`
-- Persistent local data: `server/data/mock-db.json`
-- `server/data/` is ignored by git.
-
-It mirrors the important Flask endpoints so the frontend can be tested even when MongoDB is not running.
-
-The mock backend supports:
-
-- Auth and password reset.
-- User profile/settings/password/account.
-- Blog posts, images, likes, shares, comments, replies.
-- Security awareness content.
-- HIBP email/password checks.
-- Website scanner.
-- Dashboard metrics.
-- Admin users, reports, team, pricing, settings, and web content.
-
-## 5. Database Design
-
-Production backend uses MongoDB. Important collections:
+Backend uses MongoDB Atlas. Important collections:
 
 - `users`
 - `blogs`
@@ -104,25 +83,13 @@ Production backend uses MongoDB. Important collections:
 - `admin_config`
 - `admin_reports`
 
-Mock backend stores equivalent development data in JSON:
-
-- `users`
-- `sessions`
-- `resetTokens`
-- `posts`
-- `webContent`
-- `adminSettings`
-- `adminTeam`
-- `adminPricing`
-- `adminReports`
-
-## 6. Environment Variables
+## 5. Environment Variables
 
 Backend variables:
 
 ```env
 SECRET_KEY=change-me
-MONGO_URI=mongodb://localhost:27017/vuln_scanner
+MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/<database>?appName=Cluster0
 JWT_EXPIRATION_HOURS=24
 EMAIL_ADDRESS=your-email@example.com
 EMAIL_PASSWORD=your-email-app-password
@@ -138,10 +105,10 @@ VITE_API_BASE_URL=https://your-api-domain.example/api
 Security note:
 
 - Real secrets must stay in `.env`.
-- `.env`, `.vercel`, `node_modules`, `dist`, logs, and mock local data are ignored by git.
+- `.env`, `.vercel`, `node_modules`, `dist`, logs, and legacy bootstrap artifacts are ignored by git.
 - The HIBP API key is only used by backend endpoints. The browser does not call HIBP directly.
 
-## 7. Frontend API Client
+## 6. Frontend API Client
 
 All frontend API calls are centralized in:
 
@@ -163,7 +130,7 @@ Exports:
 
 `apiRequest()` attaches the JWT token from local storage and sends JSON payloads.
 
-## 8. API Coverage
+## 7. API Coverage
 
 Auth:
 
@@ -239,7 +206,7 @@ Admin:
 - `GET /api/web-content`
 - `PUT /api/web-content/:page`
 
-## 9. Admin Dashboard Coverage
+## 8. Admin Dashboard Coverage
 
 The admin dashboard now controls:
 
@@ -251,7 +218,7 @@ The admin dashboard now controls:
 - Settings: load and save general, notification, security, and email settings.
 - Web content: edit public page content, add/remove feature and statistic rows, validate OWASP links, and moderate blog posts.
 
-## 10. Blog Coverage
+## 9. Blog Coverage
 
 Blog currently supports:
 
@@ -267,7 +234,7 @@ Blog currently supports:
 - Admin hide/publish.
 - Admin delete.
 
-## 11. Scanner And Reports
+## 10. Scanner And Reports
 
 Scanner backend checks include:
 
@@ -290,7 +257,7 @@ Reports include:
 - Branded PDF downloads with Threat Hunters styling, logo treatment, metric cards, sections, and footer details.
 - Download/export support from the user console, security awareness resources, and admin reports page.
 
-## 12. Legal And Footer Pages
+## 11. Legal And Footer Pages
 
 Footer links route to professional in-app pages with navigation and footer:
 
@@ -308,7 +275,7 @@ The page implementation is `src/components/SupportPage.jsx` with styling in `src
 
 The admin dashboard shell also includes the shared footer, and admin top navigation no longer shows a separate `Home` item.
 
-## 13. Validation And Quality Controls
+## 12. Validation And Quality Controls
 
 Frontend validation added or verified:
 
@@ -335,7 +302,7 @@ Backend validation includes:
 - Email/password reset requirements.
 - HIBP backend-only access.
 
-## 14. Commands Used For Verification
+## 13. Commands Used For Verification
 
 Frontend:
 
@@ -349,12 +316,6 @@ Backend:
 ```bash
 python -m py_compile Back-end/routes/admin_routes.py
 python -m unittest discover -s Back-end/tests -p "test_*.py"
-```
-
-Mock backend:
-
-```bash
-node --check server/mock-backend.mjs
 ```
 
 Local full stack:
@@ -385,9 +346,9 @@ Final admin smoke verification covered:
 - Footer link routing into the in-app Help Center page with admin nav and shared footer.
 - Branded PDF download verification for admin reports and security awareness resources.
 
-No test data was left in the mock database after the final smoke tests.
+No test data was left in the database after the final smoke tests.
 
-## 15. Deployment Notes
+## 14. Deployment Notes
 
 Vercel frontend config:
 
@@ -403,7 +364,7 @@ For a production backend deployment:
 - Use a managed MongoDB connection string.
 - Keep HIBP API key server-side only.
 
-## 16. Git Hygiene
+## 15. Git Hygiene
 
 Ignored files include:
 
@@ -412,7 +373,7 @@ Ignored files include:
 - `dist`.
 - `.vercel`.
 - `.codex-run`.
-- `server/data`.
+- `server/data` (legacy bootstrap artifacts only; not used in the Atlas runtime path).
 - Python cache folders.
 - Environment files.
 
@@ -421,9 +382,9 @@ Do not commit:
 - Real `.env` values.
 - HIBP API keys.
 - Email passwords.
-- Local mock database data.
+- Legacy bootstrap artifacts that are not part of the Atlas runtime path.
 
-## 17. Current Local Demo Accounts
+## 16. Seeded Validation Accounts
 
 Admin:
 
@@ -437,4 +398,4 @@ Regular user:
 user@threathunters.com / User@12345
 ```
 
-These are for local development/demo only.
+These are for seeded validation only.

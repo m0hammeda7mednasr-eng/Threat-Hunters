@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Chrome, Eye, EyeOff, Github, Lock, Mail } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import "./SignUpForm.css";
@@ -10,6 +10,7 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
   const [success, setSuccess] = useState("");
   const [step, setStep] = useState("register");
   const [pendingEmail, setPendingEmail] = useState("");
+  const otpInputRef = useRef(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -137,6 +138,12 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
     [formData.email, formData.otp, onSwitchToSignIn, pendingEmail, verifyEmail],
   );
 
+  useEffect(() => {
+    if (step === "verify") {
+      otpInputRef.current?.focus();
+    }
+  }, [step]);
+
   return (
     <div className="signup-form-container">
       <div
@@ -169,6 +176,12 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
       <form className="signup-form" onSubmit={step === "verify" ? handleVerify : handleSubmit}>
         {step === "register" ? (
           <>
+        <div className="signup-verification-note" role="note">
+          <strong>Step 1:</strong> create your account.
+          <strong>Step 2:</strong> we send an OTP to your email.
+          <strong>Step 3:</strong> enter the OTP below to verify.
+        </div>
+
         <div className="signup-form-row">
           <label className="signup-field">
             <span>First Name</span>
@@ -304,11 +317,12 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
               <span>OTP Code</span>
               <div className="signup-input-shell signup-input-shell-plain">
                 <input
+                  ref={otpInputRef}
                   autoComplete="one-time-code"
                   maxLength={6}
                   name="otp"
                   onChange={handleChange}
-                  placeholder="Enter the OTP code"
+                  placeholder="Paste the OTP from your email"
                   required
                   inputMode="numeric"
                   type="text"
@@ -344,7 +358,7 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
               }}
               disabled={loading}
             >
-              Resend OTP
+              Send OTP again
             </button>
           </>
         )}

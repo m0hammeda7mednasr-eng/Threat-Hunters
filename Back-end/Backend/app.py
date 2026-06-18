@@ -24,7 +24,30 @@ from routes.user_routes import user_bp
 app = Flask(__name__)
 app.config.from_object(Config)
 
-CORS(app)
+CORS(
+    app,
+    resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}},
+    supports_credentials=True,
+)
+
+
+@app.after_request
+def add_cors_headers(response):
+    origin = request_origin = None
+    try:
+        from flask import request
+
+        request_origin = request.headers.get("Origin")
+    except Exception:
+        request_origin = None
+
+    if request_origin in {"http://localhost:5173", "http://127.0.0.1:5173"}:
+        response.headers["Access-Control-Allow-Origin"] = request_origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    return response
+
 mongo.init_app(app)
 
 app.register_blueprint(auth_bp, url_prefix="/api")

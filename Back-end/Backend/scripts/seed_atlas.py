@@ -15,7 +15,7 @@ from pymongo import MongoClient
 
 PACKAGE_DIR = Path(__file__).resolve().parents[1]
 ROOT_DIR = PACKAGE_DIR.parents[1]
-MOCK_DB_PATH = ROOT_DIR / "server" / "data" / "mock-db.json"
+LEGACY_BOOTSTRAP_PATH = ROOT_DIR / "server" / "data" / "mock-db.json"
 
 sys.path.insert(0, str(PACKAGE_DIR))
 
@@ -32,8 +32,8 @@ def parse_dt(value: str | None):
         return None
 
 
-def load_mock_data():
-    return json.loads(MOCK_DB_PATH.read_text(encoding="utf-8"))
+def load_legacy_bootstrap_data():
+    return json.loads(LEGACY_BOOTSTRAP_PATH.read_text(encoding="utf-8"))
 
 
 def make_user_password(email: str) -> str:
@@ -79,13 +79,13 @@ def normalize_blog_title(title: str) -> str:
     return slug.strip("-") or "post"
 
 
-def build_blogs(mock_posts: list[dict], user_map: dict[str, ObjectId]) -> tuple[list[dict], list[dict], list[dict]]:
+def build_blogs(bootstrap_posts: list[dict], user_map: dict[str, ObjectId]) -> tuple[list[dict], list[dict], list[dict]]:
     blogs = []
     comments = []
     likes = []
     blog_views = []
 
-    for post in mock_posts:
+    for post in bootstrap_posts:
         blog_id = ObjectId()
         author_email = str(post.get("authorEmail") or "").strip().lower()
         author_id = str(user_map.get(author_email, next(iter(user_map.values()))))
@@ -169,7 +169,7 @@ def build_blogs(mock_posts: list[dict], user_map: dict[str, ObjectId]) -> tuple[
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Seed Atlas MongoDB from mock backend data.")
+    parser = argparse.ArgumentParser(description="Seed Atlas MongoDB from legacy bootstrap data.")
     parser.add_argument("--reset", action="store_true", help="Drop target collections before seeding.")
     args = parser.parse_args()
 
@@ -183,11 +183,11 @@ def main():
     db = client.get_default_database()
     client.admin.command("ping")
 
-    mock = load_mock_data()
-    users = [build_user(user) for user in mock.get("users", [])]
+    bootstrap = load_legacy_bootstrap_data()
+    users = [build_user(user) for user in bootstrap.get("users", [])]
     user_map = {user["email"]: user["_id"] for user in users}
 
-    blogs, comments, likes, blog_views = build_blogs(mock.get("posts", []), user_map)
+    blogs, comments, likes, blog_views = build_blogs(bootstrap.get("posts", []), user_map)
 
     if args.reset:
         for collection_name in [
@@ -218,29 +218,29 @@ def main():
     if blog_views:
         db.blog_views.insert_many(blog_views)
 
-    for page, payload in (mock.get("webContent") or {}).items():
+    for page, payload in (bootstrap.get("webContent") or {}).items():
         record = deepcopy(payload)
         record["page"] = page
         db.web_content.update_one({"page": page}, {"$set": record}, upsert=True)
 
     db.admin_config.update_one(
         {"key": "settings"},
-        {"$set": {"key": "settings", "value": deepcopy(mock.get("adminSettings") or {}), "updated_at": datetime.now(timezone.utc)}},
+        {"$set": {"key": "settings", "value": deepcopy(bootstrap.get("adminSettings") or {}), "updated_at": datetime.now(timezone.utc)}},
         upsert=True,
     )
     db.admin_config.update_one(
         {"key": "team"},
-        {"$set": {"key": "team", "value": deepcopy(mock.get("adminTeam") or []), "updated_at": datetime.now(timezone.utc)}},
+        {"$set": {"key": "team", "value": deepcopy(bootstrap.get("adminTeam") or []), "updated_at": datetime.now(timezone.utc)}},
         upsert=True,
     )
     db.admin_config.update_one(
         {"key": "pricing"},
-        {"$set": {"key": "pricing", "value": deepcopy(mock.get("adminPricing") or {}), "updated_at": datetime.now(timezone.utc)}},
+        {"$set": {"key": "pricing", "value": deepcopy(bootstrap.get("adminPricing") or {}), "updated_at": datetime.now(timezone.utc)}},
         upsert=True,
     )
 
-    if mock.get("adminReports"):
-        db.admin_reports.insert_many(deepcopy(mock["adminReports"]))
+    if bootstrap.get("adminReports"):
+        db.admin_reports.insert_many(deepcopy(bootstrap["adminReports"]))
 
     print(
         f"Seeded Atlas database '{db.name}' with "

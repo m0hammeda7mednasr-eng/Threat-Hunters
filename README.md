@@ -13,15 +13,13 @@ Threat Hunters is a full-stack cybersecurity platform for website scanning, brea
 - Admin dashboard for users, reports, team, pricing, settings, and website content editing.
 - Professional footer routes for help, documentation, FAQs, issue reporting, contact support, privacy, terms, responsible disclosure, and data protection.
 - Shared branded PDF generator for admin reports and security awareness resources.
-- Flask backend with MongoDB support.
-- Local mock backend for development when MongoDB is not available.
+- Flask backend with MongoDB Atlas support.
 
 ## Tech Stack
 
 - Frontend: React 19, Vite, JavaScript, CSS modules/files, Lucide React icons.
 - Backend: Flask, Flask-PyMongo, Flask-CORS, PyJWT, Requests, Feedparser.
-- Database: MongoDB for production/backend mode.
-- Local development data: JSON mock database under `server/data/` (ignored by git).
+- Database: MongoDB Atlas.
 - External security API: Have I Been Pwned through backend-only calls.
 
 ## Quick Start
@@ -73,7 +71,7 @@ Create `Back-end/.env` from `Back-end/.env.example` and set these values:
 
 ```env
 SECRET_KEY=change-me
-MONGO_URI=mongodb://localhost:27017/vuln_scanner
+MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/<database>?appName=Cluster0
 JWT_EXPIRATION_HOURS=24
 EMAIL_ADDRESS=your-email@example.com
 EMAIL_PASSWORD=your-email-app-password
@@ -100,7 +98,7 @@ Do not commit real secrets. `.env` is ignored by git.
 
 ## Admin Login
 
-Local demo admin account:
+Seeded admin account:
 
 ```text
 admin@threathunters.com / Admin@12345

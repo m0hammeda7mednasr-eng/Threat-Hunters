@@ -31,53 +31,48 @@ const securityTips = [
   {
     id: 'passwords',
     icon: LockKeyhole,
-    title: 'Use Strong Passwords',
-    description:
-      'Create unique passwords with at least 12 characters including numbers, symbols, and mixed case letters.',
+    title: 'Strengthen Passwords',
+    description: 'Use unique passphrases with 12+ characters and a mix of symbols, numbers, and letter cases.',
   },
   {
     id: 'two-factor',
     icon: KeyRound,
-    title: 'Enable Two-Factor Authentication',
-    description:
-      'Add an extra layer of security by enabling 2FA on all your important accounts.',
+    title: 'Enable Multi-Factor Authentication',
+    description: 'Turn on MFA for accounts that support it to reduce account takeover risk.',
   },
   {
     id: 'phishing',
     icon: Mail,
-    title: 'Beware of Phishing',
-    description: "Don't click suspicious links or download attachments from unknown senders.",
+    title: 'Verify Messages Before Acting',
+    description: 'Treat unexpected links, attachments, and login prompts as suspicious until verified.',
   },
   {
     id: 'network',
     icon: Wifi,
-    title: 'Secure Your Network',
-    description:
-      'Use WPA3 encryption for WiFi and avoid using public networks for sensitive tasks.',
+    title: 'Secure Network Access',
+    description: 'Prefer WPA3, segment sensitive devices, and avoid public Wi-Fi for critical work.',
   },
   {
     id: 'updates',
     icon: Smartphone,
-    title: 'Keep Software Updated',
-    description:
-      'Regularly update your operating system and applications to patch security vulnerabilities.',
+    title: 'Keep Systems Updated',
+    description: 'Apply operating system and application updates promptly to reduce known exposure.',
   },
   {
     id: 'backups',
     icon: ShieldCheck,
-    title: 'Backup Your Data',
-    description:
-      'Create regular backups of important files and store them in multiple secure locations.',
+    title: 'Maintain Backups',
+    description: 'Keep validated backups offline or in protected storage and test recovery regularly.',
   },
 ];
 
 const knowledgeBadges = [
-  { id: 'offensive', icon: Shield, label: 'Offensive Security', tone: 'blue' },
-  { id: 'website', icon: ShieldX, label: 'Protect Your Website', tone: 'red' },
-  { id: 'behavior', icon: Fingerprint, label: 'Understands attacker behavior', tone: 'violet' },
-  { id: 'actionable', icon: TriangleAlert, label: 'Actionable Security', tone: 'red' },
-  { id: 'web', icon: Bug, label: 'Web Exploit Analysis', tone: 'blue' },
-  { id: 'agent', icon: Bot, label: 'AI Security Agent', tone: 'blue' },
+  { id: 'offensive', icon: Shield, label: 'Threat Analysis', tone: 'blue' },
+  { id: 'website', icon: ShieldX, label: 'Web Protection', tone: 'red' },
+  { id: 'behavior', icon: Fingerprint, label: 'Attacker Patterns', tone: 'violet' },
+  { id: 'actionable', icon: TriangleAlert, label: 'Prioritized Actions', tone: 'red' },
+  { id: 'web', icon: Bug, label: 'Web Risk Review', tone: 'blue' },
+  { id: 'agent', icon: Bot, label: 'Security Intelligence', tone: 'blue' },
 ];
 
 const cyberThreats = [
@@ -87,13 +82,12 @@ const cyberThreats = [
     title: 'Phishing Attacks',
     badge: 'High',
     tone: 'high',
-    description:
-      'Fraudulent emails or messages designed to steal your credentials or personal information.',
+    description: 'Messages that impersonate trusted senders to steal credentials or trigger unsafe actions.',
     howToAvoid: [
-      'Verify sender email addresses carefully',
-      "Don't click on suspicious links",
-      'Check for spelling and grammar errors',
-      'Contact the company directly if unsure',
+      'Verify the sender through a known channel',
+      'Inspect URLs before clicking',
+      'Watch for urgency and pressure tactics',
+      'Escalate uncertain messages to security',
     ],
   },
   {
@@ -102,13 +96,12 @@ const cyberThreats = [
     title: 'Malware & Ransomware',
     badge: 'Critical',
     tone: 'critical',
-    description:
-      'Malicious software that can damage your system or encrypt your files for ransom.',
+    description: 'Malicious code that can disrupt systems, steal data, or encrypt files for ransom.',
     howToAvoid: [
-      'Install reputable antivirus software',
-      "Don't download from untrusted sources",
-      'Keep your system updated',
-      'Backup important files regularly',
+      'Use reputable endpoint protection',
+      'Avoid untrusted downloads and extensions',
+      'Patch systems and browsers quickly',
+      'Keep offline recovery copies available',
     ],
   },
   {
@@ -117,13 +110,12 @@ const cyberThreats = [
     title: 'Social Engineering',
     badge: 'Medium',
     tone: 'medium',
-    description:
-      'Manipulating people into revealing confidential information or performing actions.',
+    description: 'Psychological manipulation used to bypass controls and extract sensitive information.',
     howToAvoid: [
-      'Be skeptical of unexpected requests',
-      'Verify identity before sharing info',
-      "Don't share passwords or codes",
-      'Trust your instincts',
+      'Validate unusual requests independently',
+      'Confirm identity before sharing information',
+      'Never disclose passwords or OTPs',
+      'Escalate anything that feels off',
     ],
   },
   {
@@ -132,12 +124,12 @@ const cyberThreats = [
     title: 'Weak Passwords',
     badge: 'Low',
     tone: 'low',
-    description: 'Using simple or reused passwords makes your accounts vulnerable to attacks.',
+    description: 'Simple or reused passwords make account compromise much easier.',
     howToAvoid: [
-      'Use password managers',
-      'Create unique passwords per account',
-      'Use passphrases instead of passwords',
-      'Enable multi-factor authentication',
+      'Use a password manager',
+      'Create unique credentials per account',
+      'Prefer long passphrases',
+      'Enable MFA wherever possible',
     ],
   },
 ];
@@ -148,8 +140,8 @@ const learningResources = [
     icon: FileText,
     type: 'Article',
     topic: 'Basics',
-    title: 'Complete Guide to Password Security',
-    description: 'Everything you need to know about creating and managing secure passwords.',
+    title: 'Password Security Guide',
+    description: 'Best practices for creating, storing, and rotating high-value credentials.',
     duration: '8 min read',
   },
   {
@@ -157,8 +149,8 @@ const learningResources = [
     icon: Video,
     type: 'Video',
     topic: 'Threats',
-    title: 'Understanding Phishing Attacks',
-    description: 'Learn to identify and avoid phishing attempts with real examples.',
+    title: 'Phishing Detection Guide',
+    description: 'Recognize common lures and respond safely to suspicious messages.',
     duration: '12 min',
   },
   {
@@ -166,8 +158,8 @@ const learningResources = [
     icon: BookOpen,
     type: 'Guide',
     topic: 'Basics',
-    title: 'Setting Up Two-Factor Authentication',
-    description: 'Step-by-step guide to enable 2FA on popular platforms.',
+    title: 'MFA Setup Guide',
+    description: 'Enable multi-factor authentication across the services you rely on most.',
     duration: '5 min read',
   },
   {
@@ -175,8 +167,8 @@ const learningResources = [
     icon: FileText,
     type: 'Article',
     topic: 'Threats',
-    title: 'Ransomware: Prevention and Recovery',
-    description: 'How to protect against ransomware and what to do if infected.',
+    title: 'Ransomware Response Guide',
+    description: 'Reduce ransomware risk and prepare a practical recovery path.',
     duration: '10 min read',
   },
   {
@@ -184,8 +176,8 @@ const learningResources = [
     icon: Video,
     type: 'Video',
     topic: 'Network',
-    title: 'Secure Your Home Network',
-    description: 'Best practices for securing your WiFi and home devices.',
+    title: 'Network Hardening Guide',
+    description: 'Practical steps for securing Wi-Fi and connected devices.',
     duration: '15 min',
   },
   {
@@ -193,8 +185,8 @@ const learningResources = [
     icon: BookOpen,
     type: 'Guide',
     topic: 'Threats',
-    title: 'Social Engineering Tactics',
-    description: 'Recognize and defend against social engineering attacks.',
+    title: 'Social Engineering Guide',
+    description: 'How to identify manipulation and protect sensitive processes.',
     duration: '7 min read',
   },
 ];
@@ -445,7 +437,7 @@ const SecurityAwarenessPage = ({
           </div>
           <h1 className="awareness-hero__title">Security Awareness</h1>
           <p className="awareness-hero__subtitle">
-            Learn how to protect yourself and your organization from cyber threats
+            Practical guidance to strengthen day-to-day security habits.
           </p>
           <label className="awareness-hero__search" aria-label="Search for security topics">
             <Search strokeWidth={2} />
@@ -463,10 +455,10 @@ const SecurityAwarenessPage = ({
         <div className="awareness-shell">
           <header className="awareness-live__header">
             <div>
-              <p className="awareness-live__eyebrow">Live Security Intelligence</p>
-              <h2 className="awareness-section__title">API-backed threat feed</h2>
+              <p className="awareness-live__eyebrow">Live Threat Intelligence</p>
+              <h2 className="awareness-section__title">Backend-backed intelligence feed</h2>
               <p className="awareness-section__subtitle">
-                Pulled live from NVD, CISA KEV, and security news endpoints.
+                Aggregated from NVD, CISA KEV, and trusted security news sources.
               </p>
             </div>
 
@@ -485,7 +477,7 @@ const SecurityAwarenessPage = ({
           <div className="awareness-live-grid">
             <article className="awareness-live-card">
               <div className="awareness-live-card__header">
-                <span>Latest CVEs</span>
+                <span>Recent CVEs</span>
                 <span className="awareness-live-card__count">{liveFeed.latestCves.length}</span>
               </div>
               <ul className="awareness-live-card__list">
@@ -569,9 +561,9 @@ const SecurityAwarenessPage = ({
       <section className="awareness-section awareness-section--tips">
         <div className="awareness-shell">
           <header className="awareness-section__header">
-            <h2 className="awareness-section__title">Essential Security Tips</h2>
+            <h2 className="awareness-section__title">Security Practices</h2>
             <p className="awareness-section__subtitle">
-              Simple steps to improve your security posture
+              Practical actions to reduce common risk.
             </p>
           </header>
 
@@ -637,9 +629,9 @@ const SecurityAwarenessPage = ({
       <section className="awareness-section awareness-section--threats">
         <div className="awareness-shell">
           <header className="awareness-section__header">
-            <h2 className="awareness-section__title">Common Cyber Threats</h2>
+            <h2 className="awareness-section__title">Common Threats</h2>
             <p className="awareness-section__subtitle">
-              Learn about the most common threats and how to protect yourself
+              Review the threats that matter most and how to mitigate them.
             </p>
           </header>
 
@@ -685,7 +677,7 @@ const SecurityAwarenessPage = ({
           <header className="awareness-section__header">
             <h2 className="awareness-section__title">Learning Resources</h2>
             <p className="awareness-section__subtitle">
-              Guides, articles, and videos to enhance your security knowledge
+              Curated guidance for awareness, response, and prevention.
             </p>
           </header>
 
@@ -740,7 +732,7 @@ const SecurityAwarenessPage = ({
                 <Download strokeWidth={1.9} />
                 <div>
                   <h3>Downloadable Resources</h3>
-                  <p>Free templates and guides</p>
+                  <p>Downloadable checklists and team-ready templates.</p>
                 </div>
               </div>
             </header>

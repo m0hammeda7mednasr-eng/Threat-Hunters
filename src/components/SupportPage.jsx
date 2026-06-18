@@ -38,8 +38,8 @@ const pageContent = {
     accent: '#00b8d9',
     cards: [
       { title: 'Frontend', body: 'React, Vite, hash routing, theme context, and shared API client.' },
-      { title: 'Backend', body: 'Flask, MongoDB, JWT authentication, scanner routes, blog routes, and admin APIs.' },
-      { title: 'Local run', body: 'Use npm run dev to start the Vite frontend and local mock backend together.' },
+      { title: 'Backend', body: 'Flask, MongoDB Atlas, JWT authentication, scanner routes, blog routes, and admin APIs.' },
+      { title: 'Local run', body: 'Use npm run dev to start the Vite frontend and Flask backend together.' },
     ],
     steps: ['Read PROJECT_HANDOFF.md for the full architecture.', 'Keep secrets in .env only.', 'Point VITE_API_BASE_URL to the deployed backend for production.'],
     ctaHref: 'https://github.com/m0hammeda7mednasr-eng/Threat-Hunters#readme',
@@ -97,7 +97,7 @@ const pageContent = {
     cards: [
       { title: 'Data minimization', body: 'We only use submitted data to provide scans, reports, support, and account features.' },
       { title: 'Backend secrets', body: 'API keys and email credentials must stay server-side and out of client code.' },
-      { title: 'Retention', body: 'Local mock data is development-only; production retention should follow your deployment policy.' },
+      { title: 'Retention', body: 'Production retention should follow your deployment policy and access controls.' },
     ],
     steps: ['Keep secrets out of git.', 'Delete test accounts when no longer needed.', 'Use responsible disclosure for sensitive findings.'],
   },

@@ -58,7 +58,7 @@ const tabContent = {
       },
       {
         title: 'No common pattern detected',
-        copy: 'The simulated review did not flag dates, keyboard walks, or simple suffix habits.',
+        copy: 'The live review did not flag dates, keyboard walks, or simple suffix habits.',
         tone: 'safe',
       },
     ],
@@ -74,7 +74,7 @@ const tabContent = {
     label: 'Email Checker',
     shortLabel: 'Email',
     icon: Mail,
-    eyebrow: 'Exposure preview',
+    eyebrow: 'Exposure review',
     inputLabel: 'Enter your email',
     inputType: 'email',
     placeholder: 'you@example.com',
@@ -88,17 +88,17 @@ const tabContent = {
     heroStats: [
       { label: 'Typical run', value: '< 2 sec' },
       { label: 'Signal lanes', value: '3 sources' },
-      { label: 'API calls', value: '0 live' },
+      { label: 'API calls', value: 'Live backend' },
     ],
     summary: [
-      { label: 'Exposure', value: '0 hits', note: 'Demo result', tone: 'safe' },
+      { label: 'Exposure', value: '0 hits', note: 'Live result', tone: 'safe' },
       { label: 'Domain health', value: 'Healthy', note: 'Valid pattern', tone: 'safe' },
       { label: 'Alias hygiene', value: 'Stable', note: 'No obvious issue', tone: 'info' },
     ],
     insights: [
       {
         title: 'No breach-style signal surfaced',
-        copy: 'The simulated lookup returned a clean result set for the sample address.',
+        copy: 'The live lookup returned a clean result set for the sample address.',
         tone: 'safe',
       },
       {
@@ -130,8 +130,8 @@ const workflowCards = [
   },
   {
     icon: ShieldCheck,
-    title: 'Safe product demos',
-    copy: 'Everything here stays light and client-side, which makes it better for showcasing the UX without real data.',
+    title: 'Safe product checks',
+    copy: 'Everything here is backend-backed and kept focused, which makes it suitable for real checks without noisy UI behavior.',
   },
   {
     icon: Gauge,
@@ -161,7 +161,7 @@ const roadmapCards = [
 const statItems = [
   { value: '10+', label: 'New tools planned' },
   { value: '24/7', label: 'Fast utility access' },
-  { value: '100%', label: 'Demo-safe previews' },
+  { value: '100%', label: 'Live backend checks' },
 ];
 
 const scanStatusMeta = {
@@ -412,7 +412,7 @@ const MoreToolsPage = ({
     }
   }, []);
 
-  const resetSimulation = useCallback(() => {
+  const resetScanState = useCallback(() => {
     if (checkTimeoutRef.current) {
       clearTimeout(checkTimeoutRef.current);
       checkTimeoutRef.current = null;
@@ -427,13 +427,13 @@ const MoreToolsPage = ({
     const validationError = validateToolInput(activeTab, currentValue);
 
     if (validationError) {
-      resetSimulation();
+      resetScanState();
       setScanError(validationError);
       setScanState('error');
       return;
     }
 
-    resetSimulation();
+    resetScanState();
     setScanState('checking');
 
     try {
@@ -451,14 +451,14 @@ const MoreToolsPage = ({
     } finally {
       checkTimeoutRef.current = null;
     }
-  }, [activeTab, currentValue, resetSimulation]);
+  }, [activeTab, currentValue, resetScanState]);
 
   const handleTabChange = useCallback(
     (nextTab) => {
       setActiveTab(nextTab);
-      resetSimulation();
+      resetScanState();
     },
-    [resetSimulation],
+    [resetScanState],
   );
 
   const handleScan = async () => {
@@ -466,7 +466,7 @@ const MoreToolsPage = ({
   };
 
   const handleInputChange = (nextValue) => {
-    resetSimulation();
+    resetScanState();
 
     if (activeTab === 'email') {
       setEmail(nextValue);
@@ -477,7 +477,7 @@ const MoreToolsPage = ({
   };
 
   const handleReset = useCallback(() => {
-    resetSimulation();
+    resetScanState();
 
     if (activeTab === 'email') {
       setEmail('');
@@ -485,7 +485,7 @@ const MoreToolsPage = ({
     }
 
     setPassword('');
-  }, [activeTab, resetSimulation]);
+  }, [activeTab, resetScanState]);
 
   return (
     <div className="more-tools-page">
@@ -681,7 +681,7 @@ const MoreToolsPage = ({
                       <span className="more-tools-progress-mark" aria-hidden="true" />
                       <div>
                         <strong>{item}</strong>
-                        <span>Analyzing simulated security signals for this stage.</span>
+                        <span>Analyzing backend-backed security signals for this stage.</span>
                       </div>
                     </article>
                   ))}

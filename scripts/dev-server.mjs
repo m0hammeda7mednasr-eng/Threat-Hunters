@@ -1,6 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import net from 'node:net';
 import path from 'node:path';
 
 const root = path.resolve(process.cwd());
@@ -64,60 +63,21 @@ function start(command, args, label) {
   return child;
 }
 
-function parseLocalMongoEndpoint(uri) {
-  const match = String(uri || '').match(/^mongodb(?:\+srv)?:\/\/(?:[^@/]+@)?([^/:/?]+)(?::(\d+))?/i);
-  if (!match) {
-    return null;
-  }
-
-  return {
-    host: match[1],
-    port: Number(match[2] || 27017),
-  };
-}
-
-async function canReachTcpHost(host, port, timeoutMs = 800) {
-  return await new Promise((resolve) => {
-    const socket = net.createConnection({ host, port });
-    const done = (result) => {
-      socket.removeAllListeners();
-      socket.destroy();
-      resolve(result);
-    };
-
-    socket.setTimeout(timeoutMs);
-    socket.on('connect', () => done(true));
-    socket.on('timeout', () => done(false));
-    socket.on('error', () => done(false));
-  });
-}
-
-async function canRunPythonBackend() {
-  if (!process.env.MONGO_URI || !process.env.SECRET_KEY) {
-    return false;
-  }
-
+function canRunPythonBackend() {
   const pythonCheck = spawnSync('python', ['--version'], {
     cwd: root,
     stdio: 'ignore',
     shell: false,
   });
 
-  if (pythonCheck.status !== 0) {
-    return false;
-  }
-
-  const localMongo = parseLocalMongoEndpoint(process.env.MONGO_URI);
-  if (localMongo) {
-    return await canReachTcpHost(localMongo.host, localMongo.port);
-  }
-
-  return true;
+  return pythonCheck.status === 0 && Boolean(process.env.MONGO_URI) && Boolean(process.env.SECRET_KEY);
 }
 
-const backend = (await canRunPythonBackend())
-  ? start('python', ['Back-end/Backend/app.py'], 'backend')
-  : start(process.execPath, ['server/mock-backend.mjs'], 'backend');
+if (!canRunPythonBackend()) {
+  throw new Error('Python backend requires MONGO_URI and SECRET_KEY to be set.');
+}
+
+const backend = start('python', ['Back-end/Backend/app.py'], 'backend');
 const frontend = start(process.execPath, ['node_modules/vite/bin/vite.js'], 'vite');
 
 const shutdown = () => {
