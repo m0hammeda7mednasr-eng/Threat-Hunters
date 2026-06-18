@@ -116,7 +116,7 @@ async function canRunPythonBackend() {
 }
 
 const backend = (await canRunPythonBackend())
-  ? start('python', ['Back-end/app.py'], 'backend')
+  ? start('python', ['Back-end/Backend/app.py'], 'backend')
   : start(process.execPath, ['server/mock-backend.mjs'], 'backend');
 const frontend = start(process.execPath, ['node_modules/vite/bin/vite.js'], 'vite');
 
