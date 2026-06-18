@@ -544,6 +544,7 @@ const BlogPage = ({
     try {
       await blogAPI.toggleLike(postId);
       await loadPosts(postId);
+      await loadPostDetail(postId);
     } catch (err) {
       setError(err.message || "Unable to update like count.");
     } finally {
@@ -628,7 +629,10 @@ const BlogPage = ({
     setSubscribeEmail("");
   };
 
-  const currentPost = selectedPost || posts.find((post) => post.id === selectedPostId) || null;
+  const currentPostFromList = posts.find((post) => post.id === selectedPostId) || null;
+  const currentPost = currentPostFromList
+    ? { ...(selectedPost || {}), ...currentPostFromList }
+    : (selectedPost || null);
 
   return (
     <div className="blog-page">
