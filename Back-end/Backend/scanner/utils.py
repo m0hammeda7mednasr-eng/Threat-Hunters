@@ -531,6 +531,7 @@ def _scan_quality_metrics(scan_data: dict, telemetry: dict, all_findings: list[d
     planned_modules = sum(1 for enabled in effective_modules.values() if enabled) or len(modules) or 1
     executed_modules = sum(1 for item in modules.values() if isinstance(item, dict) and item.get("status") == "ran")
     skipped_modules = sum(1 for item in modules.values() if isinstance(item, dict) and item.get("status") == "skipped")
+    not_run_modules = sum(1 for item in modules.values() if isinstance(item, dict) and item.get("status") == "not_run")
     failed_modules = sum(1 for item in modules.values() if isinstance(item, dict) and item.get("status") in {"failed", "timed_out"})
     module_coverage = max(0, min(100, int(round((executed_modules / planned_modules) * 100))))
 
@@ -557,6 +558,7 @@ def _scan_quality_metrics(scan_data: dict, telemetry: dict, all_findings: list[d
         "planned_modules": planned_modules,
         "executed_modules": executed_modules,
         "skipped_modules": skipped_modules,
+        "not_run_modules": not_run_modules,
         "failed_modules": failed_modules,
         "scan_coverage": module_coverage,
         "scan_confidence": scan_confidence,
@@ -632,7 +634,7 @@ def _status_for_module_check(module_status: str, finding_count: int) -> str:
         return "Warning" if finding_count else "Passed"
     if normalized in {"failed", "timed_out"}:
         return "Failed"
-    if normalized == "skipped":
+    if normalized in {"skipped", "not_run"}:
         return "Not Run"
     return "Info"
 
@@ -733,7 +735,7 @@ def _module_check_detail(module_name: str, module_data: dict, telemetry: dict, f
                 f"candidates={form_data.get('candidates_count', 0)}; "
                 f"errors={form_data.get('errors_count', 0)}"
             )
-    elif module_data.get("status") == "skipped":
+    elif module_data.get("status") in {"skipped", "not_run"}:
         evidence = f"not_run_reason={module_data.get('message') or 'disabled_or_unavailable'}"
     return message, evidence
 
@@ -764,8 +766,10 @@ def _build_report_checks(
         })
 
     module_labels = {
+        "subdomain": "Subdomain enumeration",
         "security_headers": "Security header audit",
         "extraction": "Endpoint and form extraction",
+        "js_secrets": "JavaScript secret analysis",
         "targeted": "Targeted vulnerability validation",
         "forms": "Form payload validation",
         "sensitive_files": "Sensitive file checks",
@@ -775,6 +779,10 @@ def _build_report_checks(
         "crlfuzz": "CRLF checks",
         "websocket": "WebSocket checks",
         "archive_cdx": "Archive URL collection",
+        "osint": "OSINT collection",
+        "screenshot": "Screenshot capture",
+        "s3scanner": "S3 bucket checks",
+        "apk_recon": "APK reconnaissance",
     }
     finding_modules = {}
     for finding in all_findings:
@@ -783,6 +791,8 @@ def _build_report_checks(
         module_name = str(finding.get("module_name") or finding.get("scanner_name") or "").lower()
         if module_name == "targeted_vulns":
             module_name = "targeted"
+        if module_name == "js_checks":
+            module_name = "js_secrets"
         finding_modules[module_name] = finding_modules.get(module_name, 0) + 1
 
     modules = telemetry.get("modules", {}) if isinstance(telemetry, dict) else {}
@@ -1616,6 +1626,7 @@ def build_report(domain: str, subdomains: list, alive_hosts: list, scan_data: di
         "modules_planned": scan_quality["planned_modules"],
         "modules_executed": scan_quality["executed_modules"],
         "modules_skipped": scan_quality["skipped_modules"],
+        "modules_not_run": scan_quality["not_run_modules"],
         "modules_failed": scan_quality["failed_modules"],
         "checks_run": sum(1 for check in checks if str(check.get("status") or "").lower() not in {"skipped", "not run"}),
         "severity_counts": _severity_counts(report_findings),

@@ -77,65 +77,25 @@ const DASHBOARD_SCAN_TYPES = [
   { key: 'deep', label: 'Deep Scan' },
 ];
 
-const ADVANCED_SCAN_MODE_CARDS = [
-  {
-    key: 'quick',
-    title: 'Quick Scan Settings',
-    description: 'Fast overview scanning. Lightweight and safe. Ideal for quick checks.',
-    icon: Zap,
-  },
-  {
-    key: 'deep',
-    title: 'Deep Scan Settings',
-    description: 'Full vulnerability scanning with advanced tools. Slower but more accurate.',
-    icon: Shield,
-  },
+const ADVANCED_SCAN_MODULES = [
+  { key: 'subdomain', label: 'subdomain' },
+  { key: 'ports', label: 'ports' },
+  { key: 'fuzz', label: 'fuzz' },
+  { key: 'extraction', label: 'extraction' },
+  { key: 'js_secrets', label: 'js_secrets' },
+  { key: 'targeted', label: 'targeted' },
+  { key: 'vulns', label: 'vulns' },
+  { key: 'osint', label: 'osint' },
+  { key: 'screenshot', label: 'screenshot' },
+  { key: 's3scanner', label: 's3scanner' },
+  { key: 'crlfuzz', label: 'crlfuzz' },
+  { key: 'apk_recon', label: 'apk_recon' },
 ];
 
-const ADVANCED_QUICK_BASIC_OPTIONS = [
-  { key: 'qBasicPort', label: 'Basic Port Scan (Top 100 ports)', icon: Wifi },
-  { key: 'qFingerprint', label: 'Technology Fingerprinting (WhatWeb basic)', icon: Sparkles },
-  { key: 'qServerInfo', label: 'Detect Web Server Information', icon: Globe },
-  { key: 'qHeaders', label: 'Check Security Headers', icon: Shield },
-  { key: 'qLightDirectory', label: 'Light Directory Scan (Common paths only)', icon: FileText },
-];
-
-const ADVANCED_DEEP_PORT_OPTIONS = [
-  { key: 'dFullPort', label: 'Full Port Scan (1-65535)', icon: Wifi },
-  { key: 'dAggressiveNmap', label: 'Aggressive Nmap Scan (Version detection + OS detect)', icon: Activity },
-  { key: 'dNseScripts', label: 'Run NSE Vulnerability Scripts', icon: Settings },
-];
-
-const ADVANCED_DEEP_WEB_OPTIONS = [
-  { key: 'dNikto', label: 'Nikto Full Scan', icon: Globe },
-  { key: 'dSqlMap', label: 'SQL Injection Testing (SQLmap)', icon: AlertTriangle },
-  { key: 'dXsstrike', label: 'XSS Testing (XSStrike)', icon: Zap },
-  { key: 'dDirsearch', label: 'Full Directory Enumeration (Dirsearch full wordlist)', icon: FileText },
-  { key: 'dOutdated', label: 'Detect Outdated Components (CVE Lookup)', icon: Bell },
-];
-
-const ADVANCED_DEEP_RISK_OPTIONS = [
-  { key: 'dBruteforce', label: 'Login Brute-force (Hydra)', icon: User },
-  { key: 'dSslTls', label: 'Full SSL/TLS Inspection', icon: Shield },
-];
-
-const ADVANCED_SCAN_DEFAULTS = {
-  qBasicPort: true,
-  qFingerprint: true,
-  qServerInfo: true,
-  qHeaders: true,
-  qLightDirectory: false,
-  dFullPort: true,
-  dAggressiveNmap: true,
-  dNseScripts: true,
-  dNikto: true,
-  dSqlMap: true,
-  dXsstrike: true,
-  dDirsearch: false,
-  dOutdated: true,
-  dBruteforce: false,
-  dSslTls: true,
-};
+const ADVANCED_SCAN_DEFAULTS = ADVANCED_SCAN_MODULES.reduce(
+  (defaults, moduleItem) => ({ ...defaults, [moduleItem.key]: true }),
+  {},
+);
 
 const SECURITY_AWARENESS_ITEMS = [
   {
@@ -650,12 +610,13 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   const [scanError, setScanError] = useState('');
   const [scanReports, setScanReports] = useState(loadStoredScanReports);
   const [isAdvancedScanOpen, setIsAdvancedScanOpen] = useState(false);
-  const [advancedScanMode, setAdvancedScanMode] = useState('quick');
-  const [advancedFastMode, setAdvancedFastMode] = useState(true);
+  const [advancedScanMode, setAdvancedScanMode] = useState('deep');
+  const [advancedCookieHeader, setAdvancedCookieHeader] = useState('');
+  const [advancedPermissionConfirmed, setAdvancedPermissionConfirmed] = useState(true);
   const [advancedScanChecks, setAdvancedScanChecks] = useState(() => ({ ...ADVANCED_SCAN_DEFAULTS }));
   const [dashboardScanTypes, setDashboardScanTypes] = useState({
-    quick: true,
-    deep: false,
+    quick: false,
+    deep: true,
   });
   const [reportSearchQuery, setReportSearchQuery] = useState('');
   const [profileTwoFactorEnabled, setProfileTwoFactorEnabled] = useState(false);
@@ -817,6 +778,8 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
       const result = await scannerAPI.scanWebsite({
         target,
         scan_mode: scanModeForBackend,
+        cookie_header: advancedCookieHeader.trim() || undefined,
+        confirm_permission: advancedPermissionConfirmed,
         modules: {
           dashboard: enabledScanTypes,
           advanced: advancedScanChecks,
@@ -840,10 +803,30 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
       quick: key === 'quick',
       deep: key === 'deep',
     });
+    setAdvancedScanMode(key === 'deep' ? 'deep' : 'quick');
+  };
+
+  const changeAdvancedScanMode = (mode) => {
+    const normalizedMode = mode === 'deep' ? 'deep' : 'quick';
+    setAdvancedScanMode(normalizedMode);
+    setDashboardScanTypes({
+      quick: normalizedMode === 'quick',
+      deep: normalizedMode === 'deep',
+    });
   };
 
   const toggleAdvancedScanCheck = (key) => {
     setAdvancedScanChecks((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const applyAdvancedDemoPreset = () => {
+    setScanUrl('https://www.crmpixels.app/');
+    setAdvancedCookieHeader('security=low; PHPSESSID=demo');
+    setAdvancedPermissionConfirmed(true);
+    setAdvancedScanMode('deep');
+    setDashboardScanTypes({ quick: false, deep: true });
+    setAdvancedScanChecks({ ...ADVANCED_SCAN_DEFAULTS });
+    setScanError('');
   };
 
   const toggleNotification = (key) => {
@@ -1021,12 +1004,9 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
         }
       }}
     >
-      <section className="db-advanced-modal" role="dialog" aria-modal="true" aria-labelledby="advanced-scan-title">
-        <div className="db-advanced-head">
-          <div>
-            <h2 id="advanced-scan-title">Advanced Scan Settings</h2>
-            <p>Customize your scanning behavior based on depth and performance.</p>
-          </div>
+      <section className="db-advanced-modal db-dragon-modal" role="dialog" aria-modal="true" aria-labelledby="advanced-scan-title">
+        <div className="db-dragon-head">
+          <h2 id="advanced-scan-title">ReconTool Dragon</h2>
           <button
             type="button"
             className="db-advanced-close"
@@ -1037,170 +1017,79 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           </button>
         </div>
 
-        <div className={`db-advanced-body ${advancedScanMode === 'quick' ? 'is-quick' : 'is-deep'}`}>
-          <div className="db-advanced-mode-grid">
-            {ADVANCED_SCAN_MODE_CARDS.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={`db-advanced-mode-card ${advancedScanMode === item.key ? 'active' : ''}`}
-                onClick={() => setAdvancedScanMode(item.key)}
-              >
-                <span className="db-advanced-mode-icon">
-                  <item.icon size={13} />
-                </span>
-                <span className="db-advanced-mode-copy">
-                  <strong>{item.title}</strong>
-                  <small>{item.description}</small>
-                </span>
-              </button>
-            ))}
+        <div className="db-dragon-body">
+          <label className="db-dragon-field db-dragon-field-full">
+            <span>Target</span>
+            <input
+              type="url"
+              value={scanUrl}
+              placeholder="https://www.crmpixels.app/"
+              onChange={(event) => {
+                setScanUrl(event.target.value);
+                setScanError('');
+              }}
+            />
+          </label>
+
+          <div className="db-dragon-field-grid">
+            <label className="db-dragon-field">
+              <span>Profile</span>
+              <select value={advancedScanMode} onChange={(event) => changeAdvancedScanMode(event.target.value)}>
+                <option value="quick">Quick</option>
+                <option value="deep">Deep</option>
+              </select>
+            </label>
+
+            <label className="db-dragon-field">
+              <span>Cookie Header</span>
+              <input
+                type="text"
+                value={advancedCookieHeader}
+                placeholder="security=low; PHPSESSID=..."
+                onChange={(event) => setAdvancedCookieHeader(event.target.value)}
+              />
+            </label>
           </div>
 
-          {advancedScanMode === 'quick' ? (
-            <>
-              <article className="db-advanced-card">
-                <div className="db-advanced-card-head">
-                  <Globe size={13} />
-                  <h3>Basic Scan Options</h3>
-                </div>
-                <div className="db-advanced-check-list">
-                  {ADVANCED_QUICK_BASIC_OPTIONS.map((option) => (
-                    <label key={option.key} className="db-advanced-check">
-                      <input
-                        type="checkbox"
-                        checked={advancedScanChecks[option.key]}
-                        onChange={() => toggleAdvancedScanCheck(option.key)}
-                      />
-                      <span className="db-advanced-checkmark" />
-                      <span className="db-advanced-check-label">
-                        <option.icon size={11} />
-                        <span>{option.label}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </article>
+          <label className="db-dragon-permission">
+            <input
+              type="checkbox"
+              checked={advancedPermissionConfirmed}
+              onChange={() => setAdvancedPermissionConfirmed((current) => !current)}
+            />
+            <span>I have permission to scan this public target</span>
+          </label>
 
-              <article className="db-advanced-card">
-                <div className="db-advanced-card-head">
-                  <Zap size={13} />
-                  <h3>Performance</h3>
-                </div>
-                <div className="db-advanced-switch-row">
-                  <div>
-                    <strong>Enable Fast Mode</strong>
-                    <p>Skip delays and heavy scripts</p>
-                  </div>
-                  <label className="db-advanced-switch">
-                    <input
-                      type="checkbox"
-                      checked={advancedFastMode}
-                      onChange={() => setAdvancedFastMode((prev) => !prev)}
-                    />
-                    <span className="db-advanced-switch-track" />
-                  </label>
-                </div>
-              </article>
-
-              <div className="db-advanced-note db-advanced-note-warning">
-                <AlertTriangle size={16} />
-                <div>
-                  <strong>Note:</strong>
-                  <p>Quick Scan provides basic insights only and may miss deeper vulnerabilities.</p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <article className="db-advanced-card db-advanced-card-port">
-                <div className="db-advanced-card-head">
-                  <Wifi size={13} />
-                  <h3>Port &amp; Network Scanning</h3>
-                </div>
-                <div className="db-advanced-check-list">
-                  {ADVANCED_DEEP_PORT_OPTIONS.map((option) => (
-                    <label key={option.key} className="db-advanced-check">
-                      <input
-                        type="checkbox"
-                        checked={advancedScanChecks[option.key]}
-                        onChange={() => toggleAdvancedScanCheck(option.key)}
-                      />
-                      <span className="db-advanced-checkmark" />
-                      <span className="db-advanced-check-label">
-                        <option.icon size={11} />
-                        <span>{option.label}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </article>
-
-              <article className="db-advanced-card db-advanced-card-web">
-                <div className="db-advanced-card-head">
-                  <Globe size={13} />
-                  <h3>Web Vulnerability Testing</h3>
-                </div>
-                <div className="db-advanced-check-list">
-                  {ADVANCED_DEEP_WEB_OPTIONS.map((option) => (
-                    <label key={option.key} className="db-advanced-check">
-                      <input
-                        type="checkbox"
-                        checked={advancedScanChecks[option.key]}
-                        onChange={() => toggleAdvancedScanCheck(option.key)}
-                      />
-                      <span className="db-advanced-checkmark" />
-                      <span className="db-advanced-check-label">
-                        <option.icon size={11} />
-                        <span>{option.label}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </article>
-
-              <article className="db-advanced-card danger">
-                <div className="db-advanced-card-head danger">
-                  <AlertTriangle size={13} />
-                  <h3>Optional Risky Tests</h3>
-                </div>
-                <div className="db-advanced-check-list">
-                  {ADVANCED_DEEP_RISK_OPTIONS.map((option) => (
-                    <label key={option.key} className="db-advanced-check danger">
-                      <input
-                        type="checkbox"
-                        checked={advancedScanChecks[option.key]}
-                        onChange={() => toggleAdvancedScanCheck(option.key)}
-                      />
-                      <span className="db-advanced-checkmark" />
-                      <span className="db-advanced-check-label">
-                        <option.icon size={11} />
-                        <span>{option.label}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-
-                <div className="db-advanced-note db-advanced-note-danger">
-                  <AlertTriangle size={16} />
-                  <div>
-                    <strong>Warning:</strong>
-                    <p>These checks may generate significant traffic. Use with permission.</p>
-                  </div>
-                </div>
-              </article>
-            </>
-          )}
+          <div className="db-dragon-modules-head">MODULES</div>
+          <div className="db-dragon-module-grid">
+            {ADVANCED_SCAN_MODULES.map((moduleItem) => (
+              <label key={moduleItem.key} className="db-dragon-module">
+                <input
+                  type="checkbox"
+                  checked={Boolean(advancedScanChecks[moduleItem.key])}
+                  onChange={() => toggleAdvancedScanCheck(moduleItem.key)}
+                />
+                <span>{moduleItem.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
-        <div className="db-advanced-actions">
-          <button type="button" className="db-mini-btn db-advanced-cancel" onClick={() => setIsAdvancedScanOpen(false)}>
-            Cancel
+        <div className="db-dragon-actions">
+          <button type="button" className="db-primary-btn db-dragon-start" onClick={startScan} disabled={isScanning}>
+            {isScanning ? 'Scanning...' : 'Start Scan'}
           </button>
-          <button type="button" className="db-primary-btn db-advanced-apply" onClick={() => setIsAdvancedScanOpen(false)}>
-            Apply Settings
+          <button type="button" className="db-mini-btn db-dragon-demo" onClick={applyAdvancedDemoPreset}>
+            Demo Preset
           </button>
         </div>
+
+        {scanError && (
+          <div className="db-scan-error db-dragon-error" role="alert">
+            <AlertTriangle size={14} />
+            <span>{scanError}</span>
+          </div>
+        )}
       </section>
     </div>
   );

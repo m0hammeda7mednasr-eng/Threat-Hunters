@@ -268,6 +268,144 @@
   color: var(--text-primary) !important;
 }
 
+.db-dragon-modal {
+  width: min(360px, calc(100vw - 1.25rem)) !important;
+  border-radius: 8px !important;
+  background: #151922 !important;
+  border: 1px solid #2c3444 !important;
+  color: #f5f7fb !important;
+}
+
+.db-dragon-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 0.9rem 0.35rem;
+}
+
+.db-dragon-head h2 {
+  margin: 0;
+  font-size: 1.34rem;
+  line-height: 1.15;
+}
+
+.db-dragon-body {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.45rem 0.9rem 0.75rem;
+}
+
+.db-dragon-field {
+  display: grid;
+  gap: 0.34rem;
+  min-width: 0;
+}
+
+.db-dragon-field span,
+.db-dragon-modules-head {
+  color: #a9b5c8;
+  font-size: 0.79rem;
+  font-weight: 700;
+}
+
+.db-dragon-field input,
+.db-dragon-field select {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  border: 1px solid #2f394b;
+  border-radius: 6px;
+  background: #10141c;
+  color: #f5f7fb;
+  padding: 0 0.82rem;
+  font-size: 0.86rem;
+  outline: none;
+}
+
+.db-dragon-field input:focus,
+.db-dragon-field select:focus {
+  border-color: #58b7ff;
+  box-shadow: 0 0 0 3px rgba(88, 183, 255, 0.16);
+}
+
+.db-dragon-field input::placeholder {
+  color: #657286;
+}
+
+.db-dragon-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.62rem;
+}
+
+.db-dragon-permission,
+.db-dragon-module {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.52rem;
+  min-width: 0;
+  color: #f3f6fb;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.db-dragon-permission input,
+.db-dragon-module input {
+  width: 14px;
+  height: 14px;
+  accent-color: #9ec9ff;
+  flex: 0 0 auto;
+}
+
+.db-dragon-modules-head {
+  margin-top: 0.18rem;
+}
+
+.db-dragon-module-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.92rem 1rem;
+  padding: 0.18rem 0 0.1rem;
+}
+
+.db-dragon-module span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-dragon-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+  padding: 0.34rem 0.9rem 0.9rem;
+}
+
+.db-primary-btn.db-dragon-start,
+.db-mini-btn.db-dragon-demo {
+  min-height: 38px;
+  border-radius: 6px;
+  padding: 0 0.92rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.db-primary-btn.db-dragon-start {
+  background: #4eb6ff !important;
+  color: #07111d !important;
+  box-shadow: none !important;
+}
+
+.db-mini-btn.db-dragon-demo {
+  background: #26313d !important;
+  border: 1px solid #344253 !important;
+  color: #f5f7fb !important;
+}
+
+.db-dragon-error {
+  margin: 0 0.9rem 0.9rem;
+}
+
 .db-scan-error {
   display: inline-flex;
   align-items: center;
