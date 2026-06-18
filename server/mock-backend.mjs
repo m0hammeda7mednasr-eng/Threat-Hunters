@@ -800,6 +800,15 @@ function pricingStats(pricing) {
   };
 }
 
+function parseNonNegativeNumber(value, label) {
+  const parsed = Number(value ?? 0);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return { ok: false, message: `${label} must be zero or a positive number.` };
+  }
+
+  return { ok: true, value: parsed };
+}
+
 function buildAwarenessContent() {
   return {
     tips: [
@@ -2210,6 +2219,67 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (pathname === '/api/admin/users' && req.method === 'POST') {
+    const user = requireUser(db, req);
+    if (!user || !isAdmin(user)) {
+      sendError(401, 'Admin access required.');
+      return;
+    }
+
+    const body = await readBody(req);
+    const firstName = String(body.firstName || '').trim();
+    const lastName = String(body.lastName || '').trim();
+    const email = String(body.email || '').trim().toLowerCase();
+    const password = String(body.password || 'Temp@12345');
+    const scans = parseNonNegativeNumber(body.scans, 'Scans');
+    const vulnerabilities = parseNonNegativeNumber(body.vulnerabilities, 'Vulnerabilities');
+    if (!scans.ok || !vulnerabilities.ok) {
+      sendError(400, scans.message || vulnerabilities.message);
+      return;
+    }
+
+    if (!firstName || !lastName || !email) {
+      sendError(400, 'First name, last name, and email are required.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)) {
+      sendError(400, 'Enter a valid email address.');
+      return;
+    }
+
+    if (db.users.some((item) => item.email.toLowerCase() === email)) {
+      sendError(409, 'Email already exists.');
+      return;
+    }
+
+    if (password.length < 8) {
+      sendError(400, 'Password must be at least 8 characters.');
+      return;
+    }
+
+    const newUser = {
+      id: `u-${crypto.randomUUID()}`,
+      firstName,
+      lastName,
+      email,
+      passwordHash: hashPassword(password),
+      role: ['user', 'analyst', 'manager', 'admin'].includes(body.role) ? body.role : 'user',
+      disabled: body.status === 'disabled',
+      plan: String(body.plan || 'Free').trim() || 'Free',
+      scans: scans.value,
+      vulnerabilities: vulnerabilities.value,
+      phone: String(body.phone || '').trim(),
+      bio: String(body.bio || '').trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    db.users.push(newUser);
+    await saveDb(db);
+    send(201, sanitizeUser(newUser));
+    return;
+  }
+
   const adminUserMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
   if (adminUserMatch) {
     const [, userId] = adminUserMatch;
@@ -2231,11 +2301,37 @@ async function handleRequest(req, res) {
 
     if (req.method === 'PUT') {
       const body = await readBody(req);
+      const nextEmail = body.email !== undefined ? String(body.email).trim().toLowerCase() : target.email;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(nextEmail)) {
+        sendError(400, 'Enter a valid email address.');
+        return;
+      }
+      if (db.users.some((item) => item.id !== target.id && item.email.toLowerCase() === nextEmail)) {
+        sendError(409, 'Email already exists.');
+        return;
+      }
+      target.email = nextEmail;
+      if (body.firstName !== undefined) target.firstName = String(body.firstName).trim() || target.firstName;
+      if (body.lastName !== undefined) target.lastName = String(body.lastName).trim() || target.lastName;
       if (body.role) target.role = String(body.role);
       if (body.status) target.disabled = String(body.status) === 'disabled';
       if (body.plan !== undefined) target.plan = String(body.plan || 'Free');
-      if (body.scans !== undefined) target.scans = Number(body.scans || 0);
-      if (body.vulnerabilities !== undefined) target.vulnerabilities = Number(body.vulnerabilities || 0);
+      if (body.scans !== undefined) {
+        const scans = parseNonNegativeNumber(body.scans, 'Scans');
+        if (!scans.ok) {
+          sendError(400, scans.message);
+          return;
+        }
+        target.scans = scans.value;
+      }
+      if (body.vulnerabilities !== undefined) {
+        const vulnerabilities = parseNonNegativeNumber(body.vulnerabilities, 'Vulnerabilities');
+        if (!vulnerabilities.ok) {
+          sendError(400, vulnerabilities.message);
+          return;
+        }
+        target.vulnerabilities = vulnerabilities.value;
+      }
       if (body.phone !== undefined) target.phone = String(body.phone);
       if (body.bio !== undefined) target.bio = String(body.bio);
       await saveDb(db);
@@ -2323,13 +2419,17 @@ async function handleRequest(req, res) {
       sendError(400, 'Enter a valid admin email address.');
       return;
     }
+    if ((db.adminTeam || []).some((item) => item.email?.toLowerCase() === email)) {
+      sendError(409, 'Admin team email already exists.');
+      return;
+    }
     const member = {
       id: `team-${crypto.randomUUID()}`,
       initials: name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'NA',
       name,
       email,
       status: body.status || 'pending',
-      time: 'Invite pending',
+      time: String(body.time || (body.status === 'active' ? 'Online now' : 'Invite pending')).trim(),
       role: body.role || 'Admin',
       badges: Array.isArray(body.badges) ? body.badges : ['Reports', 'User Support'],
     };
@@ -2355,9 +2455,18 @@ async function handleRequest(req, res) {
 
     if (req.method === 'PUT') {
       const body = await readBody(req);
+      const nextEmail = String(body.email ?? member.email).trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(nextEmail)) {
+        sendError(400, 'Enter a valid admin email address.');
+        return;
+      }
+      if ((db.adminTeam || []).some((item) => item.id !== memberId && item.email?.toLowerCase() === nextEmail)) {
+        sendError(409, 'Admin team email already exists.');
+        return;
+      }
       Object.assign(member, {
         name: String(body.name ?? member.name).trim() || member.name,
-        email: String(body.email ?? member.email).trim().toLowerCase() || member.email,
+        email: nextEmail || member.email,
         role: String(body.role ?? member.role).trim() || member.role,
         status: String(body.status ?? member.status).trim() || member.status,
         time: String(body.time ?? member.time).trim() || member.time,
@@ -2409,12 +2518,17 @@ async function handleRequest(req, res) {
       return;
     }
     const body = await readBody(req);
+    const subscribers = parseNonNegativeNumber(body.subscribers, 'Subscribers');
+    if (!subscribers.ok) {
+      sendError(400, subscribers.message);
+      return;
+    }
     const plan = {
       id: `plan-${crypto.randomUUID()}`,
       name: String(body.name || 'New Plan').trim(),
       price: String(body.price || '$99').trim(),
       description: String(body.description || 'Custom security plan').trim(),
-      subscribers: Number(body.subscribers || 0),
+      subscribers: subscribers.value,
       badge: String(body.badge || '').trim(),
       tone: body.tone || 'is-professional',
       features: Array.isArray(body.features) ? body.features : [
@@ -2431,7 +2545,7 @@ async function handleRequest(req, res) {
   }
 
   const pricingPlanMatch = pathname.match(/^\/api\/admin\/pricing\/plans\/([^/]+)$/);
-  if (pricingPlanMatch && req.method === 'PUT') {
+  if (pricingPlanMatch && (req.method === 'PUT' || req.method === 'DELETE')) {
     const [, planId] = pricingPlanMatch;
     const user = requireUser(db, req);
     if (!user || !isAdmin(user)) {
@@ -2444,16 +2558,32 @@ async function handleRequest(req, res) {
       sendError(404, 'Pricing plan not found.');
       return;
     }
+
+    if (req.method === 'DELETE') {
+      db.adminPricing.plans = (db.adminPricing.plans || []).filter((item) => item.id !== planId);
+      await saveDb(db);
+      send(200, { message: 'Pricing plan deleted.' });
+      return;
+    }
+
     const body = await readBody(req);
     Object.assign(plan, {
       name: String(body.name ?? plan.name).trim() || plan.name,
       price: String(body.price ?? plan.price).trim() || plan.price,
       description: String(body.description ?? plan.description).trim() || plan.description,
-      subscribers: Number(body.subscribers ?? plan.subscribers ?? 0),
+      subscribers: Number(plan.subscribers || 0),
       badge: String(body.badge ?? plan.badge ?? '').trim(),
       tone: String(body.tone ?? plan.tone ?? 'is-professional'),
       features: Array.isArray(body.features) ? body.features : plan.features,
     });
+    if (body.subscribers !== undefined) {
+      const subscribers = parseNonNegativeNumber(body.subscribers, 'Subscribers');
+      if (!subscribers.ok) {
+        sendError(400, subscribers.message);
+        return;
+      }
+      plan.subscribers = subscribers.value;
+    }
     await saveDb(db);
     send(200, plan);
     return;

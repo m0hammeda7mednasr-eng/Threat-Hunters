@@ -103,6 +103,43 @@ const transactions = [
   { customer: 'Nour Salem', plan: 'Enterprise', amount: '$199', date: 'Jun 29, 2025', status: 'pending' },
 ];
 
+const emptyPlanForm = {
+  name: '',
+  price: '$99',
+  description: '',
+  subscribers: '0',
+  badge: '',
+  tone: 'is-professional',
+  featuresText: 'Security scanning | yes\nPDF reports | yes\nPriority support | no',
+};
+
+const featuresToText = (features = []) => features
+  .map((feature) => `${feature.label || ''} | ${feature.included ? 'yes' : 'no'}`)
+  .join('\n');
+
+const planToForm = (plan) => ({
+  name: plan.name || '',
+  price: plan.price || '$0',
+  description: plan.description || '',
+  subscribers: String(plan.subscribers ?? 0),
+  badge: plan.badge || '',
+  tone: plan.tone || getPlanTone(plan.name),
+  featuresText: featuresToText(plan.features || []),
+});
+
+const parseFeatures = (value) => String(value || '')
+  .split('\n')
+  .map((line) => line.trim())
+  .filter(Boolean)
+  .map((line) => {
+    const [labelPart, includedPart = 'yes'] = line.split('|').map((part) => part.trim());
+    return {
+      label: labelPart,
+      included: !['no', 'false', '0', 'disabled'].includes(includedPart.toLowerCase()),
+    };
+  })
+  .filter((feature) => feature.label);
+
 function getPlanTone(plan) {
   if (plan === 'Enterprise') {
     return 'is-enterprise';
@@ -135,6 +172,10 @@ function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' 
   const [transactionItems, setTransactionItems] = useState(transactions);
   const [pricingStats, setPricingStats] = useState(null);
   const [notice, setNotice] = useState('');
+  const [isPlanEditorOpen, setIsPlanEditorOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [planForm, setPlanForm] = useState(emptyPlanForm);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
 
   const loadPricing = useCallback(async () => {
     try {
@@ -173,46 +214,104 @@ function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' 
     ];
   }, [pricingStats]);
 
-  const addPricingPlan = async () => {
-    try {
-      setNotice('Adding new pricing plan...');
-      await adminAPI.addPricingPlan({
-        name: 'Growth',
-        price: '$99',
-        description: 'For growing security teams that need more automation',
-        subscribers: 0,
-        badge: 'New',
-        tone: 'is-professional',
-      });
-      await loadPricing();
-      setNotice('Pricing plan added.');
-    } catch (error) {
-      setNotice(error.message || 'Unable to add pricing plan.');
-    }
+  const openAddPlan = () => {
+    setEditingPlan(null);
+    setPlanForm(emptyPlanForm);
+    setNotice('');
+    setIsPlanEditorOpen(true);
   };
 
-  const editPricingPlan = async (plan) => {
-    const nextPrice = window.prompt(`New monthly price for ${plan.name}`, plan.price);
-    if (nextPrice === null) {
+  const openEditPlan = (plan) => {
+    setEditingPlan(plan);
+    setPlanForm(planToForm(plan));
+    setNotice('');
+    setIsPlanEditorOpen(true);
+  };
+
+  const updatePlanField = (field, value) => {
+    setPlanForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const closePlanEditor = () => {
+    setIsPlanEditorOpen(false);
+    setEditingPlan(null);
+    setPlanForm(emptyPlanForm);
+  };
+
+  const savePricingPlan = async () => {
+    const trimmedPrice = planForm.price.trim();
+    const trimmedName = planForm.name.trim();
+
+    if (!trimmedName) {
+      setNotice('Plan name is required.');
       return;
     }
 
-    const trimmedPrice = nextPrice.trim();
     if (!/^\$?\d+(\.\d{1,2})?$/.test(trimmedPrice)) {
       setNotice('Enter a valid price, for example $49 or 49.99.');
       return;
     }
 
+    const subscribers = Number(planForm.subscribers || 0);
+    if (!Number.isFinite(subscribers) || subscribers < 0) {
+      setNotice('Subscribers must be a positive number.');
+      return;
+    }
+
+    const features = parseFeatures(planForm.featuresText);
+    if (!features.length) {
+      setNotice('Add at least one feature. Use: Feature label | yes/no');
+      return;
+    }
+
+    const payload = {
+      name: trimmedName,
+      price: trimmedPrice.startsWith('$') ? trimmedPrice : `$${trimmedPrice}`,
+      description: planForm.description.trim(),
+      subscribers,
+      badge: planForm.badge.trim(),
+      tone: planForm.tone,
+      features,
+    };
+
     try {
+      setIsSavingPlan(true);
       setNotice('Saving pricing plan...');
-      await adminAPI.updatePricingPlan(plan.id, {
-        ...plan,
-        price: trimmedPrice.startsWith('$') ? trimmedPrice : `$${trimmedPrice}`,
-      });
+      if (editingPlan?.id) {
+        await adminAPI.updatePricingPlan(editingPlan.id, payload);
+      } else {
+        await adminAPI.addPricingPlan(payload);
+      }
       await loadPricing();
-      setNotice(`${plan.name} plan updated.`);
+      closePlanEditor();
+      setNotice(editingPlan ? `${payload.name} plan updated.` : `${payload.name} plan added.`);
     } catch (error) {
-      setNotice(error.message || 'Unable to update pricing plan.');
+      setNotice(error.message || 'Unable to save pricing plan.');
+    } finally {
+      setIsSavingPlan(false);
+    }
+  };
+
+  const deletePricingPlan = async () => {
+    if (!editingPlan?.id) {
+      return;
+    }
+
+    if (!window.confirm(`Delete ${editingPlan.name} plan?`)) {
+      return;
+    }
+
+    try {
+      setIsSavingPlan(true);
+      setNotice('Deleting pricing plan...');
+      await adminAPI.deletePricingPlan(editingPlan.id);
+      await loadPricing();
+      closePlanEditor();
+      setNotice('Pricing plan deleted.');
+    } catch (error) {
+      setNotice(error.message || 'Unable to delete pricing plan.');
+    } finally {
+      setIsSavingPlan(false);
     }
   };
 
@@ -290,13 +389,75 @@ function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' 
               <p>Manage subscription plans and pricing</p>
             </div>
 
-            <button type="button" className="admin-pricing-add-btn" onClick={addPricingPlan}>
+            <button type="button" className="admin-pricing-add-btn" onClick={openAddPlan}>
               <Plus size={18} />
               <span>Add New Plan</span>
             </button>
           </section>
 
           {notice && <div className="admin-users-notice admin-card">{notice}</div>}
+
+          {isPlanEditorOpen && (
+            <section className="admin-editor-panel admin-card">
+              <div className="admin-editor-topline">
+                <div>
+                  <h2>{editingPlan ? 'Edit pricing plan' : 'Add pricing plan'}</h2>
+                  <p>Manage plan copy, price, subscribers, badge, and feature availability.</p>
+                </div>
+                <button type="button" className="admin-editor-secondary" onClick={closePlanEditor}>
+                  Close
+                </button>
+              </div>
+
+              <div className="admin-editor-grid">
+                <label className="admin-editor-field">
+                  <span>Plan name</span>
+                  <input value={planForm.name} onChange={(event) => updatePlanField('name', event.target.value)} placeholder="Growth" />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Monthly price</span>
+                  <input value={planForm.price} onChange={(event) => updatePlanField('price', event.target.value)} placeholder="$99" />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Subscribers</span>
+                  <input type="number" min="0" value={planForm.subscribers} onChange={(event) => updatePlanField('subscribers', event.target.value)} />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Badge</span>
+                  <input value={planForm.badge} onChange={(event) => updatePlanField('badge', event.target.value)} placeholder="Most Popular" />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Tone</span>
+                  <select value={planForm.tone} onChange={(event) => updatePlanField('tone', event.target.value)}>
+                    <option value="is-free">Free</option>
+                    <option value="is-professional">Professional</option>
+                    <option value="is-enterprise">Enterprise</option>
+                  </select>
+                </label>
+                <label className="admin-editor-field admin-editor-field-full">
+                  <span>Description</span>
+                  <textarea value={planForm.description} onChange={(event) => updatePlanField('description', event.target.value)} placeholder="For growing security teams" />
+                </label>
+                <label className="admin-editor-field admin-editor-field-full">
+                  <span>Features</span>
+                  <textarea value={planForm.featuresText} onChange={(event) => updatePlanField('featuresText', event.target.value)} />
+                  <span className="admin-editor-help">One feature per line. Format: Feature name | yes/no</span>
+                </label>
+              </div>
+
+              <div className="admin-editor-actions">
+                {editingPlan?.id && (
+                  <button type="button" className="admin-editor-danger" onClick={deletePricingPlan} disabled={isSavingPlan}>
+                    Delete Plan
+                  </button>
+                )}
+                <button type="button" className="admin-editor-secondary" onClick={closePlanEditor}>Cancel</button>
+                <button type="button" className="admin-editor-primary" onClick={savePricingPlan} disabled={isSavingPlan}>
+                  {isSavingPlan ? 'Saving...' : editingPlan ? 'Save Plan' : 'Add Plan'}
+                </button>
+              </div>
+            </section>
+          )}
 
           <section className="admin-pricing-stats">
             {computedStatCards.map((item) => {
@@ -323,7 +484,7 @@ function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' 
           <section className="admin-pricing-plan-grid">
             {planItems.map((plan) => (
               <article
-                key={plan.name}
+                key={plan.id || plan.name}
                 className={`admin-pricing-plan-card admin-card ${plan.badge ? 'is-featured' : ''}`}
               >
                 <div className="admin-pricing-plan-head">
@@ -365,7 +526,7 @@ function AdminPricingPage({ onNavigate, onLogout, currentPage = 'admin-pricing' 
                     <strong>{plan.subscribers}</strong>
                   </div>
 
-                  <button type="button" className={`admin-pricing-edit-btn ${plan.tone}`} onClick={() => editPricingPlan(plan)}>
+                  <button type="button" className={`admin-pricing-edit-btn ${plan.tone}`} onClick={() => openEditPlan(plan)}>
                     Edit Plan
                   </button>
                 </div>

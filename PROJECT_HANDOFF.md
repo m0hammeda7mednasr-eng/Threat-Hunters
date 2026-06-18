@@ -216,6 +216,7 @@ Dashboard:
 Admin:
 
 - `GET /api/admin/users`
+- `POST /api/admin/users`
 - `GET /api/admin/users/:id`
 - `PUT /api/admin/users/:id`
 - `DELETE /api/admin/users/:id`
@@ -230,6 +231,7 @@ Admin:
 - `PUT /api/admin/pricing`
 - `POST /api/admin/pricing/plans`
 - `PUT /api/admin/pricing/plans/:id`
+- `DELETE /api/admin/pricing/plans/:id`
 - `GET /api/admin/settings`
 - `PUT /api/admin/settings`
 - `GET /api/web-content`
@@ -240,12 +242,12 @@ Admin:
 The admin dashboard now controls:
 
 - Dashboard metrics and recent activity.
-- Users: list, search, filter, email shortcut, disable/activate, delete.
+- Users: list, search, filter, create, edit profile/role/status/plan/activity numbers, email shortcut, disable/activate, delete.
 - Reports: list, generate, download, track download count.
-- Team: list, add invite, update status, remove.
-- Pricing: list plans, add plan, edit plan price, view transactions.
+- Team: list, add invite, edit identity/role/status/activity/permission badges, remove.
+- Pricing: list plans, add plan, edit plan copy/price/subscribers/badge/features, delete plan, view transactions.
 - Settings: load and save general, notification, security, and email settings.
-- Web content: edit public page content and moderate blog posts.
+- Web content: edit public page content, add/remove feature and statistic rows, validate OWASP links, and moderate blog posts.
 
 ## 10. Blog Coverage
 
@@ -303,17 +305,22 @@ Frontend validation added or verified:
 
 - Website URL validation on scan forms.
 - Email validation for newsletter and admin settings.
+- Admin user create/edit email and non-negative number validation.
+- Admin team email and duplicate validation.
 - Image URL validation for blog posts.
 - Image upload type/size checks.
 - Admin settings email validation.
-- Admin pricing price validation.
-- Admin web editor publish validation.
+- Admin pricing price, subscriber, and feature validation.
+- Admin web editor publish validation for titles, features, statistics, and OWASP links.
 - Confirm prompts before destructive admin delete actions.
 
 Backend validation includes:
 
 - Auth checks.
 - Admin-only route guards.
+- Admin user create/edit validation.
+- Admin team duplicate email protection.
+- Admin pricing non-negative subscriber validation.
 - Blog author/admin permissions.
 - URL validation in scanner.
 - Email/password reset requirements.
@@ -349,15 +356,20 @@ npm run dev
 
 Browser smoke verification covered:
 
-- `#admin-dashboard`
-- `#admin-reports`
 - `#admin-team`
 - `#admin-pricing`
-- `#admin-settings`
 - `#admin-users`
 - `#admin-web-edit`
 
-No console errors or page errors were observed in the final admin smoke test.
+Final admin smoke verification covered:
+
+- Admin Team UI add/edit/delete.
+- Admin Pricing UI add/edit/delete.
+- Admin Users UI create/edit/delete.
+- Admin Web Edit publish to backend and restore original content.
+- Admin API validation for negative user counters, negative pricing subscribers, and duplicate team emails.
+
+No test data was left in the mock database after the final smoke tests.
 
 ## 15. Deployment Notes
 

@@ -302,6 +302,14 @@ export const userAPI = {
     return apiRequest(`/admin/users?page=${page}&limit=${limit}`);
   },
 
+  // Create user from admin dashboard
+  createUser: async (userData) => {
+    return apiRequest("/admin/users", {
+      method: "POST",
+      body: userData,
+    });
+  },
+
   // Get single user
   getUser: async (id) => {
     return apiRequest(`/admin/users/${id}`);
@@ -382,6 +390,12 @@ export const adminAPI = {
     return apiRequest(`/admin/pricing/plans/${id}`, {
       method: "PUT",
       body: planData,
+    });
+  },
+
+  deletePricingPlan: async (id) => {
+    return apiRequest(`/admin/pricing/plans/${id}`, {
+      method: "DELETE",
     });
   },
 

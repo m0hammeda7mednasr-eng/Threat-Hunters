@@ -6,6 +6,8 @@ from flask import Blueprint, jsonify, request
 
 from database.db import mongo
 from middleware.auth_middleware import token_required
+from utils.password_utils import hash_password, validate_password
+from utils.validators import validate_email_format
 
 
 admin_bp = Blueprint("admin", __name__)
@@ -168,6 +170,25 @@ def merge_nested(defaults, payload):
 def initials_for(name):
     initials = "".join(part[0] for part in str(name or "").split() if part).upper()
     return (initials or "NA")[:2]
+
+
+def non_negative_int(value, default=0):
+    try:
+        return max(int(value), 0)
+    except (TypeError, ValueError):
+        return default
+
+
+def parse_non_negative_int(value, label):
+    try:
+        parsed = int(value or 0)
+    except (TypeError, ValueError):
+        return None, f"{label} must be zero or a positive number"
+
+    if parsed < 0:
+        return None, f"{label} must be zero or a positive number"
+
+    return parsed, None
 
 
 def get_admin_singleton(key, default_value):
@@ -336,6 +357,62 @@ def list_users():
     }), 200
 
 
+@admin_bp.route("/admin/users", methods=["POST"])
+@token_required
+def create_user():
+    _, error = require_admin()
+    if error:
+        return error
+
+    payload = request.json or {}
+    first_name = str(payload.get("firstName") or payload.get("first_name") or "").strip()
+    last_name = str(payload.get("lastName") or payload.get("last_name") or "").strip()
+    email = str(payload.get("email") or "").strip().lower()
+    password = str(payload.get("password") or "Temp@12345")
+
+    if not first_name or not last_name or not email:
+        return jsonify({"message": "First name, last name, and email are required"}), 400
+
+    if not validate_email_format(email):
+        return jsonify({"message": "Enter a valid email address"}), 400
+
+    password_error = validate_password(password)
+    if password_error:
+        return jsonify({"message": password_error}), 400
+
+    if mongo.db.users.find_one({"email": email}):
+        return jsonify({"message": "Email already exists"}), 409
+
+    scans, scans_error = parse_non_negative_int(payload.get("scans", 0), "Scans")
+    vulnerabilities, vulnerabilities_error = parse_non_negative_int(payload.get("vulnerabilities", 0), "Vulnerabilities")
+    if scans_error or vulnerabilities_error:
+        return jsonify({"message": scans_error or vulnerabilities_error}), 400
+
+    now = datetime.utcnow()
+    user = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "email": email,
+        "password": hash_password(password),
+        "role": payload.get("role") if payload.get("role") in ["user", "analyst", "manager", "admin"] else "user",
+        "disabled": payload.get("status") == "disabled",
+        "plan": str(payload.get("plan") or "Free").strip(),
+        "phone": str(payload.get("phone") or "").strip(),
+        "bio": str(payload.get("bio") or "").strip(),
+        "scans": scans,
+        "vulnerabilities": vulnerabilities,
+        "is_verified": True,
+        "created_at": now,
+        "updated_at": now,
+        "failed_attempts": 0,
+        "lock_until": None,
+    }
+
+    result = mongo.db.users.insert_one(user)
+    user["_id"] = result.inserted_id
+    return jsonify(serialize_user(user)), 201
+
+
 @admin_bp.route("/admin/users/<user_id>", methods=["GET"])
 @token_required
 def get_user(user_id):
@@ -368,6 +445,25 @@ def update_user(user_id):
     payload = request.json or {}
     updates = {"updated_at": datetime.utcnow()}
 
+    if "firstName" in payload or "first_name" in payload:
+        first_name = str(payload.get("firstName") or payload.get("first_name") or "").strip()
+        if first_name:
+            updates["first_name"] = first_name
+
+    if "lastName" in payload or "last_name" in payload:
+        last_name = str(payload.get("lastName") or payload.get("last_name") or "").strip()
+        if last_name:
+            updates["last_name"] = last_name
+
+    if "email" in payload:
+        email = str(payload.get("email") or "").strip().lower()
+        if not validate_email_format(email):
+            return jsonify({"message": "Enter a valid email address"}), 400
+        duplicate = mongo.db.users.find_one({"email": email, "_id": {"$ne": object_id}})
+        if duplicate:
+            return jsonify({"message": "Email already exists"}), 409
+        updates["email"] = email
+
     if payload.get("role") in ["user", "analyst", "manager", "admin"]:
         updates["role"] = payload["role"]
 
@@ -380,10 +476,11 @@ def update_user(user_id):
 
     for numeric_field in ["scans", "vulnerabilities"]:
         if numeric_field in payload:
-            try:
-                updates[numeric_field] = max(int(payload[numeric_field]), 0)
-            except (TypeError, ValueError):
-                updates[numeric_field] = 0
+            label = "Scans" if numeric_field == "scans" else "Vulnerabilities"
+            parsed_value, error_message = parse_non_negative_int(payload[numeric_field], label)
+            if error_message:
+                return jsonify({"message": error_message}), 400
+            updates[numeric_field] = parsed_value
 
     result = mongo.db.users.update_one({"_id": object_id}, {"$set": updates})
     if result.matched_count == 0:
@@ -464,6 +561,9 @@ def add_admin_team_member():
         return jsonify({"message": "Enter a valid admin email address"}), 400
 
     team = list(get_admin_singleton("team", DEFAULT_ADMIN_TEAM))
+    if any(str(member.get("email", "")).lower() == email for member in team):
+        return jsonify({"message": "Admin team email already exists"}), 409
+
     member = {
         "id": f"team-{ObjectId()}",
         "initials": initials_for(name),
@@ -490,6 +590,16 @@ def update_admin_team_member(member_id):
     team = list(get_admin_singleton("team", DEFAULT_ADMIN_TEAM))
     for member in team:
         if member.get("id") == member_id:
+            if "email" in payload:
+                next_email = str(payload.get("email") or "").strip().lower()
+                if "@" not in next_email or "." not in next_email.split("@")[-1]:
+                    return jsonify({"message": "Enter a valid admin email address"}), 400
+                if any(
+                    item.get("id") != member_id and str(item.get("email", "")).lower() == next_email
+                    for item in team
+                ):
+                    return jsonify({"message": "Admin team email already exists"}), 409
+
             for field in ["name", "email", "role", "status", "time"]:
                 if field in payload:
                     member[field] = str(payload[field]).strip() or member.get(field, "")
@@ -551,12 +661,16 @@ def add_admin_pricing_plan():
 
     payload = request.json or {}
     pricing = merge_nested(DEFAULT_ADMIN_PRICING, get_admin_singleton("pricing", {}))
+    subscribers, subscribers_error = parse_non_negative_int(payload.get("subscribers", 0), "Subscribers")
+    if subscribers_error:
+        return jsonify({"message": subscribers_error}), 400
+
     plan = {
         "id": f"plan-{ObjectId()}",
         "name": str(payload.get("name") or "New Plan").strip(),
         "price": str(payload.get("price") or "$99").strip(),
         "description": str(payload.get("description") or "Custom security plan").strip(),
-        "subscribers": int(payload.get("subscribers", 0) or 0),
+        "subscribers": subscribers,
         "badge": str(payload.get("badge") or "").strip(),
         "tone": payload.get("tone", "is-professional"),
         "features": payload.get("features") if isinstance(payload.get("features"), list) else [
@@ -585,13 +699,34 @@ def update_admin_pricing_plan(plan_id):
                 if field in payload:
                     plan[field] = str(payload[field]).strip()
             if "subscribers" in payload:
-                plan["subscribers"] = int(payload.get("subscribers") or 0)
+                subscribers, subscribers_error = parse_non_negative_int(payload.get("subscribers"), "Subscribers")
+                if subscribers_error:
+                    return jsonify({"message": subscribers_error}), 400
+                plan["subscribers"] = subscribers
             if isinstance(payload.get("features"), list):
                 plan["features"] = payload["features"]
             save_admin_singleton("pricing", pricing)
             return jsonify(plan), 200
 
     return jsonify({"message": "Pricing plan not found"}), 404
+
+
+@admin_bp.route("/admin/pricing/plans/<plan_id>", methods=["DELETE"])
+@token_required
+def delete_admin_pricing_plan(plan_id):
+    _, error = require_admin()
+    if error:
+        return error
+
+    pricing = merge_nested(DEFAULT_ADMIN_PRICING, get_admin_singleton("pricing", {}))
+    plans = pricing.get("plans", [])
+    next_plans = [plan for plan in plans if plan.get("id") != plan_id]
+    if len(next_plans) == len(plans):
+        return jsonify({"message": "Pricing plan not found"}), 404
+
+    pricing["plans"] = next_plans
+    save_admin_singleton("pricing", pricing)
+    return jsonify({"message": "Pricing plan deleted"}), 200
 
 
 @admin_bp.route("/admin/reports", methods=["GET"])

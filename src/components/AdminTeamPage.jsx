@@ -87,17 +87,45 @@ const recentActivity = [
   { actor: 'Laila Ibrahim', action: 'Modified user permissions', time: '5 hours ago' },
 ];
 
+const emptyMemberForm = {
+  name: '',
+  email: '',
+  role: 'Admin',
+  status: 'pending',
+  time: 'Invite pending',
+  badgesText: 'Reports, User Support',
+};
+
+const memberToForm = (member) => ({
+  name: member.name || '',
+  email: member.email || '',
+  role: member.role || 'Admin',
+  status: member.status || 'active',
+  time: member.time || 'Online now',
+  badgesText: Array.isArray(member.badges) ? member.badges.join(', ') : '',
+});
+
+const normalizeMember = (member) => ({
+  ...member,
+  initials: member.initials || member.name?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'NA',
+  badges: Array.isArray(member.badges) ? member.badges : [],
+});
+
 function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
   const { theme, toggleTheme } = useTheme();
   const [members, setMembers] = useState(teamMembers);
   const [activity, setActivity] = useState(recentActivity);
   const [notice, setNotice] = useState('');
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
+  const [memberForm, setMemberForm] = useState(emptyMemberForm);
+  const [isSavingMember, setIsSavingMember] = useState(false);
 
   const loadTeam = useCallback(async () => {
     try {
       setNotice('Loading admin team...');
       const payload = await adminAPI.getTeam();
-      const items = payload.items || payload.team || [];
+      const items = (payload.items || payload.team || []).map(normalizeMember);
       setMembers(items.length ? items : teamMembers);
       setActivity((items.length ? items : teamMembers).slice(0, 4).map((member) => ({
         actor: member.name,
@@ -132,33 +160,68 @@ function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
     ];
   }, [members]);
 
-  const addTeamMember = async () => {
-    const suffix = Date.now().toString().slice(-5);
-    try {
-      setNotice('Creating admin invite...');
-      await adminAPI.addTeamMember({
-        name: 'New Admin',
-        email: `new.admin.${suffix}@threathunters.com`,
-        role: 'Admin',
-        status: 'pending',
-        badges: ['Reports', 'User Support'],
-      });
-      await loadTeam();
-      setNotice('Admin invite created. Edit the member from the backend data when ready.');
-    } catch (error) {
-      setNotice(error.message || 'Unable to create admin invite.');
-    }
+  const openAddMember = () => {
+    setEditingMember(null);
+    setMemberForm(emptyMemberForm);
+    setNotice('');
+    setIsEditorOpen(true);
   };
 
-  const toggleMemberStatus = async (member) => {
-    const nextStatus = member.status === 'active' ? 'away' : 'active';
+  const openEditMember = (member) => {
+    setEditingMember(member);
+    setMemberForm(memberToForm(member));
+    setNotice('');
+    setIsEditorOpen(true);
+  };
+
+  const updateMemberField = (field, value) => {
+    setMemberForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const closeMemberEditor = () => {
+    setIsEditorOpen(false);
+    setEditingMember(null);
+    setMemberForm(emptyMemberForm);
+  };
+
+  const saveMember = async () => {
+    const email = memberForm.email.trim().toLowerCase();
+    const name = memberForm.name.trim();
+
+    if (!name) {
+      setNotice('Admin name is required.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)) {
+      setNotice('Enter a valid admin email address.');
+      return;
+    }
+
+    const payload = {
+      name,
+      email,
+      role: memberForm.role,
+      status: memberForm.status,
+      time: memberForm.time.trim() || (memberForm.status === 'active' ? 'Online now' : 'Invite pending'),
+      badges: memberForm.badgesText.split(',').map((badge) => badge.trim()).filter(Boolean),
+    };
+
     try {
-      setNotice('Updating team member...');
-      await adminAPI.updateTeamMember(member.id, { ...member, status: nextStatus, time: nextStatus === 'active' ? 'Online now' : 'Away' });
+      setIsSavingMember(true);
+      setNotice(editingMember ? 'Saving admin member...' : 'Creating admin invite...');
+      if (editingMember?.id) {
+        await adminAPI.updateTeamMember(editingMember.id, payload);
+      } else {
+        await adminAPI.addTeamMember(payload);
+      }
       await loadTeam();
-      setNotice(`${member.name} is now ${nextStatus}.`);
+      closeMemberEditor();
+      setNotice(editingMember ? 'Admin member updated.' : 'Admin invite created.');
     } catch (error) {
-      setNotice(error.message || 'Unable to update team member.');
+      setNotice(error.message || 'Unable to save admin member.');
+    } finally {
+      setIsSavingMember(false);
     }
   };
 
@@ -251,13 +314,71 @@ function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
               <p>Manage your administrative team members and their permissions</p>
             </div>
 
-            <button type="button" className="admin-team-add-btn" onClick={addTeamMember}>
+            <button type="button" className="admin-team-add-btn" onClick={openAddMember}>
               <UserPlus size={18} />
               <span>Add New Admin</span>
             </button>
           </section>
 
           {notice && <div className="admin-users-notice admin-card">{notice}</div>}
+
+          {isEditorOpen && (
+            <section className="admin-editor-panel admin-card">
+              <div className="admin-editor-topline">
+                <div>
+                  <h2>{editingMember ? 'Edit admin member' : 'Add admin member'}</h2>
+                  <p>Set the member identity, role, live status, and permission badges.</p>
+                </div>
+                <button type="button" className="admin-editor-secondary" onClick={closeMemberEditor}>
+                  Close
+                </button>
+              </div>
+
+              <div className="admin-editor-grid">
+                <label className="admin-editor-field">
+                  <span>Name</span>
+                  <input value={memberForm.name} onChange={(event) => updateMemberField('name', event.target.value)} placeholder="Security Admin" />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Email</span>
+                  <input type="email" value={memberForm.email} onChange={(event) => updateMemberField('email', event.target.value)} placeholder="admin@example.com" />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Role</span>
+                  <select value={memberForm.role} onChange={(event) => updateMemberField('role', event.target.value)}>
+                    <option>Super Admin</option>
+                    <option>Admin</option>
+                    <option>Security Analyst</option>
+                    <option>Support Admin</option>
+                  </select>
+                </label>
+                <label className="admin-editor-field">
+                  <span>Status</span>
+                  <select value={memberForm.status} onChange={(event) => updateMemberField('status', event.target.value)}>
+                    <option value="active">active</option>
+                    <option value="away">away</option>
+                    <option value="pending">pending</option>
+                    <option value="disabled">disabled</option>
+                  </select>
+                </label>
+                <label className="admin-editor-field">
+                  <span>Activity label</span>
+                  <input value={memberForm.time} onChange={(event) => updateMemberField('time', event.target.value)} placeholder="Online now" />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Permission badges</span>
+                  <input value={memberForm.badgesText} onChange={(event) => updateMemberField('badgesText', event.target.value)} placeholder="Reports, User Support" />
+                </label>
+              </div>
+
+              <div className="admin-editor-actions">
+                <button type="button" className="admin-editor-secondary" onClick={closeMemberEditor}>Cancel</button>
+                <button type="button" className="admin-editor-primary" onClick={saveMember} disabled={isSavingMember}>
+                  {isSavingMember ? 'Saving...' : editingMember ? 'Save Member' : 'Create Invite'}
+                </button>
+              </div>
+            </section>
+          )}
 
           <section className="admin-team-stats">
             {computedTeamStats.map((item) => {
@@ -284,7 +405,7 @@ function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
 
             <div className="admin-team-members-list">
               {members.map((member) => (
-                <article key={member.email} className="admin-team-member-card">
+                <article key={member.id || member.email} className="admin-team-member-card">
                   <div className="admin-team-member-left">
                     <div className="admin-team-avatar">{member.initials}</div>
 
@@ -302,7 +423,7 @@ function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
 
                   <div className="admin-team-member-center">
                     <div className="admin-team-badges">
-                      {member.badges.map((badge) => (
+                      {(member.badges || []).map((badge) => (
                         <span key={`${member.email}-${badge}`} className="admin-team-badge">
                           {badge}
                         </span>
@@ -313,7 +434,7 @@ function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
                   <div className="admin-team-member-right">
                     <span className="admin-team-role">{member.role}</span>
                     <div className="admin-team-actions">
-                      <button type="button" className="admin-team-icon-btn" onClick={() => toggleMemberStatus(member)} aria-label={`Toggle ${member.name} status`}>
+                      <button type="button" className="admin-team-icon-btn" onClick={() => openEditMember(member)} aria-label={`Edit ${member.name}`}>
                         <Settings2 size={15} />
                       </button>
                       <button type="button" className="admin-team-icon-btn is-danger" onClick={() => removeTeamMember(member)} aria-label={`Remove ${member.name}`}>

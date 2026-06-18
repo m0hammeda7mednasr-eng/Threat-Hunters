@@ -211,6 +211,24 @@ function AdminWebEditPage({ onNavigate, onLogout, currentPage = 'admin-web-edit'
       return;
     }
 
+    if (Array.isArray(pageContent.features) && pageContent.features.some((feature) => !String(feature || '').trim())) {
+      setSaveStatus('Feature rows cannot be empty.');
+      return;
+    }
+
+    if (Array.isArray(pageContent.stats) && pageContent.stats.some((item) => !String(item.value || '').trim() || !String(item.label || '').trim())) {
+      setSaveStatus('Statistic value and label are required.');
+      return;
+    }
+
+    if (selectedPage === 'awareness') {
+      const invalidLink = (pageContent.owasp || []).some((item) => item.link && !/^https?:\/\//i.test(item.link));
+      if (invalidLink) {
+        setSaveStatus('OWASP links must start with http:// or https://.');
+        return;
+      }
+    }
+
     if (selectedPage === 'blog') {
       const postCount = Number(pageContent.postsToDisplay || 0);
       if (!Number.isFinite(postCount) || postCount < 1) {
@@ -302,6 +320,16 @@ function AdminWebEditPage({ onNavigate, onLogout, currentPage = 'admin-web-edit'
     }));
   };
 
+  const removeFeature = (index) => {
+    setContent((prev) => ({
+      ...prev,
+      [selectedPage]: {
+        ...prev[selectedPage],
+        features: prev[selectedPage].features.filter((_, itemIndex) => itemIndex !== index),
+      },
+    }));
+  };
+
   const updateListItem = (listKey, index, value) => {
     setContent((prev) => {
       const nextItems = [...prev[selectedPage][listKey]];
@@ -363,6 +391,26 @@ function AdminWebEditPage({ onNavigate, onLogout, currentPage = 'admin-web-edit'
         },
       };
     });
+  };
+
+  const addStat = () => {
+    setContent((prev) => ({
+      ...prev,
+      [selectedPage]: {
+        ...prev[selectedPage],
+        stats: [...prev[selectedPage].stats, { value: '0', label: 'New metric' }],
+      },
+    }));
+  };
+
+  const removeStat = (index) => {
+    setContent((prev) => ({
+      ...prev,
+      [selectedPage]: {
+        ...prev[selectedPage],
+        stats: prev[selectedPage].stats.filter((_, itemIndex) => itemIndex !== index),
+      },
+    }));
   };
 
   return (
@@ -738,24 +786,37 @@ function AdminWebEditPage({ onNavigate, onLogout, currentPage = 'admin-web-edit'
 
             <div className="admin-web-stack">
               {pageContent.features.map((feature, index) => (
-                <label key={`${selectedPage}-feature-${index}`} className="admin-web-feature-field">
+                <div key={`${selectedPage}-feature-${index}`} className="admin-web-removable-row">
                   <textarea rows={2} value={feature} onChange={(event) => updateFeature(index, event.target.value)} />
-                </label>
+                  <button type="button" onClick={() => removeFeature(index)} aria-label={`Remove feature ${index + 1}`}>
+                    x
+                  </button>
+                </div>
               ))}
             </div>
           </section>
 
           <section className="admin-web-panel admin-card">
-            <div className="admin-web-panel-head">
-              <span className="admin-web-panel-icon">
-                <FileText size={14} />
-              </span>
-              <h2>Statistics Section</h2>
+            <div className="admin-web-panel-head admin-web-panel-head-between">
+              <div className="admin-web-panel-head-main">
+                <span className="admin-web-panel-icon">
+                  <FileText size={14} />
+                </span>
+                <h2>Statistics Section</h2>
+              </div>
+
+              <button type="button" className="admin-web-mini-btn" onClick={addStat}>
+                <Plus size={13} />
+                <span>Add Statistic</span>
+              </button>
             </div>
 
             <div className="admin-web-stats-grid">
               {pageContent.stats.map((item, index) => (
                 <div key={`${selectedPage}-stat-${index}`} className="admin-web-stat-card">
+                  <button type="button" className="admin-web-stat-remove" onClick={() => removeStat(index)} aria-label={`Remove ${item.label}`}>
+                    x
+                  </button>
                   <label className="admin-web-field">
                     <span>Value</span>
                     <input value={item.value} onChange={(event) => updateStat(index, 'value', event.target.value)} />

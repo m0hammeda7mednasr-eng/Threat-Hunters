@@ -326,6 +326,41 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
     };
   }, [adminReports]);
 
+  const liveChartBars = useMemo(() => {
+    if (!adminReports.length) {
+      return chartBars;
+    }
+
+    return adminReports.slice(0, 5).reverse().map((report) => {
+      const date = new Date(report.date);
+      return {
+        label: Number.isNaN(date.getTime()) ? 'Now' : date.toLocaleDateString('en-US', { month: 'short' }),
+        value: Math.max(Number(report.vulnerabilities || report.critical || 0), 1),
+      };
+    });
+  }, [adminReports]);
+
+  const liveSeverityLegend = useMemo(() => {
+    if (!securityMetrics.length) {
+      return severityLegend;
+    }
+
+    const colors = {
+      High: '#fb2c36',
+      Critical: '#ff9500',
+      Medium: '#ffd60a',
+      Low: '#34c759',
+    };
+    const total = securityMetrics.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
+
+    return securityMetrics.map((item) => ({
+      label: item.label,
+      value: Math.max(Math.round((Number(item.value || 0) / total) * 100), 1),
+      color: colors[item.label] || '#7b7eff',
+      count: Number(item.value || 0),
+    }));
+  }, [securityMetrics]);
+
   return (
     <div className="admin-dashboard-page">
       <nav className="admin-nav">
@@ -503,11 +538,11 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
               </div>
 
               <div className="admin-bar-chart" aria-label="Vulnerability trend">
-                {chartBars.map((bar) => (
-                  <div key={bar.label} className="admin-bar-group">
+                {liveChartBars.map((bar, index) => (
+                  <div key={`${bar.label}-${index}`} className="admin-bar-group">
                     <span className="admin-bar-value">{bar.value}</span>
                     <div className="admin-bar-track">
-                      <div className="admin-bar-fill" style={{ '--bar-height': `${(bar.value / 26) * 100}%` }} />
+                      <div className="admin-bar-fill" style={{ '--bar-height': `${(bar.value / Math.max(...liveChartBars.map((item) => item.value), 1)) * 100}%` }} />
                     </div>
                     <span className="admin-bar-label">{bar.label}</span>
                   </div>
@@ -524,18 +559,18 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
               <div className="admin-donut-layout">
                 <div
                   className="admin-donut-chart"
-                  style={{ '--donut-gradient': getSeverityGradient(severityLegend) }}
+                  style={{ '--donut-gradient': getSeverityGradient(liveSeverityLegend) }}
                   aria-label="Severity distribution"
                 />
 
                 <div className="admin-donut-legend">
-                  {severityLegend.map((item) => (
+                  {liveSeverityLegend.map((item) => (
                     <div key={item.label} className="admin-donut-legend-row">
                       <span className="admin-donut-label">
                         <i style={{ backgroundColor: item.color }} />
                         {item.label}
                       </span>
-                      <strong>{item.value}%</strong>
+                      <strong>{item.count ?? item.value}</strong>
                     </div>
                   ))}
                 </div>
