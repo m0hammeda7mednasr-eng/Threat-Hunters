@@ -87,6 +87,26 @@ export const authAPI = {
     });
   },
 
+  // Get user console settings
+  getSettings: async () => {
+    return apiRequest("/user/settings");
+  },
+
+  // Update user console settings
+  updateSettings: async (settingsData) => {
+    return apiRequest("/user/settings", {
+      method: "PUT",
+      body: settingsData,
+    });
+  },
+
+  // Delete current user account
+  deleteAccount: async () => {
+    return apiRequest("/user/account", {
+      method: "DELETE",
+    });
+  },
+
   // Request password reset
   requestPasswordReset: async (payload) => {
     return apiRequest("/password/forgot", {
@@ -124,6 +144,27 @@ export const securityAPI = {
   // Get security news
   getSecurityNews: async () => {
     return apiRequest("/security/news");
+  },
+
+  // Get security awareness learning content
+  getAwarenessContent: async () => {
+    return apiRequest("/security/awareness");
+  },
+
+  // Check password against Pwned Passwords
+  checkPasswordBreach: async (payload) => {
+    return apiRequest("/security/check-password", {
+      method: "POST",
+      body: payload,
+    });
+  },
+
+  // Check email against HIBP breach data
+  checkEmailBreach: async (payload) => {
+    return apiRequest("/security/check-email", {
+      method: "POST",
+      body: payload,
+    });
   },
 };
 
@@ -230,6 +271,16 @@ export const dashboardAPI = {
   },
 };
 
+// Scanner API calls
+export const scannerAPI = {
+  scanWebsite: async (payload) => {
+    return apiRequest("/scanner/scan", {
+      method: "POST",
+      body: payload,
+    });
+  },
+};
+
 // Website content API calls
 export const contentAPI = {
   getContent: async () => {
@@ -249,6 +300,14 @@ export const userAPI = {
   // Get all users
   getUsers: async (page = 1, limit = 10) => {
     return apiRequest(`/admin/users?page=${page}&limit=${limit}`);
+  },
+
+  // Create user from admin dashboard
+  createUser: async (userData) => {
+    return apiRequest("/admin/users", {
+      method: "POST",
+      body: userData,
+    });
   },
 
   // Get single user
@@ -272,6 +331,92 @@ export const userAPI = {
   },
 };
 
+// Admin workspace API calls
+export const adminAPI = {
+  getSettings: async () => {
+    return apiRequest("/admin/settings");
+  },
+
+  updateSettings: async (settingsData) => {
+    return apiRequest("/admin/settings", {
+      method: "PUT",
+      body: settingsData,
+    });
+  },
+
+  getTeam: async () => {
+    return apiRequest("/admin/team");
+  },
+
+  addTeamMember: async (memberData) => {
+    return apiRequest("/admin/team", {
+      method: "POST",
+      body: memberData,
+    });
+  },
+
+  updateTeamMember: async (id, memberData) => {
+    return apiRequest(`/admin/team/${id}`, {
+      method: "PUT",
+      body: memberData,
+    });
+  },
+
+  deleteTeamMember: async (id) => {
+    return apiRequest(`/admin/team/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  getPricing: async () => {
+    return apiRequest("/admin/pricing");
+  },
+
+  updatePricing: async (pricingData) => {
+    return apiRequest("/admin/pricing", {
+      method: "PUT",
+      body: pricingData,
+    });
+  },
+
+  addPricingPlan: async (planData) => {
+    return apiRequest("/admin/pricing/plans", {
+      method: "POST",
+      body: planData,
+    });
+  },
+
+  updatePricingPlan: async (id, planData) => {
+    return apiRequest(`/admin/pricing/plans/${id}`, {
+      method: "PUT",
+      body: planData,
+    });
+  },
+
+  deletePricingPlan: async (id) => {
+    return apiRequest(`/admin/pricing/plans/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  getReports: async () => {
+    return apiRequest("/admin/reports");
+  },
+
+  generateReport: async (reportData = {}) => {
+    return apiRequest("/admin/reports", {
+      method: "POST",
+      body: reportData,
+    });
+  },
+
+  recordReportDownload: async (id) => {
+    return apiRequest(`/admin/reports/${id}/download`, {
+      method: "POST",
+    });
+  },
+};
+
 // Utility functions
 export const utils = {
   // Test API connection
@@ -289,6 +434,10 @@ export const utils = {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("userRole");
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("threatHuntersUserRole");
+    localStorage.removeItem("threatHuntersUserEmail");
+    localStorage.removeItem("threatHuntersScanReports");
   },
 
   // Get stored user data
@@ -306,6 +455,10 @@ export const utils = {
     localStorage.setItem("user", JSON.stringify(user));
     if (user.role) {
       localStorage.setItem("userRole", user.role);
+      localStorage.setItem("threatHuntersUserRole", user.role);
+    }
+    if (user.email) {
+      localStorage.setItem("threatHuntersUserEmail", user.email);
     }
   },
 
@@ -328,5 +481,6 @@ export default {
   dashboard: dashboardAPI,
   content: contentAPI,
   user: userAPI,
+  admin: adminAPI,
   utils,
 };

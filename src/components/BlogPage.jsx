@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   ThumbsUp,
   Trash2,
+  X,
   TrendingUp,
 } from "lucide-react";
 import { blogAPI } from "../services/api";
@@ -27,6 +28,25 @@ const emptyComposer = {
   category: "web-security",
   tagsText: "",
   badge: "New",
+  imageUrl: "",
+  imageName: "",
+};
+
+const MAX_BLOG_IMAGE_BYTES = 2 * 1024 * 1024;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+
+const isValidEmail = (value) => EMAIL_PATTERN.test(String(value || "").trim());
+
+const isValidImageSource = (value) => {
+  const source = String(value || "").trim();
+  if (!source) return true;
+  if (/^data:image\//i.test(source)) return true;
+  try {
+    const parsed = new URL(source);
+    return ["http:", "https:"].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
 };
 
 const formatDate = (value) => {
@@ -90,6 +110,21 @@ const ImagePlaceholder = ({ badge, tone = "blue", compact = false }) => (
   </div>
 );
 
+const PostImage = ({ badge, tone = "blue", compact = false, imageUrl = "", alt = "Post preview" }) => {
+  const [failedImageUrl, setFailedImageUrl] = useState("");
+
+  if (imageUrl && isValidImageSource(imageUrl) && failedImageUrl !== imageUrl) {
+    return (
+      <div className={`blog-image-placeholder blog-image-placeholder--photo ${compact ? "blog-image-placeholder--compact" : ""}`}>
+        {badge ? <span className={`blog-image-placeholder__badge blog-image-placeholder__badge--${tone}`}>{badge}</span> : null}
+        <img className="blog-post-image" src={imageUrl} alt={alt} onError={() => setFailedImageUrl(imageUrl)} />
+      </div>
+    );
+  }
+
+  return <ImagePlaceholder badge={badge} tone={tone} compact={compact} />;
+};
+
 const MetaRow = ({ author, authorInitial, date, readTime, views, compact = false }) => (
   <div className={`blog-meta-row ${compact ? "blog-meta-row--compact" : ""}`}>
     {author ? (
@@ -130,6 +165,8 @@ const BlogPage = ({
   const [selectedPostId, setSelectedPostId] = useState("");
   const [selectedPost, setSelectedPost] = useState(null);
   const [selectedComments, setSelectedComments] = useState([]);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [isComposerModalOpen, setIsComposerModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
@@ -175,18 +212,6 @@ const BlogPage = ({
       return matchesSearch && matchesCategory && matchesTag;
     });
   }, [activeCategory, activeTag, posts, searchQuery]);
-
-  const activeFilterLabel = useMemo(() => {
-    if (activeTag !== "all") {
-      return `Tag: #${activeTag}`;
-    }
-
-    if (activeCategory !== "all") {
-      return `Category: ${activeCategory.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())}`;
-    }
-
-    return "All posts";
-  }, [activeCategory, activeTag]);
 
   const trendingPosts = useMemo(() => {
     return [...posts]
@@ -244,6 +269,27 @@ const BlogPage = ({
   }, [selectedPostId, loadPostDetail]);
 
   useEffect(() => {
+    if (!isPostModalOpen && !isComposerModalOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsPostModalOpen(false);
+        setIsComposerModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isPostModalOpen, isComposerModalOpen]);
+
+  useEffect(() => {
     if (!posts.length) {
       return;
     }
@@ -264,6 +310,8 @@ const BlogPage = ({
       category: selectedPost.category || "web-security",
       tagsText: (selectedPost.tags || []).join(", "),
       badge: selectedPost.badge || "New",
+      imageUrl: selectedPost.imageUrl || "",
+      imageName: selectedPost.imageName || "",
     });
   }, [composerMode, selectedPost]);
 
@@ -272,26 +320,75 @@ const BlogPage = ({
     setEditingPostId("");
     setComposer(emptyComposer);
     setComposerStatus("");
+    setIsPostModalOpen(false);
+    setIsComposerModalOpen(true);
   };
 
-  const openEditMode = () => {
-    if (!selectedPost) return;
+  const openEditMode = (post = selectedPost) => {
+    if (!post) return;
     setComposerMode("edit");
-    setEditingPostId(selectedPost.id);
+    setEditingPostId(post.id);
     setComposer({
-      title: selectedPost.title || "",
-      description: selectedPost.description || "",
-      content: selectedPost.content || "",
-      category: selectedPost.category || "web-security",
-      tagsText: (selectedPost.tags || []).join(", "),
-      badge: selectedPost.badge || "New",
+      title: post.title || "",
+      description: post.description || "",
+      content: post.content || "",
+      category: post.category || "web-security",
+      tagsText: (post.tags || []).join(", "),
+      badge: post.badge || "New",
+      imageUrl: post.imageUrl || "",
+      imageName: post.imageName || "",
     });
     setComposerStatus("");
+    setIsPostModalOpen(false);
+    setIsComposerModalOpen(true);
+  };
+
+  const handleEditPost = (post) => {
+    setSelectedPostId(post.id);
+    setSelectedPost(post);
+    openEditMode(post);
+  };
+
+  const handleComposerImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setComposerStatus("Upload a valid image file.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_BLOG_IMAGE_BYTES) {
+      setComposerStatus("Image is too large. Upload an image under 2 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setComposer((current) => ({
+        ...current,
+        imageUrl: typeof reader.result === "string" ? reader.result : "",
+        imageName: file.name,
+      }));
+      setComposerStatus("");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const closeComposerModal = () => {
+    setIsComposerModalOpen(false);
   };
 
   const submitComposer = async () => {
     if (!composer.title.trim() || !composer.description.trim() || !composer.content.trim()) {
       setComposerStatus("Fill title, description, and content first.");
+      return;
+    }
+
+    if (composer.imageUrl.trim() && !isValidImageSource(composer.imageUrl)) {
+      setComposerStatus("Enter a valid image URL or upload an image file.");
       return;
     }
 
@@ -305,6 +402,8 @@ const BlogPage = ({
         .map((tag) => tag.trim())
         .filter(Boolean),
       badge: composer.badge.trim() || "New",
+      imageUrl: composer.imageUrl.trim(),
+      imageName: composer.imageName.trim(),
     };
 
     try {
@@ -319,6 +418,10 @@ const BlogPage = ({
       if (composerMode !== "edit") {
         setComposer(emptyComposer);
       }
+      setSelectedPostId(nextId);
+      setIsComposerModalOpen(false);
+      setIsPostModalOpen(true);
+      await loadPostDetail(nextId);
     } catch (err) {
       setComposerStatus(err.message || "Unable to save post.");
     }
@@ -353,16 +456,18 @@ const BlogPage = ({
 
   const handleSelectPost = (postId) => {
     setSelectedPostId(postId);
+    setIsPostModalOpen(true);
+    setCommentDraft("");
+    setReplyDrafts({});
+    setError("");
+  };
+
+  const closePostModal = () => {
+    setIsPostModalOpen(false);
   };
 
   const handleSelectTag = (tag) => {
     setActiveTag((current) => (current === tag ? "all" : tag));
-  };
-
-  const clearFilters = () => {
-    setActiveCategory("all");
-    setActiveTag("all");
-    setSearchQuery("");
   };
 
   const handleLike = async (postId) => {
@@ -407,7 +512,13 @@ const BlogPage = ({
       await blogAPI.addComment(selectedPostId, { content: commentDraft.trim() });
       setCommentDraft("");
       await loadPostDetail(selectedPostId);
-      await loadPosts(selectedPostId);
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === selectedPostId
+            ? { ...post, comments_count: Number(post.comments_count || 0) + 1 }
+            : post,
+        ),
+      );
     } catch (err) {
       setError(err.message || "Unable to add comment.");
     }
@@ -425,7 +536,13 @@ const BlogPage = ({
       await blogAPI.addReply(selectedPostId, commentId, { content: text });
       setReplyDrafts((current) => ({ ...current, [key]: "" }));
       await loadPostDetail(selectedPostId);
-      await loadPosts(selectedPostId);
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === selectedPostId
+            ? { ...post, comments_count: Number(post.comments_count || 0) + 1 }
+            : post,
+        ),
+      );
     } catch (err) {
       setError(err.message || "Unable to add reply.");
     }
@@ -433,7 +550,7 @@ const BlogPage = ({
 
   const handleSubscribe = () => {
     const email = subscribeEmail.trim();
-    if (!email || !email.includes("@") || !email.includes(".")) {
+    if (!isValidEmail(email)) {
       setSubscribeStatus("Enter a valid email address.");
       return;
     }
@@ -442,7 +559,7 @@ const BlogPage = ({
     setSubscribeEmail("");
   };
 
-  const currentPost = selectedPost || filteredPosts.find((post) => post.id === selectedPostId) || filteredPosts[0] || posts[0] || null;
+  const currentPost = selectedPost || posts.find((post) => post.id === selectedPostId) || null;
 
   return (
     <div className="blog-page">
@@ -535,129 +652,26 @@ const BlogPage = ({
               Expert insights, latest threats, and actionable security advice from industry leaders and practitioners
             </p>
 
-            <label className="blog-search" aria-label="Search articles, topics, or keywords">
-              <Search strokeWidth={2} />
-              <input
-                type="text"
-                placeholder="Search articles, topics, or keywords..."
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-              />
-            </label>
+            <div className="blog-hero-row">
+              <label className="blog-search" aria-label="Search articles, topics, or keywords">
+                <Search strokeWidth={2} />
+                <input
+                  type="text"
+                  placeholder="Search articles, topics, or keywords..."
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+                </label>
 
-            <div className="blog-filter-summary">
-              <span>{activeFilterLabel}</span>
-              <button type="button" className="blog-filter-clear" onClick={clearFilters}>
-                Clear filters
-              </button>
-            </div>
-          </header>
-
-          {isLoggedIn && (
-            <section className="blog-creation-panel">
-              <div className="blog-creation-panel__head">
-                <div>
-                  <p className="blog-creation-panel__eyebrow">Post Studio</p>
-                  <h2>{composerMode === "edit" ? "Edit this post" : "Create a new post"}</h2>
-                </div>
-
-                <div className="blog-creation-panel__actions">
-                  <button type="button" className={`blog-mini-toggle ${composerMode === "create" ? "active" : ""}`} onClick={openCreateMode}>
+              {isLoggedIn && (
+                <div className="blog-hero-actions">
+                  <button type="button" className="blog-mini-toggle active" onClick={openCreateMode}>
                     New Post
                   </button>
-                  <button
-                    type="button"
-                    className={`blog-mini-toggle ${composerMode === "edit" ? "active" : ""}`}
-                    onClick={openEditMode}
-                    disabled={!selectedPost}
-                  >
-                    Edit Selected
-                  </button>
                 </div>
-              </div>
-
-              <div className="blog-creation-grid">
-                <label className="blog-editor-field">
-                  <span>Title</span>
-                  <input
-                    value={composer.title}
-                    onChange={(event) => setComposer((current) => ({ ...current, title: event.target.value }))}
-                    placeholder="Write a strong title"
-                    maxLength={120}
-                    required
-                  />
-                </label>
-
-                <label className="blog-editor-field">
-                  <span>Category</span>
-                  <input
-                    value={composer.category}
-                    onChange={(event) => setComposer((current) => ({ ...current, category: event.target.value }))}
-                    placeholder="web-security"
-                    maxLength={48}
-                    required
-                  />
-                </label>
-
-                <label className="blog-editor-field blog-editor-field--full">
-                  <span>Short Description</span>
-                  <textarea
-                    rows={3}
-                    value={composer.description}
-                    onChange={(event) => setComposer((current) => ({ ...current, description: event.target.value }))}
-                    placeholder="Write the quick summary shown in cards"
-                    maxLength={260}
-                    required
-                  />
-                </label>
-
-                <label className="blog-editor-field blog-editor-field--full">
-                  <span>Details</span>
-                  <textarea
-                    rows={6}
-                    value={composer.content}
-                    onChange={(event) => setComposer((current) => ({ ...current, content: event.target.value }))}
-                    placeholder="Full post body and deeper details"
-                    maxLength={6000}
-                    required
-                  />
-                </label>
-
-                <label className="blog-editor-field">
-                  <span>Tags</span>
-                  <input
-                    value={composer.tagsText}
-                    onChange={(event) => setComposer((current) => ({ ...current, tagsText: event.target.value }))}
-                    placeholder="OWASP, Zero Trust, API Security"
-                    maxLength={180}
-                  />
-                </label>
-
-                <label className="blog-editor-field">
-                  <span>Badge</span>
-                  <input
-                    value={composer.badge}
-                    onChange={(event) => setComposer((current) => ({ ...current, badge: event.target.value }))}
-                    placeholder="New"
-                    maxLength={24}
-                  />
-                </label>
-              </div>
-
-              <div className="blog-creation-panel__footer">
-                <button type="button" className="blog-comments__button" onClick={submitComposer}>
-                  {composerMode === "edit" ? "Save Changes" : "Publish Post"}
-                </button>
-                {composerMode === "edit" && (
-                  <button type="button" className="blog-comment__reply-button" onClick={openCreateMode}>
-                    Cancel Edit
-                  </button>
-                )}
-              </div>
-
-              {composerStatus && <p className="blog-editor-status">{composerStatus}</p>}
-            </section>
-          )}
+              )}
+            </div>
+          </header>
 
           {loading && !posts.length ? (
             <div className="blog-empty-state">Loading blog posts...</div>
@@ -665,15 +679,240 @@ const BlogPage = ({
 
           {error && <div className="blog-empty-state">{error}</div>}
 
-          <section className="blog-detail-panel">
+          <section className="blog-section">
             <div className="blog-section__label">
               <TrendingUp strokeWidth={1.85} />
-              <h2>Post Details</h2>
+              <h2>Trending Now</h2>
             </div>
 
-            {currentPost ? (
-              <article className="blog-detail-card">
-                <ImagePlaceholder badge={currentPost.badge} tone={currentPost.imageTone || "blue"} />
+            <div className="blog-trending-grid">
+              {trendingPosts.map((article) => (
+                <article
+                  key={article.id}
+                  className={`blog-trending-card ${selectedPostId === article.id ? "is-selected" : ""}`}
+                  onClick={() => handleSelectPost(article.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleSelectPost(article.id);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <PostImage badge={article.badge} tone={article.imageTone || "blue"} imageUrl={article.imageUrl || ""} compact />
+                  <div className="blog-trending-card__content">
+                    <MetaRow
+                      author={article.author}
+                      authorInitial={article.authorInitial}
+                      date={formatDate(article.publishedAt)}
+                      readTime={formatReadTime(article.content || article.description)}
+                      views={`${Number(article.views || 0).toLocaleString()} views`}
+                      compact
+                    />
+                    <h3>{article.title}</h3>
+
+                    <footer className="blog-trending-card__footer">
+                      <span className="blog-trending-card__views">
+                        <Eye strokeWidth={1.9} />
+                        <span>{article.views}</span>
+                      </span>
+                      <div className="blog-card-actions">
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            className="blog-icon-button blog-icon-button--ghost"
+                            aria-label="Edit post"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleEditPost(article);
+                            }}
+                          >
+                            <Edit3 strokeWidth={1.8} />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="blog-icon-button blog-icon-button--ghost"
+                          aria-label="Select post"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleSelectPost(article.id);
+                          }}
+                        >
+                          <ArrowRight strokeWidth={1.8} />
+                        </button>
+                      </div>
+                    </footer>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="blog-list">
+            {filteredPosts.map((article) => (
+              <article
+                key={article.id}
+                className={`blog-list-card ${selectedPostId === article.id ? "is-selected" : ""} ${(article.status || "published") === "hidden" ? "is-hidden-post" : ""}`}
+                onClick={() => handleSelectPost(article.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    handleSelectPost(article.id);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+              >
+                <div className="blog-list-card__media">
+                  <PostImage badge={article.badge} tone={article.imageTone || "blue"} imageUrl={article.imageUrl || ""} compact />
+                </div>
+
+                <div className="blog-list-card__content">
+                  <div className="blog-list-card__main">
+                    <MetaRow
+                      author={article.author}
+                      authorInitial={article.authorInitial}
+                      date={formatDate(article.publishedAt)}
+                      readTime={formatReadTime(article.content || article.description)}
+                      views={`${Number(article.views || 0).toLocaleString()} views`}
+                    />
+
+                    <h3>{article.title}</h3>
+                    {isAdmin && (
+                      <span className={`blog-status-pill blog-status-pill--compact is-${article.status || "published"}`}>
+                        {(article.status || "published") === "hidden" ? "Hidden" : "Published"}
+                      </span>
+                    )}
+                    <p>{article.description || article.content}</p>
+
+                    <div className="blog-tag-row">
+                      {(article.tags || []).map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          className={`blog-tag-pill ${activeTag === tag ? "active" : ""}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleSelectTag(tag);
+                          }}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <footer className="blog-list-card__footer">
+                    <div className="blog-card-actions">
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          className="blog-link-button blog-link-button--small"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleEditPost(article);
+                          }}
+                        >
+                          <Edit3 strokeWidth={1.9} />
+                          <span>Edit Post</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="blog-link-button blog-link-button--small"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleSelectPost(article.id);
+                        }}
+                      >
+                        <span>View details</span>
+                        <ArrowRight strokeWidth={1.9} />
+                      </button>
+                    </div>
+
+                    <div className="blog-action-row">
+                      {isAdmin && (
+                        <>
+                          <button
+                            type="button"
+                            className="blog-icon-button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleTogglePostStatus(article);
+                            }}
+                            disabled={busyAction.type === "status" && busyAction.id === article.id}
+                            aria-label={(article.status || "published") === "hidden" ? "Publish post" : "Hide post"}
+                          >
+                            {(article.status || "published") === "hidden" ? <Eye strokeWidth={1.8} /> : <EyeOff strokeWidth={1.8} />}
+                          </button>
+                          <button
+                            type="button"
+                            className="blog-icon-button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDeletePost(article.id);
+                            }}
+                            aria-label="Delete post"
+                          >
+                            <Trash2 strokeWidth={1.8} />
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        className="blog-icon-button"
+                        aria-label="Save article"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <Bookmark strokeWidth={1.8} />
+                      </button>
+                    </div>
+                  </footer>
+                </div>
+              </article>
+            ))}
+
+            {!filteredPosts.length && <div className="blog-empty-state">No articles match this filter.</div>}
+          </section>
+        </main>
+      </div>
+
+      {isPostModalOpen && currentPost && (
+        <div className="blog-post-modal" role="presentation" onClick={closePostModal}>
+          <section
+            className="blog-post-modal__dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="blog-post-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="blog-post-modal__header">
+              <div>
+                <p className="blog-post-modal__eyebrow">Post Details</p>
+                <h2 id="blog-post-modal-title">{currentPost.title}</h2>
+              </div>
+
+              <div className="blog-post-modal__header-actions">
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="blog-mini-toggle active"
+                    onClick={() => handleEditPost(currentPost)}
+                  >
+                    Edit Post
+                  </button>
+                )}
+                <button type="button" className="blog-post-modal__close" onClick={closePostModal} aria-label="Close post details">
+                  <X strokeWidth={2} />
+                </button>
+              </div>
+            </header>
+
+            <div className="blog-post-modal__body">
+              <article className="blog-detail-card blog-detail-card--modal">
+                <PostImage badge={currentPost.badge} tone={currentPost.imageTone || "blue"} imageUrl={currentPost.imageUrl || ""} />
 
                 <div className="blog-detail-card__content">
                   <MetaRow
@@ -684,13 +923,13 @@ const BlogPage = ({
                     views={`${Number(currentPost.views || 0).toLocaleString()} views`}
                   />
 
-                  <h3>{currentPost.title}</h3>
                   {isAdmin && (
                     <span className={`blog-status-pill is-${currentPost.status || "published"}`}>
                       {(currentPost.status || "published") === "hidden" ? "Hidden" : "Published"}
                     </span>
                   )}
-                  <p>{currentPost.description || currentPost.content}</p>
+
+                  <p className="blog-post-modal__summary">{currentPost.description || currentPost.content}</p>
 
                   <div className="blog-tag-row">
                     {(currentPost.tags || []).map((tag) => (
@@ -735,12 +974,7 @@ const BlogPage = ({
                       >
                         <Share2 strokeWidth={1.8} />
                       </button>
-                      <button
-                        type="button"
-                        className="blog-icon-button"
-                        onClick={() => handleSelectPost(currentPost.id)}
-                        aria-label="Focus post"
-                      >
+                      <button type="button" className="blog-icon-button" onClick={() => handleSelectPost(currentPost.id)} aria-label="Keep this post open">
                         <Bookmark strokeWidth={1.8} />
                       </button>
                       {isAdmin && (
@@ -771,206 +1005,233 @@ const BlogPage = ({
                   </footer>
                 </div>
               </article>
-            ) : (
-              <div className="blog-empty-state">No post selected yet.</div>
-            )}
-          </section>
 
-          <section className="blog-detail-comments">
-            <div className="blog-section__label">
-              <MessageSquare strokeWidth={1.85} />
-              <h2>Comments & Replies</h2>
-            </div>
-
-            {detailLoading ? (
-              <div className="blog-empty-state">Loading post details...</div>
-            ) : (
-              <>
-                <div className="blog-comments__composer">
-                  <textarea
-                    className="blog-comments__input"
-                    rows={4}
-                    placeholder={isLoggedIn ? "Write a comment..." : "Sign in to add comments"}
-                    disabled={!isLoggedIn || !selectedPostId}
-                    value={commentDraft}
-                    onChange={(event) => setCommentDraft(event.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="blog-comments__button"
-                    onClick={handleCommentSubmit}
-                    disabled={!isLoggedIn || !selectedPostId}
-                  >
-                    Post Comment
-                  </button>
+              <section className="blog-detail-comments blog-detail-comments--modal">
+                <div className="blog-section__label">
+                  <MessageSquare strokeWidth={1.85} />
+                  <h2>Comments & Replies</h2>
                 </div>
 
-                <div className="blog-comments__list">
-                  {selectedComments.map((comment) => {
-                    const replyKey = `${selectedPostId}:${comment.id}`;
-                    return (
-                      <div key={comment.id} className="blog-comment">
-                        <div className="blog-comment__head">
-                          <strong>{comment.author}</strong>
-                          <span>{formatDate(comment.createdAt)}</span>
-                        </div>
-                        <p>{comment.content}</p>
+                {detailLoading ? (
+                  <div className="blog-empty-state">Loading post details...</div>
+                ) : (
+                  <>
+                    <div className="blog-comments__composer">
+                      <textarea
+                        className="blog-comments__input"
+                        rows={4}
+                        placeholder={isLoggedIn ? "Write a comment..." : "Sign in to add comments"}
+                        disabled={!isLoggedIn || !selectedPostId}
+                        value={commentDraft}
+                        onChange={(event) => setCommentDraft(event.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="blog-comments__button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleCommentSubmit();
+                        }}
+                        disabled={!isLoggedIn || !selectedPostId}
+                      >
+                        Post Comment
+                      </button>
+                    </div>
 
-                        {Array.isArray(comment.replies) && comment.replies.length > 0 && (
-                          <div className="blog-comment__replies">
-                            {comment.replies.map((reply) => (
-                              <div key={reply.id} className="blog-comment blog-comment--reply">
-                                <div className="blog-comment__head">
-                                  <strong>{reply.author}</strong>
-                                  <span>{formatDate(reply.createdAt)}</span>
-                                </div>
-                                <p>{reply.content}</p>
+                    <div className="blog-comments__list">
+                      {selectedComments.map((comment) => {
+                        const replyKey = `${selectedPostId}:${comment.id}`;
+                        return (
+                          <div key={comment.id} className="blog-comment">
+                            <div className="blog-comment__head">
+                              <strong>{comment.author}</strong>
+                              <span>{formatDate(comment.createdAt)}</span>
+                            </div>
+                            <p>{comment.content}</p>
+
+                            {Array.isArray(comment.replies) && comment.replies.length > 0 && (
+                              <div className="blog-comment__replies">
+                                {comment.replies.map((reply) => (
+                                  <div key={reply.id} className="blog-comment blog-comment--reply">
+                                    <div className="blog-comment__head">
+                                      <strong>{reply.author}</strong>
+                                      <span>{formatDate(reply.createdAt)}</span>
+                                    </div>
+                                    <p>{reply.content}</p>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
+
+                            <div className="blog-comment__reply-box">
+                              <input
+                                type="text"
+                                placeholder={isLoggedIn ? "Write a reply..." : "Sign in to reply"}
+                                disabled={!isLoggedIn || !selectedPostId}
+                                value={replyDrafts[replyKey] || ""}
+                                onChange={(event) =>
+                                  setReplyDrafts((current) => ({
+                                    ...current,
+                                    [replyKey]: event.target.value,
+                                  }))
+                                }
+                              />
+                              <button
+                                type="button"
+                                className="blog-comment__reply-button"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  handleReplySubmit(comment.id);
+                                }}
+                                disabled={!isLoggedIn || !selectedPostId}
+                              >
+                                Reply
+                              </button>
+                            </div>
                           </div>
-                        )}
-
-                        <div className="blog-comment__reply-box">
-                          <input
-                            type="text"
-                            placeholder={isLoggedIn ? "Write a reply..." : "Sign in to reply"}
-                            disabled={!isLoggedIn || !selectedPostId}
-                            value={replyDrafts[replyKey] || ""}
-                            onChange={(event) =>
-                              setReplyDrafts((current) => ({
-                                ...current,
-                                [replyKey]: event.target.value,
-                              }))
-                            }
-                          />
-                          <button
-                            type="button"
-                            className="blog-comment__reply-button"
-                            onClick={() => handleReplySubmit(comment.id)}
-                            disabled={!isLoggedIn || !selectedPostId}
-                          >
-                            Reply
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {!selectedComments.length && <div className="blog-empty-state compact">No comments yet. Be the first to reply.</div>}
-                </div>
-              </>
-            )}
-          </section>
-
-          <section className="blog-section">
-            <div className="blog-section__label">
-              <TrendingUp strokeWidth={1.85} />
-              <h2>Trending Now</h2>
-            </div>
-
-            <div className="blog-trending-grid">
-              {trendingPosts.map((article) => (
-                <article
-                  key={article.id}
-                  className={`blog-trending-card ${selectedPostId === article.id ? "is-selected" : ""}`}
-                  onClick={() => handleSelectPost(article.id)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <ImagePlaceholder badge={article.badge} tone={article.imageTone || "blue"} compact />
-                  <div className="blog-trending-card__content">
-                    <MetaRow
-                      author={article.author}
-                      authorInitial={article.authorInitial}
-                      date={formatDate(article.publishedAt)}
-                      readTime={formatReadTime(article.content || article.description)}
-                      views={`${Number(article.views || 0).toLocaleString()} views`}
-                      compact
-                    />
-                    <h3>{article.title}</h3>
-
-                    <footer className="blog-trending-card__footer">
-                      <span className="blog-trending-card__views">
-                        <Eye strokeWidth={1.9} />
-                        <span>{article.views}</span>
-                      </span>
-                      <button type="button" className="blog-icon-button blog-icon-button--ghost" aria-label="Select post">
-                        <ArrowRight strokeWidth={1.8} />
-                      </button>
-                    </footer>
-                  </div>
-                </article>
-              ))}
+                        );
+                      })}
+                      {!selectedComments.length && <div className="blog-empty-state compact">No comments yet. Be the first to reply.</div>}
+                    </div>
+                  </>
+                )}
+              </section>
             </div>
           </section>
+        </div>
+      )}
 
-          <section className="blog-list">
-            {filteredPosts.map((article) => (
-              <article
-                key={article.id}
-                className={`blog-list-card ${selectedPostId === article.id ? "is-selected" : ""} ${(article.status || "published") === "hidden" ? "is-hidden-post" : ""}`}
-                onClick={() => handleSelectPost(article.id)}
-                role="button"
-                tabIndex={0}
-              >
-                <div className="blog-list-card__media">
-                  <ImagePlaceholder badge={article.badge} tone={article.imageTone || "blue"} compact />
-                </div>
+      {isComposerModalOpen && isLoggedIn && (
+        <div className="blog-editor-backdrop blog-editor-backdrop--modal" role="presentation" onClick={closeComposerModal}>
+          <section
+            className="blog-editor-panel blog-editor-panel--modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="blog-editor-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="blog-editor-panel__head">
+              <div>
+                <p className="blog-editor-panel__kicker">Post Studio</p>
+                <h2 id="blog-editor-modal-title">{composerMode === "edit" ? "Edit this post" : "Create a new post"}</h2>
+              </div>
 
-                <div className="blog-list-card__content">
-                  <div className="blog-list-card__main">
-                    <MetaRow
-                      author={article.author}
-                      authorInitial={article.authorInitial}
-                      date={formatDate(article.publishedAt)}
-                      readTime={formatReadTime(article.content || article.description)}
-                      views={`${Number(article.views || 0).toLocaleString()} views`}
-                    />
+              <button type="button" className="blog-post-modal__close" onClick={closeComposerModal} aria-label="Close post editor">
+                <X strokeWidth={2} />
+              </button>
+            </header>
 
-                    <h3>{article.title}</h3>
-                    {isAdmin && (
-                      <span className={`blog-status-pill blog-status-pill--compact is-${article.status || "published"}`}>
-                        {(article.status || "published") === "hidden" ? "Hidden" : "Published"}
-                      </span>
-                    )}
-                    <p>{article.description || article.content}</p>
+            <div className="blog-editor-grid">
+              <div className="blog-editor-visual">
+                <PostImage badge={composer.badge || "Preview"} tone="blue" compact imageUrl={composer.imageUrl} alt="Selected post image preview" />
 
-                    <div className="blog-tag-row">
-                      {(article.tags || []).map((tag) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          className={`blog-tag-pill ${activeTag === tag ? "active" : ""}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleSelectTag(tag);
-                          }}
-                        >
-                          {tag}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                <label className="blog-editor-field blog-editor-field--full">
+                  <span>Upload Image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleComposerImageChange}
+                  />
+                </label>
 
-                  <footer className="blog-list-card__footer">
-                    <button type="button" className="blog-link-button blog-link-button--small">
-                      <span>View details</span>
-                      <ArrowRight strokeWidth={1.9} />
-                    </button>
+                {composer.imageName ? <p className="blog-editor-hint">Selected: {composer.imageName}</p> : <p className="blog-editor-hint">Upload an image to show it on the post card and inside the modal.</p>}
+              </div>
 
-                    <div className="blog-action-row">
-                      <button type="button" className="blog-icon-button" aria-label="Save article">
-                        <Bookmark strokeWidth={1.8} />
-                      </button>
-                    </div>
-                  </footer>
-                </div>
-              </article>
-            ))}
+              <div className="blog-editor-form">
+                <label className="blog-editor-field">
+                  <span>Title</span>
+                  <input
+                    value={composer.title}
+                    onChange={(event) => setComposer((current) => ({ ...current, title: event.target.value }))}
+                    placeholder="Write a strong title"
+                    maxLength={120}
+                    required
+                  />
+                </label>
 
-            {!filteredPosts.length && <div className="blog-empty-state">No articles match this filter.</div>}
+                <label className="blog-editor-field">
+                  <span>Category</span>
+                  <input
+                    value={composer.category}
+                    onChange={(event) => setComposer((current) => ({ ...current, category: event.target.value }))}
+                    placeholder="web-security"
+                    maxLength={48}
+                    required
+                  />
+                </label>
+
+                <label className="blog-editor-field blog-editor-field--full">
+                  <span>Short Description</span>
+                  <textarea
+                    rows={3}
+                    value={composer.description}
+                    onChange={(event) => setComposer((current) => ({ ...current, description: event.target.value }))}
+                    placeholder="Write the quick summary shown in cards"
+                    maxLength={260}
+                    required
+                  />
+                </label>
+
+                <label className="blog-editor-field blog-editor-field--full">
+                  <span>Details</span>
+                  <textarea
+                    rows={8}
+                    value={composer.content}
+                    onChange={(event) => setComposer((current) => ({ ...current, content: event.target.value }))}
+                    placeholder="Full post body and deeper details"
+                    maxLength={6000}
+                    required
+                  />
+                </label>
+
+                <label className="blog-editor-field">
+                  <span>Tags</span>
+                  <input
+                    value={composer.tagsText}
+                    onChange={(event) => setComposer((current) => ({ ...current, tagsText: event.target.value }))}
+                    placeholder="OWASP, Zero Trust, API Security"
+                    maxLength={180}
+                  />
+                </label>
+
+                <label className="blog-editor-field">
+                  <span>Badge</span>
+                  <input
+                    value={composer.badge}
+                    onChange={(event) => setComposer((current) => ({ ...current, badge: event.target.value }))}
+                    placeholder="New"
+                    maxLength={24}
+                  />
+                </label>
+
+                <label className="blog-editor-field blog-editor-field--full">
+                  <span>Image URL</span>
+                  <input
+                    value={composer.imageUrl}
+                    onChange={(event) => setComposer((current) => ({ ...current, imageUrl: event.target.value, imageName: "" }))}
+                    placeholder="Optional direct image link"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="blog-creation-panel__footer">
+              <button type="button" className="blog-comments__button" onClick={submitComposer}>
+                {composerMode === "edit" ? "Save Changes" : "Publish Post"}
+              </button>
+              {composerMode === "edit" && (
+                <button type="button" className="blog-comment__reply-button" onClick={openCreateMode}>
+                  Cancel Edit
+                </button>
+              )}
+            </div>
+
+            {composerStatus && <p className="blog-editor-status">{composerStatus}</p>}
           </section>
-        </main>
-      </div>
+        </div>
+      )}
 
       {!isLoggedIn && <Footer />}
     </div>

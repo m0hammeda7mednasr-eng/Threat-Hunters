@@ -1,139 +1,140 @@
-# 🛡️ Threat Hunters
+# Threat Hunters
 
-A comprehensive cybersecurity platform for threat detection, analysis, and security awareness training.
+Threat Hunters is a full-stack cybersecurity platform for website scanning, breach intelligence, security awareness, blog publishing, reports, and admin control.
 
-## 🚀 Features
+## What Is Included
 
-- **Dashboard**: Real-time threat monitoring and analytics
-- **Security Awareness**: Interactive training modules and educational content
-- **Reports**: Detailed security reports and threat analysis
-- **Admin Panel**: Complete administrative control with user management
-- **Blog**: Latest cybersecurity news and insights
-- **Multi-tool Integration**: Various security tools and utilities
+- Public landing page with website scan entry point.
+- Authentication, profile, settings, password reset, and account controls.
+- User console with scan activity, reports, PDF-style exports, and profile management.
+- Security tools for email exposure checks and password breach checks through the backend.
+- Security awareness page backed by API content, learning resources, and branded PDF downloads.
+- Blog system with posts, images, likes, shares, comments, replies, hidden/published moderation, and admin controls.
+- Admin dashboard for users, reports, team, pricing, settings, and website content editing.
+- Professional footer routes for help, documentation, FAQs, issue reporting, contact support, privacy, terms, responsible disclosure, and data protection.
+- Shared branded PDF generator for admin reports and security awareness resources.
+- Flask backend with MongoDB support.
+- Local mock backend for development when MongoDB is not available.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-- **Frontend**: React 18 + Vite
-- **Styling**: CSS3 with custom design system
-- **Icons**: SVG icons and custom graphics
-- **Routing**: React Router (ready for implementation)
-- **Theme**: Dark/Light mode support
+- Frontend: React 19, Vite, JavaScript, CSS modules/files, Lucide React icons.
+- Backend: Flask, Flask-PyMongo, Flask-CORS, PyJWT, Requests, Feedparser.
+- Database: MongoDB for production/backend mode.
+- Local development data: JSON mock database under `server/data/` (ignored by git).
+- External security API: Have I Been Pwned through backend-only calls.
 
-## 📦 Installation
+## Quick Start
 
-1. Clone the repository:
-
-```bash
-git clone https://github.com/m0hammeda7mednasr-eng/Threat-Hunters.git
-cd Threat-Hunters
-```
-
-2. Install dependencies:
+Install frontend dependencies:
 
 ```bash
 npm install
 ```
 
-3. Start the development server:
+Start the local development stack:
 
 ```bash
 npm run dev
 ```
 
-4. Build for production:
+The development script starts:
+
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:5000`
+
+Build production frontend:
 
 ```bash
 npm run build
 ```
 
-## 🎯 Pages & Components
+Run frontend lint:
 
-### User Pages
-
-- **Home**: Landing page with features overview
-- **Dashboard**: Main user dashboard
-- **Security Awareness**: Training and educational content
-- **Blog**: Cybersecurity articles and news
-- **Sign In/Up**: Authentication pages
-
-### Admin Pages
-
-- **Admin Dashboard**: Administrative overview
-- **User Management**: Manage platform users
-- **Reports**: Generate and view security reports
-- **Team Management**: Organize security teams
-- **Settings**: Platform configuration
-- **Pricing**: Subscription and pricing management
-- **Web Editor**: Content management system
-
-## 🎨 Design System
-
-The project uses a comprehensive design system with:
-
-- Consistent color palette (defined in `src/styles/colors.css`)
-- Responsive layouts
-- Dark/Light theme support
-- Modern UI components
-- Accessibility considerations
-
-## 🚀 Deployment
-
-The project is configured for easy deployment on various platforms:
-
-- **GitHub Pages**: Ready for static deployment
-- **Vercel**: Zero-config deployment
-- **Netlify**: Drag-and-drop deployment
-
-## 📱 Responsive Design
-
-Fully responsive design that works on:
-
-- Desktop computers
-- Tablets
-- Mobile devices
-- Various screen sizes
-
-## 🔧 Development
-
-### Project Structure
-
-```
-src/
-├── components/          # React components
-├── assets/             # Images, icons, and static files
-├── styles/             # CSS files and design system
-└── context/            # React context providers
+```bash
+npm run lint
 ```
 
-### Available Scripts
+Run backend tests:
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
+```bash
+python -m unittest discover -s Back-end/tests -p "test_*.py"
+```
 
-## 🤝 Contributing
+## Backend Setup
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Install Python requirements:
 
-## 📄 License
+```bash
+pip install -r Back-end/requirements.txt
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Create `Back-end/.env` from `Back-end/.env.example` and set these values:
 
-## 👥 Team
+```env
+SECRET_KEY=change-me
+MONGO_URI=mongodb://localhost:27017/vuln_scanner
+JWT_EXPIRATION_HOURS=24
+EMAIL_ADDRESS=your-email@example.com
+EMAIL_PASSWORD=your-email-app-password
+HIBP_API_KEY=your-haveibeenpwned-api-key
+```
 
-- **Mohamed Ahmed Nasr** - Lead Developer
-- **Threat Hunters Team** - Security Experts
+Do not commit real secrets. `.env` is ignored by git.
 
-## 📞 Contact
+## Important API Areas
 
-- GitHub: [@m0hammeda7mednasr-eng](https://github.com/m0hammeda7mednasr-eng)
-- Project Link: [https://github.com/m0hammeda7mednasr-eng/Threat-Hunters](https://github.com/m0hammeda7mednasr-eng/Threat-Hunters)
+- Auth: `/api/register`, `/api/login`, `/api/password/forgot`, `/api/password/reset`
+- User console: `/api/user/profile`, `/api/user/settings`, `/api/user/password`, `/api/user/account`
+- Scanner: `/api/scanner/scan`
+- Security intelligence: `/api/security/latest-cves`, `/api/security/critical-cves`, `/api/security/kev`, `/api/security/news`, `/api/security/awareness`
+- Breach checks: `/api/security/check-email`, `/api/security/check-password`
+- Blog: `/api/blogs`, `/api/blogs/:id`, `/api/blogs/:id/comments`, `/api/blogs/:id/like`, `/api/blogs/:id/share`
+- Dashboard: `/api/dashboard/stats`, `/api/dashboard/activities`, `/api/dashboard/security-metrics`
+- Admin users: `/api/admin/users`
+- Admin reports: `/api/admin/reports`
+- Admin team: `/api/admin/team`
+- Admin pricing: `/api/admin/pricing`
+- Admin settings: `/api/admin/settings`
+- Web content editor: `/api/web-content`
 
----
+## Admin Login
 
-⭐ **Star this repository if you find it helpful!**
+Local demo admin account:
+
+```text
+admin@threathunters.com / Admin@12345
+```
+
+## In-App Footer Pages
+
+Footer links open routed React pages instead of dead anchors:
+
+- `#help-center`
+- `#documentation`
+- `#faqs`
+- `#report-issue`
+- `#contact-support`
+- `#privacy-policy`
+- `#terms-of-service`
+- `#responsible-disclosure`
+- `#data-protection`
+
+## Documentation
+
+See [PROJECT_HANDOFF.md](./PROJECT_HANDOFF.md) for the detailed frontend, backend, database, integration, testing, and deployment handoff.
+
+## Deployment
+
+The frontend is configured for Vercel with `vercel.json`.
+
+For full production deployment, configure:
+
+- Frontend environment variable `VITE_API_BASE_URL` if the API is hosted separately.
+- Backend environment variables in the hosting provider.
+- MongoDB connection string.
+- HIBP API key in backend environment only.
+
+## License
+
+MIT. See [LICENSE](./LICENSE).

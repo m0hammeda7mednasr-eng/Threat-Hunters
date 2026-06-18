@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 
 from middleware.auth_middleware import token_required
+from utils.user_display import get_display_name
 
 from services.comment_service import (
     create_comment,
@@ -28,7 +29,7 @@ def add_comment(blog_id):
     return create_comment(
         blog_id,
         current_user["_id"],
-        current_user["first_name"],
+        get_display_name(current_user),
         request.json
     )
 
@@ -52,7 +53,7 @@ def add_reply(blog_id, comment_id):
         blog_id,
         comment_id,
         current_user["_id"],
-        current_user["first_name"],
+        get_display_name(current_user),
         request.json
     )
 @comment_bp.route(

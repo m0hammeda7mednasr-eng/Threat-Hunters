@@ -25,7 +25,6 @@ import './AdminDashboardPage.css';
 import './AdminUsersPage.css';
 
 const topNavItems = [
-  { label: 'Home', route: 'dashboard' },
   { label: 'More Tools', route: 'tools' },
   { label: 'Security Awareness', route: 'awareness' },
   { label: 'Blog', route: 'blog' },
@@ -95,17 +94,50 @@ const users = [
   },
 ];
 
+const emptyUserForm = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  password: 'Temp@12345',
+  role: 'user',
+  status: 'active',
+  plan: 'Free',
+  scans: '0',
+  vulnerabilities: '0',
+  phone: '',
+  bio: '',
+};
+
+const userToForm = (user) => ({
+  firstName: user.firstName || user.name?.split(' ')?.[0] || '',
+  lastName: user.lastName || user.name?.split(' ')?.slice(1).join(' ') || '',
+  email: user.email || '',
+  password: '',
+  role: user.role || 'user',
+  status: user.status || 'active',
+  plan: user.plan || 'Free',
+  scans: String(user.scans ?? 0),
+  vulnerabilities: String(user.vulnerabilities ?? 0),
+  phone: user.phone || '',
+  bio: user.bio || '',
+});
+
 function getPlanTone(plan) {
   if (plan === 'Enterprise') return 'is-enterprise';
   if (plan === 'Professional') return 'is-professional';
   return 'is-free';
 }
 
-function AdminUsersPage({ onNavigate }) {
+function AdminUsersPage({ onNavigate, onLogout, currentPage = 'admin-users' }) {
   const { theme, toggleTheme } = useTheme();
   const [query, setQuery] = useState('');
   const [managedUsers, setManagedUsers] = useState(users);
   const [notice, setNotice] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [isUserEditorOpen, setIsUserEditorOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [userForm, setUserForm] = useState(emptyUserForm);
+  const [isSavingUser, setIsSavingUser] = useState(false);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -144,17 +176,22 @@ function AdminUsersPage({ onNavigate }) {
   const filteredUsers = useMemo(() => {
     const normalized = query.trim().toLowerCase();
 
-    if (!normalized) {
-      return managedUsers;
-    }
-
     return managedUsers.filter((user) => {
+      const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+      if (!matchesStatus) {
+        return false;
+      }
+
+      if (!normalized) {
+        return true;
+      }
+
       return (
         user.name.toLowerCase().includes(normalized)
         || user.email.toLowerCase().includes(normalized)
       );
     });
-  }, [managedUsers, query]);
+  }, [managedUsers, query, statusFilter]);
 
   const computedStatCards = useMemo(() => {
     const total = managedUsers.length;
@@ -184,6 +221,10 @@ function AdminUsersPage({ onNavigate }) {
   };
 
   const deleteUser = async (user) => {
+    if (!window.confirm(`Delete ${user.name}? This cannot be undone.`)) {
+      return;
+    }
+
     try {
       setNotice('Deleting user...');
       await userAPI.deleteUser(user.id);
@@ -192,6 +233,100 @@ function AdminUsersPage({ onNavigate }) {
     } catch (error) {
       setNotice(error.message || 'Unable to delete user.');
     }
+  };
+
+  const openAddUser = () => {
+    setEditingUser(null);
+    setUserForm(emptyUserForm);
+    setNotice('');
+    setIsUserEditorOpen(true);
+  };
+
+  const openEditUser = (user) => {
+    setEditingUser(user);
+    setUserForm(userToForm(user));
+    setNotice('');
+    setIsUserEditorOpen(true);
+  };
+
+  const updateUserField = (field, value) => {
+    setUserForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const closeUserEditor = () => {
+    setIsUserEditorOpen(false);
+    setEditingUser(null);
+    setUserForm(emptyUserForm);
+  };
+
+  const saveUser = async () => {
+    const firstName = userForm.firstName.trim();
+    const lastName = userForm.lastName.trim();
+    const email = userForm.email.trim().toLowerCase();
+
+    if (!firstName || !lastName) {
+      setNotice('First name and last name are required.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)) {
+      setNotice('Enter a valid user email address.');
+      return;
+    }
+
+    if (!editingUser && userForm.password.length < 8) {
+      setNotice('Temporary password must be at least 8 characters.');
+      return;
+    }
+
+    const scans = Number(userForm.scans || 0);
+    const vulnerabilities = Number(userForm.vulnerabilities || 0);
+    if (!Number.isFinite(scans) || scans < 0 || !Number.isFinite(vulnerabilities) || vulnerabilities < 0) {
+      setNotice('Scans and vulnerabilities must be positive numbers.');
+      return;
+    }
+
+    const payload = {
+      firstName,
+      lastName,
+      email,
+      role: userForm.role,
+      status: userForm.status,
+      plan: userForm.plan,
+      scans,
+      vulnerabilities,
+      phone: userForm.phone.trim(),
+      bio: userForm.bio.trim(),
+    };
+
+    if (!editingUser) {
+      payload.password = userForm.password;
+    }
+
+    try {
+      setIsSavingUser(true);
+      setNotice(editingUser ? 'Saving user...' : 'Creating user...');
+      if (editingUser?.id) {
+        await userAPI.updateUser(editingUser.id, payload);
+      } else {
+        await userAPI.createUser(payload);
+      }
+      await loadUsers();
+      closeUserEditor();
+      setNotice(editingUser ? 'User updated.' : 'User created.');
+    } catch (error) {
+      setNotice(error.message || 'Unable to save user.');
+    } finally {
+      setIsSavingUser(false);
+    }
+  };
+
+  const cycleStatusFilter = () => {
+    setStatusFilter((current) => {
+      if (current === 'all') return 'active';
+      if (current === 'active') return 'disabled';
+      return 'all';
+    });
   };
 
   return (
@@ -210,7 +345,7 @@ function AdminUsersPage({ onNavigate }) {
               <button
                 key={item.label}
                 type="button"
-                className={`admin-nav-link ${item.route === 'admin-dashboard' ? 'is-active' : ''}`}
+                className={`admin-nav-link ${item.route === currentPage ? 'is-active' : ''}`}
                 onClick={() => onNavigate(item.route)}
               >
                 {item.label}
@@ -227,7 +362,7 @@ function AdminUsersPage({ onNavigate }) {
             >
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <button type="button" className="admin-logout-btn" onClick={() => onNavigate('home')}>
+            <button type="button" className="admin-logout-btn" onClick={onLogout ?? (() => onNavigate('home'))}>
               <LogOut size={15} />
               <span>log out</span>
             </button>
@@ -268,9 +403,9 @@ function AdminUsersPage({ onNavigate }) {
               <p>Manage all users, their subscriptions and activity</p>
             </div>
 
-            <button type="button" className="admin-users-add-btn" onClick={loadUsers}>
+            <button type="button" className="admin-users-add-btn" onClick={openAddUser}>
               <UserPlus size={18} />
-              <span>Refresh Users</span>
+              <span>Add User</span>
             </button>
           </section>
 
@@ -298,13 +433,96 @@ function AdminUsersPage({ onNavigate }) {
               />
             </label>
 
-            <button type="button" className="admin-users-filter-btn">
+            <button type="button" className="admin-users-filter-btn" onClick={cycleStatusFilter}>
               <Filter size={16} />
-              <span>Filters</span>
+              <span>{statusFilter === 'all' ? 'All Users' : statusFilter}</span>
             </button>
           </section>
 
           {notice && <div className="admin-users-notice admin-card">{notice}</div>}
+
+          {isUserEditorOpen && (
+            <section className="admin-editor-panel admin-card">
+              <div className="admin-editor-topline">
+                <div>
+                  <h2>{editingUser ? 'Edit user' : 'Add user'}</h2>
+                  <p>Control account details, access role, plan, and activity counters.</p>
+                </div>
+                <button type="button" className="admin-editor-secondary" onClick={closeUserEditor}>
+                  Close
+                </button>
+              </div>
+
+              <div className="admin-editor-grid">
+                <label className="admin-editor-field">
+                  <span>First name</span>
+                  <input value={userForm.firstName} onChange={(event) => updateUserField('firstName', event.target.value)} />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Last name</span>
+                  <input value={userForm.lastName} onChange={(event) => updateUserField('lastName', event.target.value)} />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Email</span>
+                  <input type="email" value={userForm.email} onChange={(event) => updateUserField('email', event.target.value)} />
+                </label>
+                {!editingUser && (
+                  <label className="admin-editor-field">
+                    <span>Temporary password</span>
+                    <input value={userForm.password} onChange={(event) => updateUserField('password', event.target.value)} />
+                  </label>
+                )}
+                <label className="admin-editor-field">
+                  <span>Role</span>
+                  <select value={userForm.role} onChange={(event) => updateUserField('role', event.target.value)}>
+                    <option value="user">user</option>
+                    <option value="analyst">analyst</option>
+                    <option value="manager">manager</option>
+                    <option value="admin">admin</option>
+                  </select>
+                </label>
+                <label className="admin-editor-field">
+                  <span>Status</span>
+                  <select value={userForm.status} onChange={(event) => updateUserField('status', event.target.value)}>
+                    <option value="active">active</option>
+                    <option value="disabled">disabled</option>
+                  </select>
+                </label>
+                <label className="admin-editor-field">
+                  <span>Plan</span>
+                  <select value={userForm.plan} onChange={(event) => updateUserField('plan', event.target.value)}>
+                    <option>Free</option>
+                    <option>Professional</option>
+                    <option>Enterprise</option>
+                  </select>
+                </label>
+                <label className="admin-editor-field">
+                  <span>Phone</span>
+                  <input value={userForm.phone} onChange={(event) => updateUserField('phone', event.target.value)} />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Scans</span>
+                  <input type="number" min="0" value={userForm.scans} onChange={(event) => updateUserField('scans', event.target.value)} />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Vulnerabilities</span>
+                  <input type="number" min="0" value={userForm.vulnerabilities} onChange={(event) => updateUserField('vulnerabilities', event.target.value)} />
+                </label>
+                <label className="admin-editor-field admin-editor-field-full">
+                  <span>Bio</span>
+                  <textarea value={userForm.bio} onChange={(event) => updateUserField('bio', event.target.value)} />
+                </label>
+              </div>
+
+              <div className="admin-editor-actions">
+                <button type="button" className="admin-editor-secondary" onClick={loadUsers}>Refresh</button>
+                <button type="button" className="admin-editor-secondary" onClick={closeUserEditor}>Cancel</button>
+                <button type="button" className="admin-editor-primary" onClick={saveUser} disabled={isSavingUser}>
+                  {isSavingUser ? 'Saving...' : editingUser ? 'Save User' : 'Create User'}
+                </button>
+              </div>
+            </section>
+          )}
 
           <section className="admin-users-table-panel admin-card">
             <div className="admin-section-head">
@@ -347,16 +565,16 @@ function AdminUsersPage({ onNavigate }) {
                       </td>
                       <td>
                         <div className="admin-users-actions">
-                          <button type="button" className="admin-users-icon-btn" aria-label={`Email ${user.name}`}>
+                          <a className="admin-users-icon-btn" href={`mailto:${user.email}?subject=Threat%20Hunters%20Account%20Support`} aria-label={`Email ${user.name}`}>
                             <Mail size={14} />
-                          </button>
+                          </a>
                           <button type="button" className="admin-users-icon-btn" onClick={() => toggleUserStatus(user)} aria-label={`Toggle access for ${user.name}`}>
                             <Lock size={14} />
                           </button>
                           <button type="button" className="admin-users-icon-btn is-danger" onClick={() => deleteUser(user)} aria-label={`Delete ${user.name}`}>
                             <Trash2 size={14} />
                           </button>
-                          <button type="button" className="admin-users-icon-btn" aria-label={`More actions for ${user.name}`}>
+                          <button type="button" className="admin-users-icon-btn" onClick={() => openEditUser(user)} aria-label={`Edit ${user.name}`}>
                             <MoreVertical size={14} />
                           </button>
                         </div>

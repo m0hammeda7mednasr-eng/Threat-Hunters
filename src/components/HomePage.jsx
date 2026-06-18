@@ -99,8 +99,34 @@ const scanActivity = [
 
 const duplicatedMarqueeItems = [...marqueeItems, ...marqueeItems, ...marqueeItems];
 
+const isValidWebsiteHostname = (hostname) => {
+  const host = String(hostname || '').toLowerCase();
+  if (host === 'localhost') return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+    return host.split('.').every((part) => Number(part) >= 0 && Number(part) <= 255);
+  }
+  return /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host) && !host.includes('..');
+};
+
+const normalizeWebsiteUrl = (value) => {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    throw new Error('Enter a website URL before starting the scan.');
+  }
+
+  const candidate = /^https?:\/\//i.test(trimmedValue) ? trimmedValue : `https://${trimmedValue}`;
+  const parsed = new URL(candidate);
+
+  if (!['http:', 'https:'].includes(parsed.protocol) || !isValidWebsiteHostname(parsed.hostname)) {
+    throw new Error('Enter a valid website URL like https://example.com.');
+  }
+
+  return parsed.toString();
+};
+
 const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNavigateToAwareness, onNavigateToTools }) => {
   const [scanUrl, setScanUrl] = useState('');
+  const [scanError, setScanError] = useState('');
 
   const handleExploreFeatures = useCallback(() => {
     const featuresSection = document.querySelector('.home-benefits-section');
@@ -110,8 +136,16 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
   }, []);
 
   const handleStartScan = useCallback(() => {
+    let normalizedUrl = '';
     try {
-      window.localStorage.setItem('threatHuntersPendingScanUrl', scanUrl.trim());
+      normalizedUrl = normalizeWebsiteUrl(scanUrl);
+    } catch (error) {
+      setScanError(error.message);
+      return;
+    }
+
+    try {
+      window.localStorage.setItem('threatHuntersPendingScanUrl', normalizedUrl);
     } catch {
       // Keep navigation working even if browser storage is unavailable.
     }
@@ -157,7 +191,7 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
 
             <div className="home-scan-shell">
               <div className="home-scan-input-row">
-                <div className="home-browser-window">
+                <div className={`home-browser-window ${scanError ? 'is-invalid' : ''}`}>
                   <div className="home-browser-dots" aria-hidden="true">
                     <span className="home-browser-dot home-browser-dot-red"></span>
                     <span className="home-browser-dot home-browser-dot-yellow"></span>
@@ -168,10 +202,13 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
                     autoComplete="url"
                     className="home-url-input"
                     inputMode="url"
-                    onChange={(event) => setScanUrl(event.target.value)}
+                    onChange={(event) => {
+                      setScanUrl(event.target.value);
+                      setScanError('');
+                    }}
                     placeholder="https://yourwebsite.com"
                     spellCheck="false"
-                    type="text"
+                    type="url"
                     value={scanUrl}
                   />
                 </div>
@@ -180,6 +217,7 @@ const HomePage = ({ onNavigateToSignUp, onNavigateToHome, onNavigateToBlog, onNa
                   <span>Scan Now</span>
                 </button>
               </div>
+              {scanError && <p className="home-scan-error">{scanError}</p>}
 
               <div className="home-scan-preview">
                 <div className="home-scan-preview-header">

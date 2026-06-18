@@ -1,42 +1,21 @@
 from flask import Blueprint, request
 
-from services.breach_service import (
-    check_password_breach,
-    check_email_breach,
-    analyze_password
-)
-
-breach_bp = Blueprint(
-    "breach",
-    __name__
-)
+from services.breach_service import analyze_password, check_email_breach, check_password_breach
 
 
-@breach_bp.route(
-    "/security/check-password",
-    methods=["POST"]
-)
-def check_password():
+breach_bp = Blueprint("breach", __name__)
 
-    return check_password_breach(
-        request.json
-    )
 
-@breach_bp.route(
-    "/security/check-email",
-    methods=["POST"]
-)
-def check_email():
+@breach_bp.route("/security/check-password", methods=["POST"])
+def security_check_password():
+    return check_password_breach(request.json)
 
-    return check_email_breach(
-        request.json
-    )
-@breach_bp.route(
-    "/security/analyze-password",
-    methods=["POST"]
-)
-def analyze_password_route():
 
-    return analyze_password(
-        request.json
-    )
+@breach_bp.route("/security/check-email", methods=["POST"])
+def security_check_email():
+    return check_email_breach(request.json)
+
+
+@breach_bp.route("/security/analyze-password", methods=["POST"])
+def security_analyze_password():
+    return analyze_password(request.json)

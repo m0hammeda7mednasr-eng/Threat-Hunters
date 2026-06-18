@@ -153,6 +153,16 @@
   background: rgba(255, 149, 0, 0.12);
 }
 
+.admin-team-status.is-pending {
+  color: #ffb800;
+  background: rgba(255, 184, 0, 0.12);
+}
+
+.admin-team-status.is-disabled {
+  color: #fb2c36;
+  background: rgba(251, 44, 54, 0.12);
+}
+
 .admin-team-email {
   color: var(--primary-80);
   font-size: 0.8rem;

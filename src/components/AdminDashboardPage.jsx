@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -6,16 +6,12 @@ import {
   CheckCircle2,
   ChevronDown,
   DollarSign,
-  Download,
   Eye,
-  FileBarChart2,
   FileText,
   LayoutDashboard,
   LogOut,
   Moon,
   PenSquare,
-  Play,
-  RefreshCw,
   SearchX,
   Settings,
   Shield,
@@ -25,9 +21,10 @@ import {
   Users,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { adminAPI, dashboardAPI } from '../services/api';
 import './AdminDashboardPage.css';
 
-const topMetrics = [
+const fallbackTopMetrics = [
   {
     label: 'Overall Risk Score',
     value: 'D',
@@ -71,13 +68,13 @@ const topMetrics = [
 ];
 
 const quickActions = [
-  { title: 'Start New Scan', subtitle: 'Launch a security scan', icon: Play, colors: ['#7b7eff', '#9ba8ff'] },
-  { title: 'Export All Reports', subtitle: 'Download as PDF/CSV', icon: Download, colors: ['#00d9ff', '#6d7cff'] },
-  { title: 'Rescan All Targets', subtitle: 'Run fresh scans', icon: RefreshCw, colors: ['#34c759', '#00d9ff'] },
-  { title: 'Generate Summary', subtitle: 'Executive report', icon: FileBarChart2, colors: ['#ff9500', '#ffd60a'] },
+  { title: 'Manage Users', subtitle: 'Review roles and access', icon: Users, route: 'admin-users', colors: ['#7b7eff', '#9ba8ff'] },
+  { title: 'Edit Content', subtitle: 'Update the website copy', icon: PenSquare, route: 'admin-web-edit', colors: ['#00d9ff', '#6d7cff'] },
+  { title: 'Open Reports', subtitle: 'Inspect exported reports', icon: FileText, route: 'admin-reports', colors: ['#34c759', '#00d9ff'] },
+  { title: 'Open Settings', subtitle: 'Tune the admin workspace', icon: Settings, route: 'admin-settings', colors: ['#ff9500', '#ffd60a'] },
 ];
 
-const scanStats = [
+const fallbackSecurityMetrics = [
   { label: 'Total Scans', value: '5', detail: '3 in progress', icon: Activity, tone: 'admin-tone-indigo' },
   { label: 'Success Rate', value: '80%', detail: 'Scan completion rate', icon: CheckCircle2, tone: 'admin-tone-green' },
   { label: 'Total Vulnerabilities', value: '8', detail: 'Found across all scans', icon: AlertTriangle, tone: 'admin-tone-orange' },
@@ -99,7 +96,7 @@ const severityLegend = [
   { label: 'Low', value: 24, color: '#34c759' },
 ];
 
-const alerts = [
+const fallbackAlerts = [
   {
     title: 'Critical SQL Injection Found',
     detail: 'Found in https://example.com/login. Immediate action required',
@@ -149,7 +146,6 @@ const sidebarItems = [
 ];
 
 const topNavItems = [
-  { label: 'Home', route: 'dashboard' },
   { label: 'More Tools', route: 'tools' },
   { label: 'Security Awareness', route: 'awareness' },
   { label: 'Blog', route: 'blog' },
@@ -202,9 +198,167 @@ function getStatusTone(status) {
   return 'is-warning';
 }
 
-function AdminDashboardPage({ onNavigate }) {
+function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboard' }) {
   const [activeTab, setActiveTab] = useState('recent');
+  const [dashboardStats, setDashboardStats] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [securityMetrics, setSecurityMetrics] = useState([]);
+  const [adminReports, setAdminReports] = useState([]);
+  const [dashboardError, setDashboardError] = useState('');
+  const [dashboardLoading, setDashboardLoading] = useState(false);
   const { theme, toggleTheme } = useTheme();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDashboardData = async () => {
+      setDashboardLoading(true);
+      setDashboardError('');
+
+      try {
+        const [stats, activities, metrics, reportsPayload] = await Promise.all([
+          dashboardAPI.getStats(),
+          dashboardAPI.getRecentActivities(),
+          dashboardAPI.getSecurityMetrics(),
+          adminAPI.getReports().catch(() => ({ items: [] })),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        setDashboardStats(Array.isArray(stats) ? stats : []);
+        setRecentActivities(Array.isArray(activities) ? activities : []);
+        setSecurityMetrics(Array.isArray(metrics) ? metrics : []);
+        setAdminReports(Array.isArray(reportsPayload.items) ? reportsPayload.items : []);
+      } catch (error) {
+        if (!cancelled) {
+          setDashboardError(error.message || 'Unable to load dashboard data.');
+        }
+      } finally {
+        if (!cancelled) {
+          setDashboardLoading(false);
+        }
+      }
+    };
+
+    loadDashboardData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const topMetrics = useMemo(() => {
+    if (!dashboardStats.length) {
+      return fallbackTopMetrics;
+    }
+
+    const icons = [ShieldAlert, AlertTriangle, SearchX, Activity];
+    const tones = ['admin-tone-orange', 'admin-tone-red', 'admin-tone-cyan', 'admin-tone-indigo'];
+
+    return dashboardStats.map((metric, index) => ({
+      ...metric,
+      icon: icons[index % icons.length],
+      tone: tones[index % tones.length],
+      change: null,
+      breakdown: metric.subtitle ? [metric.subtitle] : [],
+    }));
+  }, [dashboardStats]);
+
+  const liveSecurityMetrics = useMemo(() => {
+    if (!securityMetrics.length) {
+      return fallbackSecurityMetrics;
+    }
+
+    const icons = [AlertTriangle, ShieldCheck, BarChart3, Activity];
+    const tones = ['admin-tone-red', 'admin-tone-orange', 'admin-tone-indigo', 'admin-tone-green'];
+
+    return securityMetrics.map((metric, index) => ({
+      label: metric.label,
+      value: metric.value,
+      detail: metric.subtitle || 'Current security metric',
+      icon: icons[index % icons.length],
+      tone: tones[index % tones.length],
+    }));
+  }, [securityMetrics]);
+
+  const activityCards = useMemo(() => {
+    if (!recentActivities.length) {
+      return fallbackAlerts;
+    }
+
+    const icons = [Activity, FileText, CheckCircle2];
+    const tones = ['warning', 'success', 'danger'];
+
+    return recentActivities.map((activity, index) => ({
+      title: activity.title,
+      detail: activity.detail,
+      time: 'Just now',
+      icon: icons[index % icons.length],
+      tone: tones[index % tones.length],
+    }));
+  }, [recentActivities]);
+
+  const issueRows = useMemo(() => {
+    if (!adminReports.length) {
+      return scanRows;
+    }
+
+    const rows = adminReports.map((report) => {
+      const date = new Date(report.date);
+      return {
+        target: report.title,
+        date: Number.isNaN(date.getTime())
+          ? 'Recent'
+          : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        rawDate: Number.isNaN(date.getTime()) ? 0 : date.getTime(),
+        status: Number(report.score || 0) < 70 || Number(report.critical || 0) > 5 ? 'Critical' : 'Completed',
+        vulnerabilities: Number(report.critical || report.vulnerabilities || 0),
+      };
+    });
+
+    return {
+      recent: rows,
+      vulnerable: [...rows].sort((a, b) => b.vulnerabilities - a.vulnerabilities),
+      oldest: [...rows].sort((a, b) => a.rawDate - b.rawDate),
+    };
+  }, [adminReports]);
+
+  const liveChartBars = useMemo(() => {
+    if (!adminReports.length) {
+      return chartBars;
+    }
+
+    return adminReports.slice(0, 5).reverse().map((report) => {
+      const date = new Date(report.date);
+      return {
+        label: Number.isNaN(date.getTime()) ? 'Now' : date.toLocaleDateString('en-US', { month: 'short' }),
+        value: Math.max(Number(report.vulnerabilities || report.critical || 0), 1),
+      };
+    });
+  }, [adminReports]);
+
+  const liveSeverityLegend = useMemo(() => {
+    if (!securityMetrics.length) {
+      return severityLegend;
+    }
+
+    const colors = {
+      High: '#fb2c36',
+      Critical: '#ff9500',
+      Medium: '#ffd60a',
+      Low: '#34c759',
+    };
+    const total = securityMetrics.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
+
+    return securityMetrics.map((item) => ({
+      label: item.label,
+      value: Math.max(Math.round((Number(item.value || 0) / total) * 100), 1),
+      color: colors[item.label] || '#7b7eff',
+      count: Number(item.value || 0),
+    }));
+  }, [securityMetrics]);
 
   return (
     <div className="admin-dashboard-page">
@@ -222,7 +376,7 @@ function AdminDashboardPage({ onNavigate }) {
               <button
                 key={item.label}
                 type="button"
-                className={`admin-nav-link ${item.route === 'admin-dashboard' ? 'is-active' : ''}`}
+                className={`admin-nav-link ${item.route === currentPage ? 'is-active' : ''}`}
                 onClick={() => onNavigate(item.route)}
               >
                 {item.label}
@@ -239,7 +393,7 @@ function AdminDashboardPage({ onNavigate }) {
             >
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <button type="button" className="admin-logout-btn" onClick={() => onNavigate('home')}>
+            <button type="button" className="admin-logout-btn" onClick={onLogout ?? (() => onNavigate('home'))}>
               <LogOut size={15} />
               <span>log out</span>
             </button>
@@ -274,6 +428,11 @@ function AdminDashboardPage({ onNavigate }) {
         </aside>
 
         <main className="admin-main">
+          <section className="admin-section-head admin-cardless">
+            <h1>Admin Dashboard</h1>
+            <p>Control users, reports, content, pricing, and security activity from one backend-backed workspace</p>
+          </section>
+
           <section className="admin-top-metrics">
             {topMetrics.map((metric) => {
               const Icon = metric.icon;
@@ -318,7 +477,7 @@ function AdminDashboardPage({ onNavigate }) {
           <section className="admin-section">
             <div className="admin-section-head admin-cardless">
               <h2>Quick Actions</h2>
-              <p>Perform common tasks with one click</p>
+              <p>Jump straight into the admin pages that are backed by the API</p>
             </div>
 
             <div className="admin-actions-grid">
@@ -331,6 +490,7 @@ function AdminDashboardPage({ onNavigate }) {
                     type="button"
                     className="admin-action-card admin-card"
                     style={{ '--action-from': action.colors[0], '--action-to': action.colors[1] }}
+                    onClick={() => action.route && onNavigate(action.route)}
                   >
                     <span className="admin-action-icon">
                       <Icon size={18} />
@@ -345,12 +505,12 @@ function AdminDashboardPage({ onNavigate }) {
 
           <section className="admin-section">
             <div className="admin-section-head admin-cardless">
-              <h2>Scan Management</h2>
-              <p>View and manage all your security scans with powerful filtering and batch actions</p>
+              <h2>Security Metrics</h2>
+              <p>Live summary returned by the backend dashboard endpoints</p>
             </div>
 
             <div className="admin-actions-grid admin-scan-grid">
-              {scanStats.map((item) => {
+              {liveSecurityMetrics.map((item) => {
                 const Icon = item.icon;
 
                 return (
@@ -377,11 +537,11 @@ function AdminDashboardPage({ onNavigate }) {
               </div>
 
               <div className="admin-bar-chart" aria-label="Vulnerability trend">
-                {chartBars.map((bar) => (
-                  <div key={bar.label} className="admin-bar-group">
+                {liveChartBars.map((bar, index) => (
+                  <div key={`${bar.label}-${index}`} className="admin-bar-group">
                     <span className="admin-bar-value">{bar.value}</span>
                     <div className="admin-bar-track">
-                      <div className="admin-bar-fill" style={{ '--bar-height': `${(bar.value / 26) * 100}%` }} />
+                      <div className="admin-bar-fill" style={{ '--bar-height': `${(bar.value / Math.max(...liveChartBars.map((item) => item.value), 1)) * 100}%` }} />
                     </div>
                     <span className="admin-bar-label">{bar.label}</span>
                   </div>
@@ -398,18 +558,18 @@ function AdminDashboardPage({ onNavigate }) {
               <div className="admin-donut-layout">
                 <div
                   className="admin-donut-chart"
-                  style={{ '--donut-gradient': getSeverityGradient(severityLegend) }}
+                  style={{ '--donut-gradient': getSeverityGradient(liveSeverityLegend) }}
                   aria-label="Severity distribution"
                 />
 
                 <div className="admin-donut-legend">
-                  {severityLegend.map((item) => (
+                  {liveSeverityLegend.map((item) => (
                     <div key={item.label} className="admin-donut-legend-row">
                       <span className="admin-donut-label">
                         <i style={{ backgroundColor: item.color }} />
                         {item.label}
                       </span>
-                      <strong>{item.value}%</strong>
+                      <strong>{item.count ?? item.value}</strong>
                     </div>
                   ))}
                 </div>
@@ -419,16 +579,16 @@ function AdminDashboardPage({ onNavigate }) {
 
           <section className="admin-section">
             <div className="admin-section-head admin-cardless">
-              <h2>Security Alerts</h2>
-              <p>Recent security events and notifications</p>
+              <h2>Recent Activity</h2>
+              <p>Latest backend activity events for the admin workspace</p>
             </div>
 
             <div className="admin-alert-grid">
-              {alerts.map((alert) => {
+              {activityCards.map((alert, index) => {
                 const Icon = alert.icon;
 
                 return (
-                  <article key={alert.title} className={`admin-alert-card admin-card is-${alert.tone}`}>
+                  <article key={`${alert.title}-${alert.detail}-${index}`} className={`admin-alert-card admin-card is-${alert.tone}`}>
                     <div className="admin-alert-title">
                       <Icon size={16} />
                       <h3>{alert.title}</h3>
@@ -436,16 +596,28 @@ function AdminDashboardPage({ onNavigate }) {
                     <p>{alert.detail}</p>
                     <span>{alert.time}</span>
                   </article>
-                );
+                  );
               })}
             </div>
           </section>
 
+          {dashboardLoading && (
+            <section className="admin-section">
+              <div className="admin-empty-state admin-card">Loading live dashboard data...</div>
+            </section>
+          )}
+
+          {dashboardError && (
+            <section className="admin-section">
+              <div className="admin-empty-state admin-card">{dashboardError}</div>
+            </section>
+          )}
+
           <section className="admin-table-panel admin-card">
             <div className="admin-table-top">
               <div className="admin-section-head">
-                <h2>Recent Scans</h2>
-                <p>Your latest security scan results</p>
+                <h2>Recent Issues</h2>
+                <p>Backend-backed report queue sorted by recency, severity, and age</p>
               </div>
 
               <div className="admin-table-tabs">
@@ -473,7 +645,7 @@ function AdminDashboardPage({ onNavigate }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {scanRows[activeTab].map((row) => (
+                  {issueRows[activeTab].map((row) => (
                     <tr key={`${activeTab}-${row.target}`}>
                       <td className="admin-table-target">{row.target}</td>
                       <td>{row.date}</td>
@@ -484,7 +656,7 @@ function AdminDashboardPage({ onNavigate }) {
                         <span className={`admin-table-vuln ${getVulnerabilityTone(row.vulnerabilities)}`}>{row.vulnerabilities}</span>
                       </td>
                       <td className="admin-table-action-cell">
-                        <button type="button" className="admin-table-action">
+                        <button type="button" className="admin-table-action" onClick={() => onNavigate('admin-reports')}>
                           <Eye size={14} />
                           <span>View Report</span>
                         </button>

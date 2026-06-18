@@ -14,6 +14,7 @@ from middleware.auth_middleware import (
     token_required,
     get_current_user_optional
 )
+from utils.user_display import get_display_name
 
 blog_bp = Blueprint("blog", __name__)
 
@@ -27,7 +28,7 @@ def create():
     return create_blog(
         request.json,
         current_user["_id"],
-        current_user["first_name"]
+        get_display_name(current_user)
     )
 
 

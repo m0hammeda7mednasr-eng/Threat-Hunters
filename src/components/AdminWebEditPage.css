@@ -196,6 +196,7 @@
 .admin-web-field textarea,
 .admin-web-feature-field textarea,
 .admin-web-removable-row input,
+.admin-web-removable-row textarea,
 .admin-web-owasp-row input {
   width: 100%;
   border-radius: 10px;
@@ -211,6 +212,7 @@
 .admin-web-field textarea:focus,
 .admin-web-feature-field textarea:focus,
 .admin-web-removable-row input:focus,
+.admin-web-removable-row textarea:focus,
 .admin-web-owasp-row input:focus,
 .admin-web-page-picker select:focus {
   box-shadow: var(--state-focus-ring-secondary);
@@ -226,17 +228,36 @@
   min-height: 72px;
 }
 
+.admin-web-removable-row textarea {
+  min-height: 72px;
+}
+
 .admin-web-stats-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .admin-web-stat-card {
+  position: relative;
   padding: 0.9rem;
   border-radius: 10px;
   border: 1px solid rgba(109, 124, 255, 0.35);
   background: rgba(26, 29, 53, 0.4);
   display: grid;
   gap: 0.8rem;
+}
+
+.admin-web-stat-remove {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(251, 44, 54, 0.16);
+  color: #ff3b47;
+  cursor: pointer;
+  font-weight: 700;
 }
 
 .admin-web-removable-row {
@@ -400,6 +421,7 @@
 .admin-web-field textarea,
 .admin-web-feature-field textarea,
 .admin-web-removable-row input,
+.admin-web-removable-row textarea,
 .admin-web-owasp-row input,
 .admin-web-stat-card {
   background: #0e1120;
@@ -412,6 +434,7 @@
 :root[data-theme="light"] .admin-web-field textarea,
 :root[data-theme="light"] .admin-web-feature-field textarea,
 :root[data-theme="light"] .admin-web-removable-row input,
+:root[data-theme="light"] .admin-web-removable-row textarea,
 :root[data-theme="light"] .admin-web-owasp-row input,
 :root[data-theme="light"] .admin-web-stat-card,
 :root[data-theme="light"] .admin-web-post-row,

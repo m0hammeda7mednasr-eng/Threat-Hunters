@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BookOpen,
   Bot,
@@ -24,6 +24,8 @@ import {
 import './SecurityAwarenessPage.css';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import { securityAPI } from '../services/api';
+import { buildBrandedPdfBlob, downloadPdfBlob } from '../utils/pdfBuilder';
 
 const securityTips = [
   {
@@ -218,6 +220,88 @@ const downloadableResources = [
   },
 ];
 
+const iconRegistry = {
+  BookOpen,
+  Bot,
+  Bug,
+  FileText,
+  Fingerprint,
+  KeyRound,
+  LockKeyhole,
+  Mail,
+  Shield,
+  ShieldCheck,
+  ShieldX,
+  Smartphone,
+  TriangleAlert,
+  Video,
+  Wifi,
+  Zap,
+};
+
+const normalizeList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload?.vulnerabilities)) return payload.vulnerabilities;
+  if (Array.isArray(payload?.news)) return payload.news;
+  return [];
+};
+
+const resolveIcon = (icon) => {
+  if (typeof icon === 'function') {
+    return icon;
+  }
+
+  return iconRegistry[icon] || ShieldCheck;
+};
+
+const buildPdfBlob = (resource) => {
+  const checklist = resource.sections?.length ? resource.sections : [
+    'Start with the highest risk behavior and turn it into a weekly habit.',
+    'Use the checklist during onboarding and quarterly awareness refreshers.',
+    'Escalate suspicious activity early and keep evidence in one place.',
+  ];
+
+  return buildBrandedPdfBlob({
+    title: resource.title,
+    subtitle: resource.description,
+    eyebrow: 'Security Awareness Playbook',
+    metrics: [
+      { label: 'Format', value: 'PDF', fill: '#ffffff', valueColor: '#141935' },
+      { label: 'Level', value: 'Team', fill: '#f3f0ff', valueColor: '#6c5ce7' },
+      { label: 'Use Case', value: 'Training', fill: '#eefbf7', valueColor: '#11855d' },
+      { label: 'Action', value: 'Ready', fill: '#fff4e4', valueColor: '#b35d00' },
+    ],
+    sections: [
+      {
+        title: 'Executive Brief',
+        body: 'This Threat Hunters resource converts security awareness into practical behaviors teams can repeat during onboarding, reviews, and incident readiness sessions.',
+        accent: '#8b7cff',
+      },
+      {
+        title: 'Checklist',
+        items: checklist,
+        accent: '#00b8d9',
+      },
+      {
+        title: 'Recommended Follow-Up',
+        items: [
+          'Assign an owner for the next awareness review.',
+          'Turn the top two checklist items into weekly operating habits.',
+          'Use the Threat Hunters scanner and reports when technical validation is needed.',
+        ],
+        accent: '#18a058',
+      },
+    ],
+  });
+};
+
+const downloadPdfResource = (resource) => {
+  const blob = buildPdfBlob(resource);
+  downloadPdfBlob(blob, `${resource.id || 'security-awareness'}.pdf`);
+};
+
 const SecurityAwarenessPage = ({
   onNavigateToSignUp,
   onNavigateToHome,
@@ -226,6 +310,21 @@ const SecurityAwarenessPage = ({
   isLoggedIn,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [awarenessContent, setAwarenessContent] = useState({
+    tips: securityTips,
+    threats: cyberThreats,
+    resources: learningResources,
+    downloads: downloadableResources,
+  });
+  const [liveFeed, setLiveFeed] = useState({
+    latestCves: [],
+    criticalCves: [],
+    kev: [],
+    news: [],
+  });
+  const [liveLoading, setLiveLoading] = useState(true);
+  const [liveError, setLiveError] = useState('');
+  const [liveUpdatedAt, setLiveUpdatedAt] = useState('');
   const badgeTrack = [...knowledgeBadges, ...knowledgeBadges];
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
@@ -235,30 +334,97 @@ const SecurityAwarenessPage = ({
   );
 
   const filteredSecurityTips = useMemo(
-    () => securityTips.filter((tip) => itemMatchesSearch([tip.title, tip.description])),
-    [itemMatchesSearch],
+    () => awarenessContent.tips.filter((tip) => itemMatchesSearch([tip.title, tip.description])),
+    [awarenessContent.tips, itemMatchesSearch],
   );
   const filteredCyberThreats = useMemo(
     () =>
-      cyberThreats.filter((threat) =>
-        itemMatchesSearch([threat.title, threat.description, threat.badge, ...threat.howToAvoid]),
+      awarenessContent.threats.filter((threat) =>
+        itemMatchesSearch([
+          threat.title,
+          threat.description,
+          threat.badge,
+          ...(Array.isArray(threat.howToAvoid) ? threat.howToAvoid : []),
+        ]),
       ),
-    [itemMatchesSearch],
+    [awarenessContent.threats, itemMatchesSearch],
   );
   const filteredLearningResources = useMemo(
     () =>
-      learningResources.filter((resource) =>
+      awarenessContent.resources.filter((resource) =>
         itemMatchesSearch([resource.type, resource.topic, resource.title, resource.description]),
       ),
-    [itemMatchesSearch],
+    [awarenessContent.resources, itemMatchesSearch],
   );
   const filteredDownloadableResources = useMemo(
     () =>
-      downloadableResources.filter((resource) =>
-        itemMatchesSearch([resource.title, resource.description, resource.fileMeta]),
+      awarenessContent.downloads.filter((resource) =>
+        itemMatchesSearch([resource.title, resource.description, resource.fileMeta || 'PDF']),
       ),
-    [itemMatchesSearch],
+    [awarenessContent.downloads, itemMatchesSearch],
   );
+
+  const loadLiveFeed = useCallback(async () => {
+    setLiveLoading(true);
+    setLiveError('');
+
+    const [latestResult, criticalResult, kevResult, newsResult] = await Promise.allSettled([
+      securityAPI.getLatestCVEs(),
+      securityAPI.getCriticalCVEs(),
+      securityAPI.getKEV(),
+      securityAPI.getSecurityNews(),
+    ]);
+
+    const nextFeed = {
+      latestCves: latestResult.status === 'fulfilled' ? normalizeList(latestResult.value) : [],
+      criticalCves: criticalResult.status === 'fulfilled' ? normalizeList(criticalResult.value) : [],
+      kev: kevResult.status === 'fulfilled' ? normalizeList(kevResult.value) : [],
+      news: newsResult.status === 'fulfilled' ? normalizeList(newsResult.value) : [],
+    };
+
+    const failedFeeds = [];
+    if (latestResult.status === 'rejected') failedFeeds.push('latest CVEs');
+    if (criticalResult.status === 'rejected') failedFeeds.push('critical CVEs');
+    if (kevResult.status === 'rejected') failedFeeds.push('KEV');
+    if (newsResult.status === 'rejected') failedFeeds.push('security news');
+
+    setLiveFeed(nextFeed);
+    setLiveUpdatedAt(new Date().toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }));
+    setLiveError(
+      failedFeeds.length
+        ? `Some live security feeds failed to load: ${failedFeeds.join(', ')}.`
+        : '',
+    );
+    setLiveLoading(false);
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadLiveFeed();
+      securityAPI.getAwarenessContent()
+        .then((content) => {
+          setAwarenessContent({
+            tips: normalizeList(content?.tips).length ? normalizeList(content.tips) : securityTips,
+            threats: normalizeList(content?.threats).length ? normalizeList(content.threats) : cyberThreats,
+            resources: normalizeList(content?.resources).length ? normalizeList(content.resources) : learningResources,
+            downloads: normalizeList(content?.downloads).length ? normalizeList(content.downloads) : downloadableResources,
+          });
+        })
+        .catch(() => {
+          setAwarenessContent({
+            tips: securityTips,
+            threats: cyberThreats,
+            resources: learningResources,
+            downloads: downloadableResources,
+          });
+        });
+    });
+  }, [loadLiveFeed]);
 
   return (
     <div className="security-awareness-page">
@@ -293,6 +459,113 @@ const SecurityAwarenessPage = ({
         </div>
       </section>
 
+      <section className="awareness-section awareness-section--live">
+        <div className="awareness-shell">
+          <header className="awareness-live__header">
+            <div>
+              <p className="awareness-live__eyebrow">Live Security Intelligence</p>
+              <h2 className="awareness-section__title">API-backed threat feed</h2>
+              <p className="awareness-section__subtitle">
+                Pulled live from NVD, CISA KEV, and security news endpoints.
+              </p>
+            </div>
+
+            <div className="awareness-live__actions">
+              <span className="awareness-live__status">
+                {liveLoading ? 'Refreshing feed...' : `Updated ${liveUpdatedAt || 'just now'}`}
+              </span>
+              <button type="button" className="awareness-live__refresh" onClick={loadLiveFeed} disabled={liveLoading}>
+                {liveLoading ? 'Loading...' : 'Refresh feed'}
+              </button>
+            </div>
+          </header>
+
+          {liveError && <div className="awareness-empty-state awareness-empty-state--live">{liveError}</div>}
+
+          <div className="awareness-live-grid">
+            <article className="awareness-live-card">
+              <div className="awareness-live-card__header">
+                <span>Latest CVEs</span>
+                <span className="awareness-live-card__count">{liveFeed.latestCves.length}</span>
+              </div>
+              <ul className="awareness-live-card__list">
+                {liveLoading && !liveFeed.latestCves.length ? (
+                  <li className="awareness-live-card__placeholder">Loading latest CVEs...</li>
+                ) : (
+                  liveFeed.latestCves.slice(0, 4).map((item, index) => (
+                    <li key={`${item.id || item.cve || index}`} className="awareness-live-card__item">
+                      <strong>{item.id || item.cve || item.cve_id || 'Unknown CVE'}</strong>
+                      <span>{item.severity || item.score ? `${item.severity || 'Unknown'}${item.score ? ` | ${item.score}` : ''}` : 'Unrated'}</span>
+                      <p>{item.description || item.short_description || 'No description provided.'}</p>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </article>
+
+            <article className="awareness-live-card">
+              <div className="awareness-live-card__header">
+                <span>Critical CVEs</span>
+                <span className="awareness-live-card__count">{liveFeed.criticalCves.length}</span>
+              </div>
+              <ul className="awareness-live-card__list">
+                {liveLoading && !liveFeed.criticalCves.length ? (
+                  <li className="awareness-live-card__placeholder">Loading critical CVEs...</li>
+                ) : (
+                  liveFeed.criticalCves.slice(0, 4).map((item, index) => (
+                    <li key={`${item.id || item.cve || item.cve_id || index}`} className="awareness-live-card__item">
+                      <strong>{item.id || item.cve || item.cve_id || 'Unknown CVE'}</strong>
+                      <span>{item.component || item.category || item.score ? `${item.component || item.category || 'High priority'}${item.score ? ` | ${item.score}` : ''}` : 'Critical priority'}</span>
+                      <p>{item.description || item.short_description || 'Immediate review recommended.'}</p>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </article>
+
+            <article className="awareness-live-card">
+              <div className="awareness-live-card__header">
+                <span>Known Exploited</span>
+                <span className="awareness-live-card__count">{liveFeed.kev.length}</span>
+              </div>
+              <ul className="awareness-live-card__list">
+                {liveLoading && !liveFeed.kev.length ? (
+                  <li className="awareness-live-card__placeholder">Loading KEV list...</li>
+                ) : (
+                  liveFeed.kev.slice(0, 4).map((item, index) => (
+                    <li key={`${item.id || item.cveID || item.cve_id || index}`} className="awareness-live-card__item">
+                      <strong>{item.id || item.cveID || item.cve_id || 'Unknown CVE'}</strong>
+                      <span>{item.dueDate || item.due_date || 'No due date'}</span>
+                      <p>{item.status || item.required_action || item.short_description || 'Exploited vulnerability tracked by CISA.'}</p>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </article>
+
+            <article className="awareness-live-card">
+              <div className="awareness-live-card__header">
+                <span>Security News</span>
+                <span className="awareness-live-card__count">{liveFeed.news.length}</span>
+              </div>
+              <ul className="awareness-live-card__list">
+                {liveLoading && !liveFeed.news.length ? (
+                  <li className="awareness-live-card__placeholder">Loading security news...</li>
+                ) : (
+                  liveFeed.news.slice(0, 4).map((item, index) => (
+                    <li key={`${item.id || item.title || index}`} className="awareness-live-card__item">
+                      <strong>{item.title || item.headline || 'Untitled update'}</strong>
+                      <span>{item.source || item.publisher || 'Security feed'}</span>
+                      <p>{item.summary || item.description || item.short_description || 'Fresh threat intelligence update.'}</p>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section className="awareness-section awareness-section--tips">
         <div className="awareness-shell">
           <header className="awareness-section__header">
@@ -304,7 +577,7 @@ const SecurityAwarenessPage = ({
 
           <div className="tips-grid">
             {filteredSecurityTips.map((tip) => {
-              const Icon = tip.icon;
+              const Icon = resolveIcon(tip.icon);
 
               return (
                 <article key={tip.id} className="tip-card">
@@ -372,7 +645,7 @@ const SecurityAwarenessPage = ({
 
           <div className="threats-grid">
             {filteredCyberThreats.map((threat) => {
-              const Icon = threat.icon;
+              const Icon = resolveIcon(threat.icon);
 
               return (
                 <article key={threat.id} className={`threat-card threat-card--${threat.tone}`}>
@@ -392,7 +665,7 @@ const SecurityAwarenessPage = ({
                   <div className="threat-card__details">
                     <p className="threat-card__details-title">How to avoid:</p>
                     <ul className="threat-card__list">
-                      {threat.howToAvoid.map((tip) => (
+                      {(Array.isArray(threat.howToAvoid) ? threat.howToAvoid : []).map((tip) => (
                         <li key={tip}>{tip}</li>
                       ))}
                     </ul>
@@ -418,7 +691,7 @@ const SecurityAwarenessPage = ({
 
           <div className="resources-grid">
             {filteredLearningResources.map((resource) => {
-              const Icon = resource.icon;
+              const Icon = resolveIcon(resource.icon);
 
               return (
                 <article key={resource.id} className="resource-card">
@@ -447,6 +720,8 @@ const SecurityAwarenessPage = ({
                       type="button"
                       className="resource-card__action"
                       aria-label={`Open ${resource.title}`}
+                      onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
+                      disabled={!resource.url}
                     >
                       <ExternalLink strokeWidth={1.8} />
                     </button>
@@ -480,6 +755,7 @@ const SecurityAwarenessPage = ({
                         type="button"
                         className="download-card__action"
                         aria-label={`Download ${resource.title}`}
+                        onClick={() => downloadPdfResource(resource)}
                       >
                         <Download strokeWidth={1.9} />
                       </button>

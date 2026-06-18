@@ -17,12 +17,13 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { adminAPI } from '../services/api';
 import './AdminDashboardPage.css';
 import './AdminTeamPage.css';
 
 const topNavItems = [
-  { label: 'Home', route: 'dashboard' },
   { label: 'More Tools', route: 'tools' },
   { label: 'Security Awareness', route: 'awareness' },
   { label: 'Blog', route: 'blog' },
@@ -37,12 +38,6 @@ const sidebarItems = [
   { id: 'web-edit', label: 'Web edit', icon: PenSquare, route: 'admin-web-edit', expandable: true },
   { id: 'pricing', label: 'pricing', icon: DollarSign, route: 'admin-pricing' },
   { id: 'settings', label: 'Settings', icon: Settings, route: 'admin-settings' },
-];
-
-const teamStats = [
-  { label: 'Total Admins', value: '4', icon: ShieldCheck, tone: 'admin-tone-indigo' },
-  { label: 'Active Now', value: '2', icon: Crown, tone: 'admin-tone-green' },
-  { label: 'Pending Invites', value: '1', icon: Mail, tone: 'admin-tone-orange' },
 ];
 
 const teamMembers = [
@@ -91,8 +86,158 @@ const recentActivity = [
   { actor: 'Laila Ibrahim', action: 'Modified user permissions', time: '5 hours ago' },
 ];
 
-function AdminTeamPage({ onNavigate }) {
+const emptyMemberForm = {
+  name: '',
+  email: '',
+  role: 'Admin',
+  status: 'pending',
+  time: 'Invite pending',
+  badgesText: 'Reports, User Support',
+};
+
+const memberToForm = (member) => ({
+  name: member.name || '',
+  email: member.email || '',
+  role: member.role || 'Admin',
+  status: member.status || 'active',
+  time: member.time || 'Online now',
+  badgesText: Array.isArray(member.badges) ? member.badges.join(', ') : '',
+});
+
+const normalizeMember = (member) => ({
+  ...member,
+  initials: member.initials || member.name?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'NA',
+  badges: Array.isArray(member.badges) ? member.badges : [],
+});
+
+function AdminTeamPage({ onNavigate, onLogout, currentPage = 'admin-team' }) {
   const { theme, toggleTheme } = useTheme();
+  const [members, setMembers] = useState(teamMembers);
+  const [activity, setActivity] = useState(recentActivity);
+  const [notice, setNotice] = useState('');
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
+  const [memberForm, setMemberForm] = useState(emptyMemberForm);
+  const [isSavingMember, setIsSavingMember] = useState(false);
+
+  const loadTeam = useCallback(async () => {
+    try {
+      setNotice('Loading admin team...');
+      const payload = await adminAPI.getTeam();
+      const items = (payload.items || payload.team || []).map(normalizeMember);
+      setMembers(items.length ? items : teamMembers);
+      setActivity((items.length ? items : teamMembers).slice(0, 4).map((member) => ({
+        actor: member.name,
+        action: `${member.role} is ${member.status}`,
+        time: member.time || 'Synced from backend',
+      })));
+      setNotice('');
+    } catch (error) {
+      setMembers(teamMembers);
+      setActivity(recentActivity);
+      setNotice(error.message || 'Using local team data until the backend is available.');
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      loadTeam();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadTeam]);
+
+  const computedTeamStats = useMemo(() => {
+    const totalAdmins = members.length;
+    const activeNow = members.filter((member) => member.status === 'active').length;
+    const pendingInvites = members.filter((member) => member.status === 'pending').length;
+
+    return [
+      { label: 'Total Admins', value: String(totalAdmins), icon: ShieldCheck, tone: 'admin-tone-indigo' },
+      { label: 'Active Now', value: String(activeNow), icon: Crown, tone: 'admin-tone-green' },
+      { label: 'Pending Invites', value: String(pendingInvites), icon: Mail, tone: 'admin-tone-orange' },
+    ];
+  }, [members]);
+
+  const openAddMember = () => {
+    setEditingMember(null);
+    setMemberForm(emptyMemberForm);
+    setNotice('');
+    setIsEditorOpen(true);
+  };
+
+  const openEditMember = (member) => {
+    setEditingMember(member);
+    setMemberForm(memberToForm(member));
+    setNotice('');
+    setIsEditorOpen(true);
+  };
+
+  const updateMemberField = (field, value) => {
+    setMemberForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const closeMemberEditor = () => {
+    setIsEditorOpen(false);
+    setEditingMember(null);
+    setMemberForm(emptyMemberForm);
+  };
+
+  const saveMember = async () => {
+    const email = memberForm.email.trim().toLowerCase();
+    const name = memberForm.name.trim();
+
+    if (!name) {
+      setNotice('Admin name is required.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)) {
+      setNotice('Enter a valid admin email address.');
+      return;
+    }
+
+    const payload = {
+      name,
+      email,
+      role: memberForm.role,
+      status: memberForm.status,
+      time: memberForm.time.trim() || (memberForm.status === 'active' ? 'Online now' : 'Invite pending'),
+      badges: memberForm.badgesText.split(',').map((badge) => badge.trim()).filter(Boolean),
+    };
+
+    try {
+      setIsSavingMember(true);
+      setNotice(editingMember ? 'Saving admin member...' : 'Creating admin invite...');
+      if (editingMember?.id) {
+        await adminAPI.updateTeamMember(editingMember.id, payload);
+      } else {
+        await adminAPI.addTeamMember(payload);
+      }
+      await loadTeam();
+      closeMemberEditor();
+      setNotice(editingMember ? 'Admin member updated.' : 'Admin invite created.');
+    } catch (error) {
+      setNotice(error.message || 'Unable to save admin member.');
+    } finally {
+      setIsSavingMember(false);
+    }
+  };
+
+  const removeTeamMember = async (member) => {
+    if (!window.confirm(`Remove ${member.name} from the admin team?`)) {
+      return;
+    }
+
+    try {
+      setNotice('Removing team member...');
+      await adminAPI.deleteTeamMember(member.id);
+      await loadTeam();
+      setNotice('Team member removed.');
+    } catch (error) {
+      setNotice(error.message || 'Unable to remove team member.');
+    }
+  };
 
   return (
     <div className="admin-team-page">
@@ -110,7 +255,7 @@ function AdminTeamPage({ onNavigate }) {
               <button
                 key={item.label}
                 type="button"
-                className={`admin-nav-link ${item.route === 'admin-dashboard' ? 'is-active' : ''}`}
+                className={`admin-nav-link ${item.route === currentPage ? 'is-active' : ''}`}
                 onClick={() => onNavigate(item.route)}
               >
                 {item.label}
@@ -127,7 +272,7 @@ function AdminTeamPage({ onNavigate }) {
             >
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <button type="button" className="admin-logout-btn" onClick={() => onNavigate('home')}>
+            <button type="button" className="admin-logout-btn" onClick={onLogout ?? (() => onNavigate('home'))}>
               <LogOut size={15} />
               <span>log out</span>
             </button>
@@ -168,14 +313,74 @@ function AdminTeamPage({ onNavigate }) {
               <p>Manage your administrative team members and their permissions</p>
             </div>
 
-            <button type="button" className="admin-team-add-btn">
+            <button type="button" className="admin-team-add-btn" onClick={openAddMember}>
               <UserPlus size={18} />
               <span>Add New Admin</span>
             </button>
           </section>
 
+          {notice && <div className="admin-users-notice admin-card">{notice}</div>}
+
+          {isEditorOpen && (
+            <section className="admin-editor-panel admin-card">
+              <div className="admin-editor-topline">
+                <div>
+                  <h2>{editingMember ? 'Edit admin member' : 'Add admin member'}</h2>
+                  <p>Set the member identity, role, live status, and permission badges.</p>
+                </div>
+                <button type="button" className="admin-editor-secondary" onClick={closeMemberEditor}>
+                  Close
+                </button>
+              </div>
+
+              <div className="admin-editor-grid">
+                <label className="admin-editor-field">
+                  <span>Name</span>
+                  <input value={memberForm.name} onChange={(event) => updateMemberField('name', event.target.value)} placeholder="Security Admin" />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Email</span>
+                  <input type="email" value={memberForm.email} onChange={(event) => updateMemberField('email', event.target.value)} placeholder="admin@example.com" />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Role</span>
+                  <select value={memberForm.role} onChange={(event) => updateMemberField('role', event.target.value)}>
+                    <option>Super Admin</option>
+                    <option>Admin</option>
+                    <option>Security Analyst</option>
+                    <option>Support Admin</option>
+                  </select>
+                </label>
+                <label className="admin-editor-field">
+                  <span>Status</span>
+                  <select value={memberForm.status} onChange={(event) => updateMemberField('status', event.target.value)}>
+                    <option value="active">active</option>
+                    <option value="away">away</option>
+                    <option value="pending">pending</option>
+                    <option value="disabled">disabled</option>
+                  </select>
+                </label>
+                <label className="admin-editor-field">
+                  <span>Activity label</span>
+                  <input value={memberForm.time} onChange={(event) => updateMemberField('time', event.target.value)} placeholder="Online now" />
+                </label>
+                <label className="admin-editor-field">
+                  <span>Permission badges</span>
+                  <input value={memberForm.badgesText} onChange={(event) => updateMemberField('badgesText', event.target.value)} placeholder="Reports, User Support" />
+                </label>
+              </div>
+
+              <div className="admin-editor-actions">
+                <button type="button" className="admin-editor-secondary" onClick={closeMemberEditor}>Cancel</button>
+                <button type="button" className="admin-editor-primary" onClick={saveMember} disabled={isSavingMember}>
+                  {isSavingMember ? 'Saving...' : editingMember ? 'Save Member' : 'Create Invite'}
+                </button>
+              </div>
+            </section>
+          )}
+
           <section className="admin-team-stats">
-            {teamStats.map((item) => {
+            {computedTeamStats.map((item) => {
               const Icon = item.icon;
 
               return (
@@ -198,8 +403,8 @@ function AdminTeamPage({ onNavigate }) {
             </div>
 
             <div className="admin-team-members-list">
-              {teamMembers.map((member) => (
-                <article key={member.email} className="admin-team-member-card">
+              {members.map((member) => (
+                <article key={member.id || member.email} className="admin-team-member-card">
                   <div className="admin-team-member-left">
                     <div className="admin-team-avatar">{member.initials}</div>
 
@@ -217,7 +422,7 @@ function AdminTeamPage({ onNavigate }) {
 
                   <div className="admin-team-member-center">
                     <div className="admin-team-badges">
-                      {member.badges.map((badge) => (
+                      {(member.badges || []).map((badge) => (
                         <span key={`${member.email}-${badge}`} className="admin-team-badge">
                           {badge}
                         </span>
@@ -228,10 +433,10 @@ function AdminTeamPage({ onNavigate }) {
                   <div className="admin-team-member-right">
                     <span className="admin-team-role">{member.role}</span>
                     <div className="admin-team-actions">
-                      <button type="button" className="admin-team-icon-btn" aria-label={`Edit ${member.name}`}>
+                      <button type="button" className="admin-team-icon-btn" onClick={() => openEditMember(member)} aria-label={`Edit ${member.name}`}>
                         <Settings2 size={15} />
                       </button>
-                      <button type="button" className="admin-team-icon-btn is-danger" aria-label={`Remove ${member.name}`}>
+                      <button type="button" className="admin-team-icon-btn is-danger" onClick={() => removeTeamMember(member)} aria-label={`Remove ${member.name}`}>
                         <Trash2 size={15} />
                       </button>
                     </div>
@@ -247,7 +452,7 @@ function AdminTeamPage({ onNavigate }) {
             </div>
 
             <div className="admin-team-activity-list">
-              {recentActivity.map((entry) => (
+              {activity.map((entry) => (
                 <article key={`${entry.actor}-${entry.time}`} className="admin-team-activity-item">
                   <div className="admin-team-activity-copy">
                     <span className="admin-team-activity-actor">{entry.actor}</span>

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 import AuthNavbar from './components/AuthNavbar';
+import AdminTopNav from './components/AdminTopNav';
 import BootSplash from './components/BootSplash';
 import Footer from './components/Footer';
 
@@ -18,6 +19,7 @@ const AdminReportsPage = lazy(() => import('./components/AdminReportsPage'));
 const AdminWebEditPage = lazy(() => import('./components/AdminWebEditPage'));
 const AdminPricingPage = lazy(() => import('./components/AdminPricingPage'));
 const AdminSettingsPage = lazy(() => import('./components/AdminSettingsPage'));
+const SupportPage = lazy(() => import('./components/SupportPage'));
 
 const STORAGE_KEYS = Object.freeze({
   loginState: 'isLoggedIn',
@@ -29,9 +31,20 @@ const SESSION_KEYS = Object.freeze({
   splashSeen: 'threatHuntersSplashSeen',
 });
 
-const PUBLIC_PAGES = new Set(['home', 'signin', 'signup', 'blog', 'awareness', 'tools']);
+const SUPPORT_PAGES = new Set([
+  'help-center',
+  'documentation',
+  'faqs',
+  'report-issue',
+  'contact-support',
+  'privacy-policy',
+  'terms-of-service',
+  'responsible-disclosure',
+  'data-protection',
+]);
+const PUBLIC_PAGES = new Set(['home', 'signin', 'signup', 'blog', 'awareness', 'tools', ...SUPPORT_PAGES]);
 const ADMIN_PAGES = new Set(['admin-dashboard', 'admin-team', 'admin-users', 'admin-reports', 'admin-web-edit', 'admin-pricing', 'admin-settings']);
-const PRIVATE_PAGES = new Set(['dashboard', ...ADMIN_PAGES, 'blog', 'awareness', 'tools']);
+const PRIVATE_PAGES = new Set(['dashboard', ...ADMIN_PAGES, 'blog', 'awareness', 'tools', ...SUPPORT_PAGES]);
 const DASHBOARD_SECTIONS = new Set(['dashboard', 'reports', 'settings', 'profile']);
 
 const safeStorage = {
@@ -375,19 +388,14 @@ function App() {
     window.location.hash = `#${nextPage}`;
   }, []);
 
-  const handleLogout = useCallback(() => {
-    setIsLoggedIn(false);
-    setUserRole('user');
-    setUserEmail('');
-    setCurrentPage('home');
-    setDashboardSection('dashboard');
-    window.location.hash = '#home';
-  }, []);
-
   const handleNavigation = useCallback(
     (page) => {
       if (page === 'home' && isLoggedIn) {
-        handleLogout();
+        const landingPage = userRole === 'admin' ? 'admin-dashboard' : 'dashboard';
+
+        setCurrentPage(landingPage);
+        setDashboardSection('dashboard');
+        window.location.hash = `#${landingPage}`;
         return;
       }
 
@@ -408,6 +416,13 @@ function App() {
         if (!isLoggedIn) {
           setCurrentPage('signin');
           window.location.hash = '#signin';
+          return;
+        }
+
+        if (userRole === 'admin') {
+          setCurrentPage('admin-dashboard');
+          setDashboardSection('dashboard');
+          window.location.hash = '#admin-dashboard';
           return;
         }
 
@@ -447,8 +462,17 @@ function App() {
       setCurrentPage(nextPage);
       window.location.hash = createHash(nextPage);
     },
-    [handleLogout, isLoggedIn, userRole],
+    [isLoggedIn, userRole],
   );
+
+  const handleLogout = useCallback(() => {
+    setIsLoggedIn(false);
+    setUserRole('user');
+    setUserEmail('');
+    setCurrentPage('home');
+    setDashboardSection('dashboard');
+    window.location.hash = '#home';
+  }, []);
 
   const publicNavigationProps = useMemo(
     () => ({
@@ -483,6 +507,7 @@ function App() {
               <DashboardPage
                 key={`dashboard-${dashboardSection}`}
                 onNavigate={handleNavigation}
+                onLogout={handleLogout}
                 currentPage={currentPage}
                 initialSection={dashboardSection}
               />
@@ -491,54 +516,61 @@ function App() {
           )}
 
           {currentPage === 'admin-dashboard' && isLoggedIn && (
-            <AdminDashboardPage onNavigate={handleNavigation} />
+            <>
+              <AdminDashboardPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+              <Footer />
+            </>
           )}
 
           {currentPage === 'admin-team' && isLoggedIn && (
             <>
-              <AdminTeamPage onNavigate={handleNavigation} />
+              <AdminTeamPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {currentPage === 'admin-users' && isLoggedIn && (
             <>
-              <AdminUsersPage onNavigate={handleNavigation} />
+              <AdminUsersPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {currentPage === 'admin-reports' && isLoggedIn && (
             <>
-              <AdminReportsPage onNavigate={handleNavigation} />
+              <AdminReportsPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {currentPage === 'admin-web-edit' && isLoggedIn && (
             <>
-              <AdminWebEditPage onNavigate={handleNavigation} />
+              <AdminWebEditPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {currentPage === 'admin-pricing' && isLoggedIn && (
             <>
-              <AdminPricingPage onNavigate={handleNavigation} />
+              <AdminPricingPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {currentPage === 'admin-settings' && isLoggedIn && (
             <>
-              <AdminSettingsPage onNavigate={handleNavigation} />
+              <AdminSettingsPage onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
               <Footer />
             </>
           )}
 
           {isLoggedIn && currentPage === 'blog' && (
             <div className="logged-in-page">
-              <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              {userRole === 'admin' ? (
+                <AdminTopNav onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+              ) : (
+                <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              )}
               <BlogPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn userRole={userRole} />
               <Footer />
             </div>
@@ -546,7 +578,11 @@ function App() {
 
           {isLoggedIn && currentPage === 'awareness' && (
             <div className="logged-in-page">
-              <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              {userRole === 'admin' ? (
+                <AdminTopNav onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+              ) : (
+                <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              )}
               <SecurityAwarenessPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn />
               <Footer />
             </div>
@@ -554,8 +590,24 @@ function App() {
 
           {isLoggedIn && currentPage === 'tools' && (
             <div className="logged-in-page">
-              <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              {userRole === 'admin' ? (
+                <AdminTopNav onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+              ) : (
+                <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              )}
               <MoreToolsPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn />
+              <Footer />
+            </div>
+          )}
+
+          {isLoggedIn && SUPPORT_PAGES.has(currentPage) && (
+            <div className="logged-in-page">
+              {userRole === 'admin' ? (
+                <AdminTopNav onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+              ) : (
+                <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              )}
+              <SupportPage {...publicNavigationProps} pageKey={currentPage} isLoggedIn />
               <Footer />
             </div>
           )}
@@ -590,6 +642,10 @@ function App() {
 
           {!isLoggedIn && currentPage === 'tools' && (
             <MoreToolsPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn={false} />
+          )}
+
+          {!isLoggedIn && SUPPORT_PAGES.has(currentPage) && (
+            <SupportPage {...publicNavigationProps} pageKey={currentPage} isLoggedIn={false} />
           )}
 
           {isLoggedIn && !PRIVATE_PAGES.has(currentPage) && (

@@ -25,7 +25,6 @@ import './AdminDashboardPage.css';
 import './AdminWebEditPage.css';
 
 const topNavItems = [
-  { label: 'Home', route: 'dashboard' },
   { label: 'More Tools', route: 'tools' },
   { label: 'Security Awareness', route: 'awareness' },
   { label: 'Blog', route: 'blog' },
@@ -138,7 +137,7 @@ const getInitialEditorContent = () => {
   }
 };
 
-function AdminWebEditPage({ onNavigate }) {
+function AdminWebEditPage({ onNavigate, onLogout, currentPage = 'admin-web-edit' }) {
   const { theme, toggleTheme } = useTheme();
   const [selectedPage, setSelectedPage] = useState('blog');
   const [content, setContent] = useState(getInitialEditorContent);
@@ -206,6 +205,37 @@ function AdminWebEditPage({ onNavigate }) {
   }, [selectedPage]);
 
   const handlePublish = async () => {
+    if (!String(pageContent.title || '').trim()) {
+      setSaveStatus('Page title is required before publishing.');
+      return;
+    }
+
+    if (Array.isArray(pageContent.features) && pageContent.features.some((feature) => !String(feature || '').trim())) {
+      setSaveStatus('Feature rows cannot be empty.');
+      return;
+    }
+
+    if (Array.isArray(pageContent.stats) && pageContent.stats.some((item) => !String(item.value || '').trim() || !String(item.label || '').trim())) {
+      setSaveStatus('Statistic value and label are required.');
+      return;
+    }
+
+    if (selectedPage === 'awareness') {
+      const invalidLink = (pageContent.owasp || []).some((item) => item.link && !/^https?:\/\//i.test(item.link));
+      if (invalidLink) {
+        setSaveStatus('OWASP links must start with http:// or https://.');
+        return;
+      }
+    }
+
+    if (selectedPage === 'blog') {
+      const postCount = Number(pageContent.postsToDisplay || 0);
+      if (!Number.isFinite(postCount) || postCount < 1) {
+        setSaveStatus('Number of posts to display must be at least 1.');
+        return;
+      }
+    }
+
     try {
       setSaveStatus('Saving to backend...');
       await contentAPI.updateContent(selectedPage, pageContent);
@@ -240,6 +270,10 @@ function AdminWebEditPage({ onNavigate }) {
   };
 
   const deleteBlogPost = async (postId) => {
+    if (!window.confirm('Delete this blog post permanently?')) {
+      return;
+    }
+
     try {
       setBlogPostStatus('Deleting post...');
       await blogAPI.deletePost(postId);
@@ -281,6 +315,16 @@ function AdminWebEditPage({ onNavigate }) {
       [selectedPage]: {
         ...prev[selectedPage],
         features: [...prev[selectedPage].features, 'New feature'],
+      },
+    }));
+  };
+
+  const removeFeature = (index) => {
+    setContent((prev) => ({
+      ...prev,
+      [selectedPage]: {
+        ...prev[selectedPage],
+        features: prev[selectedPage].features.filter((_, itemIndex) => itemIndex !== index),
       },
     }));
   };
@@ -348,6 +392,26 @@ function AdminWebEditPage({ onNavigate }) {
     });
   };
 
+  const addStat = () => {
+    setContent((prev) => ({
+      ...prev,
+      [selectedPage]: {
+        ...prev[selectedPage],
+        stats: [...prev[selectedPage].stats, { value: '0', label: 'New metric' }],
+      },
+    }));
+  };
+
+  const removeStat = (index) => {
+    setContent((prev) => ({
+      ...prev,
+      [selectedPage]: {
+        ...prev[selectedPage],
+        stats: prev[selectedPage].stats.filter((_, itemIndex) => itemIndex !== index),
+      },
+    }));
+  };
+
   return (
     <div className="admin-web-edit-page">
       <nav className="admin-nav">
@@ -364,7 +428,7 @@ function AdminWebEditPage({ onNavigate }) {
               <button
                 key={item.label}
                 type="button"
-                className={`admin-nav-link ${item.route === 'admin-dashboard' ? 'is-active' : ''}`}
+                className={`admin-nav-link ${item.route === currentPage ? 'is-active' : ''}`}
                 onClick={() => onNavigate(item.route)}
               >
                 {item.label}
@@ -381,7 +445,7 @@ function AdminWebEditPage({ onNavigate }) {
             >
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <button type="button" className="admin-logout-btn" onClick={() => onNavigate('home')}>
+            <button type="button" className="admin-logout-btn" onClick={onLogout ?? (() => onNavigate('home'))}>
               <LogOut size={15} />
               <span>log out</span>
             </button>
@@ -721,24 +785,37 @@ function AdminWebEditPage({ onNavigate }) {
 
             <div className="admin-web-stack">
               {pageContent.features.map((feature, index) => (
-                <label key={`${selectedPage}-feature-${index}`} className="admin-web-feature-field">
+                <div key={`${selectedPage}-feature-${index}`} className="admin-web-removable-row">
                   <textarea rows={2} value={feature} onChange={(event) => updateFeature(index, event.target.value)} />
-                </label>
+                  <button type="button" onClick={() => removeFeature(index)} aria-label={`Remove feature ${index + 1}`}>
+                    x
+                  </button>
+                </div>
               ))}
             </div>
           </section>
 
           <section className="admin-web-panel admin-card">
-            <div className="admin-web-panel-head">
-              <span className="admin-web-panel-icon">
-                <FileText size={14} />
-              </span>
-              <h2>Statistics Section</h2>
+            <div className="admin-web-panel-head admin-web-panel-head-between">
+              <div className="admin-web-panel-head-main">
+                <span className="admin-web-panel-icon">
+                  <FileText size={14} />
+                </span>
+                <h2>Statistics Section</h2>
+              </div>
+
+              <button type="button" className="admin-web-mini-btn" onClick={addStat}>
+                <Plus size={13} />
+                <span>Add Statistic</span>
+              </button>
             </div>
 
             <div className="admin-web-stats-grid">
               {pageContent.stats.map((item, index) => (
                 <div key={`${selectedPage}-stat-${index}`} className="admin-web-stat-card">
+                  <button type="button" className="admin-web-stat-remove" onClick={() => removeStat(index)} aria-label={`Remove ${item.label}`}>
+                    x
+                  </button>
                   <label className="admin-web-field">
                     <span>Value</span>
                     <input value={item.value} onChange={(event) => updateStat(index, 'value', event.target.value)} />

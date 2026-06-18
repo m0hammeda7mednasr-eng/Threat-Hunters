@@ -18,7 +18,6 @@ import {
   LayoutDashboard,
   LogOut,
   Mail,
-  MoreVertical,
   Pencil,
   PieChart,
   Play,
@@ -36,6 +35,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import AuthNavbar from './AuthNavbar';
+import { scannerAPI } from '../services/api';
 import './DashboardPage.css';
 
 const SIDEBAR_ITEMS = [
@@ -43,164 +43,6 @@ const SIDEBAR_ITEMS = [
   { key: 'reports', label: 'Reports', icon: FileText },
   { key: 'settings', label: 'Settings', icon: Settings },
   { key: 'profile', label: 'Profile', icon: User },
-];
-
-const DASHBOARD_OVERVIEW_CARDS = [
-  { label: 'Total Scans', value: '135', subtitle: 'Completed this month', icon: Activity },
-  { label: 'Critical Issues', value: '23', subtitle: 'Need immediate remediation', icon: Bell },
-  { label: 'Vulnerabilities Found', value: '342', subtitle: 'Across latest assessments', icon: AlertTriangle },
-  { label: 'Last Scan', value: '2h ago', subtitle: 'example.com', icon: Clock3 },
-];
-
-const REPORT_OVERVIEW_CARDS = [
-  {
-    label: 'Total Reports',
-    value: '6',
-    subtitle: 'Generated reports',
-    icon: FileText,
-    tone: 'primary',
-  },
-  {
-    label: 'Total Vulnerabilities',
-    value: '82',
-    subtitle: 'Issues detected',
-    icon: AlertTriangle,
-    tone: 'medium',
-  },
-  {
-    label: 'Critical Issues',
-    value: '22',
-    subtitle: 'Require immediate action',
-    icon: Bell,
-    tone: 'high',
-  },
-  {
-    label: 'Average Risk Score',
-    value: '70',
-    subtitle: 'Across all scans',
-    icon: Activity,
-    tone: 'low',
-  },
-];
-
-const REPORT_RESULT_CARDS = [
-  {
-    id: 'RPT-2025-002',
-    riskLabel: 'Medium Risk',
-    riskTone: 'medium',
-    url: 'https://myapp.io',
-    reference: 'AF2587E',
-    date: '2025-01-15',
-    time: '14:32',
-    duration: '2m 45s',
-    score: '72/100',
-    scoreTone: 'medium',
-    breakdown: [
-      { label: 'Critical', value: 3, tone: 'critical' },
-      { label: 'High', value: 4, tone: 'high' },
-      { label: 'Medium', value: 3, tone: 'medium' },
-      { label: 'Low', value: 2, tone: 'low' },
-    ],
-  },
-  {
-    id: 'RPT-2025-002',
-    riskLabel: 'Low Risk',
-    riskTone: 'low',
-    url: 'https://myapp.io',
-    reference: 'AF2587E',
-    date: '2025-01-14',
-    time: '08:15',
-    duration: '3m 12s',
-    score: '58/100',
-    scoreTone: 'low',
-    breakdown: [
-      { label: 'Critical', value: 1, tone: 'critical' },
-      { label: 'High', value: 2, tone: 'high' },
-      { label: 'Medium', value: 3, tone: 'medium' },
-      { label: 'Low', value: 2, tone: 'low' },
-    ],
-  },
-  {
-    id: 'RPT-2025-002',
-    riskLabel: 'High Risk',
-    riskTone: 'high',
-    url: 'https://myapp.io',
-    reference: 'AF2587E',
-    date: '2025-01-10',
-    time: '10:30',
-    duration: '3m 45s',
-    score: '84/100',
-    scoreTone: 'high',
-    breakdown: [
-      { label: 'Critical', value: 6, tone: 'critical' },
-      { label: 'High', value: 6, tone: 'high' },
-      { label: 'Medium', value: 4, tone: 'medium' },
-      { label: 'Low', value: 3, tone: 'low' },
-    ],
-  },
-  {
-    id: 'RPT-2025-002',
-    riskLabel: 'Low Risk',
-    riskTone: 'low',
-    url: 'https://myapp.io',
-    reference: 'AF2587E',
-    date: '2025-01-14',
-    time: '08:15',
-    duration: '3m 12s',
-    score: '58/100',
-    scoreTone: 'low',
-    breakdown: [
-      { label: 'Critical', value: 1, tone: 'critical' },
-      { label: 'High', value: 2, tone: 'high' },
-      { label: 'Medium', value: 3, tone: 'medium' },
-      { label: 'Low', value: 2, tone: 'low' },
-    ],
-  },
-  {
-    id: 'RPT-2025-002',
-    riskLabel: 'Medium Risk',
-    riskTone: 'medium',
-    url: 'https://myapp.io',
-    reference: 'AF2587E',
-    date: '2025-01-15',
-    time: '14:32',
-    duration: '2m 45s',
-    score: '72/100',
-    scoreTone: 'medium',
-    breakdown: [
-      { label: 'Critical', value: 3, tone: 'critical' },
-      { label: 'High', value: 4, tone: 'high' },
-      { label: 'Medium', value: 3, tone: 'medium' },
-      { label: 'Low', value: 2, tone: 'low' },
-    ],
-  },
-  {
-    id: 'RPT-2025-002',
-    riskLabel: 'High Risk',
-    riskTone: 'high',
-    url: 'https://myapp.io',
-    reference: 'AF2587E',
-    date: '2025-01-10',
-    time: '10:30',
-    duration: '3m 45s',
-    score: '84/100',
-    scoreTone: 'high',
-    breakdown: [
-      { label: 'Critical', value: 6, tone: 'critical' },
-      { label: 'High', value: 6, tone: 'high' },
-      { label: 'Medium', value: 4, tone: 'medium' },
-      { label: 'Low', value: 3, tone: 'low' },
-    ],
-  },
-];
-
-const REPORT_HISTORY_ITEMS = [
-  { index: 1, url: 'https://example.com', timestamp: '2025-01-15 at 14:32', vulnerabilities: 12, score: '72/100', scoreTone: 'medium' },
-  { index: 2, url: 'https://example.com', timestamp: '2025-01-15 at 14:32', vulnerabilities: 8, score: '58/100', scoreTone: 'low' },
-  { index: 3, url: 'https://example.com', timestamp: '2025-01-15 at 14:32', vulnerabilities: 23, score: '91/100', scoreTone: 'high' },
-  { index: 4, url: 'https://example.com', timestamp: '2025-01-15 at 14:32', vulnerabilities: 5, score: '35/100', scoreTone: 'low' },
-  { index: 5, url: 'https://example.com', timestamp: '2025-01-15 at 14:32', vulnerabilities: 15, score: '78/100', scoreTone: 'medium' },
-  { index: 6, url: 'https://example.com', timestamp: '2025-01-15 at 14:32', vulnerabilities: 15, score: '78/100', scoreTone: 'medium' },
 ];
 
 const SETTINGS_SCAN_MODE_OPTIONS = [
@@ -227,15 +69,6 @@ const SETTINGS_REPORT_ITEMS = [
   { key: 'technical', title: 'Include Detailed Technical Analysis', sub: 'Add in-depth technical details to reports' },
   { key: 'aiSummary', title: 'Include AI-Generated Summary', sub: 'Add executive summary created by AI' },
   { key: 'autoPdf', title: 'Auto-Generate PDF Report', sub: 'Automatically create PDF version after scan completes' },
-];
-
-const RECENT_SCANS = [
-  { target: 'Example.com', status: 'Completed', issue: 'XSS,CSRF', risk: 'High', date: '19-11-2025' },
-  { target: 'testsite.io', status: 'Completed', issue: 'SQL Injection', risk: 'Critical', date: '25-11-2025' },
-  { target: 'Webapp.dev', status: 'In Progress', issue: '-', risk: '-', date: '28-11-2025' },
-  { target: 'Myapp.com', status: 'Completed', issue: 'Weak SSL', risk: 'Medium', date: '29-11-2025' },
-  { target: 'Myapp.com', status: 'Completed', issue: 'None', risk: 'Low', date: '29-11-2025' },
-  { target: 'Myapp.com', status: 'Failed', issue: '-', risk: '-', date: '29-11-2025' },
 ];
 
 const DASHBOARD_SCAN_TYPES = [
@@ -303,72 +136,6 @@ const ADVANCED_SCAN_DEFAULTS = {
   dSslTls: true,
 };
 
-const AI_INSIGHT_STATS = [
-  { label: 'Critical Issues Detected', value: '23' },
-  { label: 'High-Risk Issues Detected', value: '28' },
-  { label: 'Medium-Risk Issues Detected', value: '215' },
-  { label: 'Low-Risk Issues Detected', value: '400' },
-];
-
-const AI_SUMMARY_LINES = [
-  'Based on comprehensive analysis of your web application, our AI security engine has identified 342 total vulnerabilities across multiple categories. The scan detected 23 critical issues that pose immediate security risks and require urgent attention.',
-  'The most severe vulnerabilities include SQL injection points in authentication modules, weak session management implementations, and missing security headers that could expose your application to various attack vectors. These critical issues could potentially allow unauthorized database access and session hijacking if exploited.',
-  'Additionally, the analysis revealed 87 high-risk issues primarily related to cross-site scripting vulnerabilities, insecure direct object references, and outdated cryptographic configurations. Medium and low-risk findings include missing input validation, insufficient rate limiting, and various security best practice violations.',
-  'The AI recommends prioritizing remediation of critical and high-severity vulnerabilities within the next deployment cycle. Detailed step-by-step remediation guidance is provided for each detected issue to assist your development team in implementing secure fixes.',
-  "With proper implementation of the recommended security measures, your application's security posture is estimated to improve significantly, reducing the overall risk score from 72/100 to an anticipated 90/100 or higher.",
-];
-
-const RECOMMENDATION_ITEMS = [
-  {
-    title: 'SQL Injection Vulnerability in Login Form',
-    severity: 'Critical',
-    description:
-      'The login form does not properly sanitize user input, allowing potential SQL injection attacks that could compromise the entire database and expose sensitive user information.',
-    aiRecommendation:
-      'Implement parameterized queries for all database operations. Replace string concatenation with prepared statements and add comprehensive input validation middleware to sanitize all user inputs before processing.',
-    steps: [
-      'Review all database query implementations in authentication modules',
-      'Replace dynamic SQL queries with parameterized prepared statements',
-      'Implement server-side input validation and sanitization',
-      'Add rate limiting to authentication endpoints to prevent brute force attacks',
-      'Test thoroughly with SQL injection payloads to verify fixes',
-    ],
-  },
-  {
-    title: 'Missing Security Headers Configuration',
-    severity: 'High',
-    description:
-      'Critical HTTP security headers are not configured on the web server, leaving the application vulnerable to various client-side attacks including XSS, clickjacking, and MIME-type sniffing attacks.',
-    aiRecommendation:
-      'Configure all essential security headers in your web server or application middleware. This includes Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, and Strict-Transport-Security headers to protect against common web vulnerabilities.',
-    steps: [
-      'Add Content-Security-Policy header with strict directives',
-      'Enable X-Frame-Options: DENY or SAMEORIGIN to prevent clickjacking',
-      'Configure X-Content-Type-Options: nosniff header',
-      'Implement Strict-Transport-Security with appropriate max-age value',
-      'Add Referrer-Policy and Permissions-Policy headers for additional protection',
-    ],
-  },
-];
-
-const THREAT_INTELLIGENCE_ITEMS = [
-  {
-    cve: 'CVE-2025-1234',
-    severity: 'High',
-    description: 'Remote code execution vulnerability in popular web framework affecting multiple versions.',
-  },
-  {
-    cve: 'CVE-2025-5678',
-    severity: 'Critical',
-    description: 'Authentication bypass vulnerability discovered in content management systems.',
-  },
-  {
-    cve: 'CVE-2025-9012',
-    severity: 'Medium',
-    description: 'Cross-site scripting vulnerability found in widely used JavaScript libraries.',
-  },
-];
-
 const SECURITY_AWARENESS_ITEMS = [
   {
     title: 'Security Best Practices',
@@ -387,38 +154,236 @@ const SECURITY_AWARENESS_ITEMS = [
   },
 ];
 
-const VULNERABILITY_DISTRIBUTION = [
-  { label: 'Low', value: 87, color: 'var(--accent-green)' },
-  { label: 'Medium', value: 80, color: 'var(--accent-yellow)' },
-  { label: 'High', value: 65, color: 'var(--accent-coral)' },
-  { label: 'Critical', value: 25, color: 'var(--accent-red)' },
-];
-
-const SCAN_ACTIVITY_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const SCAN_ACTIVITY_VALUES = [45, 70, 52, 83, 61, 76, 68];
-const SCAN_ACTIVITY_SUMMARY_STATS = [
-  { label: 'Average', value: '66 Scans' },
-  { label: 'Total', value: '88 Scans' },
-  { label: 'Peak', value: '465 Scans' },
-];
-
-const PROFILE_SCAN_STATS = [
-  { label: 'Total Scans', value: '247' },
-  { label: 'Last Scan', value: 'Today' },
-  { label: 'Critical issues', value: '12' },
-];
-
-const PROFILE_SCAN_ROWS = [
-  { website: 'EXAMPLE.COM', risk: 'High', date: 'Dec 9, 2025' },
-  { website: 'EXAMPLE.COM', risk: 'Critical', date: 'Dec 9, 2025' },
-  { website: 'EXAMPLE.COM', risk: 'Medium', date: 'Dec 9, 2025' },
-  { website: 'EXAMPLE.COM', risk: 'Low', date: 'Dec 9, 2025' },
-];
-
 const toDashOffset = (percent) => {
   const radius = 34;
   const circumference = 2 * Math.PI * radius;
   return circumference - (circumference * percent) / 100;
+};
+
+const normalizeWebsiteUrl = (value) => {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    throw new Error('Enter a website URL before starting the scan.');
+  }
+  const candidate = /^https?:\/\//i.test(trimmedValue) ? trimmedValue : `https://${trimmedValue}`;
+  const parsed = new URL(candidate);
+  if (!['http:', 'https:'].includes(parsed.protocol) || !isValidWebsiteHostname(parsed.hostname)) {
+    throw new Error('Enter a valid website URL like https://example.com.');
+  }
+  return parsed.toString();
+};
+
+const isValidWebsiteHostname = (hostname) => {
+  const host = String(hostname || '').toLowerCase();
+  if (host === 'localhost') return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+    return host.split('.').every((part) => Number(part) >= 0 && Number(part) <= 255);
+  }
+  return /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host) && !host.includes('..');
+};
+
+const severityTone = (value) => String(value || 'low').toLowerCase();
+
+const countFindingsBySeverity = (report, severity) => (
+  report?.summary?.severity_counts?.[severity]
+  ?? report?.findings?.filter((finding) => finding.severity === severity).length
+  ?? 0
+);
+
+const reportToCard = (report) => ({
+  id: report.id || 'RPT-LIVE',
+  riskLabel: report.risk_label || `${report.risk || 'Low'} Risk`,
+  riskTone: severityTone(report.risk),
+  url: report.url || report.target,
+  reference: report.reference || report.id || 'LIVE',
+  date: report.date || new Date().toISOString().slice(0, 10),
+  time: report.time || new Date().toTimeString().slice(0, 5),
+  duration: report.duration || '0.0s',
+  score: report.score || `${report.risk_score || 0}/100`,
+  scoreTone: severityTone(report.risk),
+  breakdown: [
+    { label: 'Critical', value: countFindingsBySeverity(report, 'Critical'), tone: 'critical' },
+    { label: 'High', value: countFindingsBySeverity(report, 'High'), tone: 'high' },
+    { label: 'Medium', value: countFindingsBySeverity(report, 'Medium'), tone: 'medium' },
+    { label: 'Low', value: countFindingsBySeverity(report, 'Low'), tone: 'low' },
+  ],
+  raw: report,
+});
+
+const escapePdfText = (value) => String(value || '')
+  .replace(/[^\x20-\x7E]/g, '')
+  .replace(/\\/g, '\\\\')
+  .replace(/\(/g, '\\(')
+  .replace(/\)/g, '\\)');
+
+const addWrappedPdfLines = (lines, label, value, maxLength = 94) => {
+  const text = String(value || 'Not available').replace(/\s+/g, ' ').trim();
+  const prefix = label ? `${label}: ` : '';
+  const availableLength = Math.max(maxLength - prefix.length, 40);
+  const chunks = [];
+
+  for (let index = 0; index < text.length; index += availableLength) {
+    chunks.push(text.slice(index, index + availableLength));
+  }
+
+  if (!chunks.length) {
+    lines.push(prefix || '');
+    return;
+  }
+
+  chunks.forEach((chunk, index) => {
+    lines.push(`${index === 0 ? prefix : '  '}${chunk}`);
+  });
+};
+
+const formatHeaderValue = (value) => {
+  const normalizedValue = String(value || 'Missing');
+  return normalizedValue.length > 140 ? `${normalizedValue.slice(0, 137)}...` : normalizedValue;
+};
+
+const buildScanReportPdf = (report) => {
+  const severityCounts = report.summary?.severity_counts || {};
+  const lines = [
+    'Threat Hunters Vulnerability Report',
+    'Professional web exposure assessment',
+    '',
+    'Executive Summary',
+    `Report: ${report.id || 'Live scan'}`,
+    `Reference: ${report.reference || 'Not available'}`,
+    `Target: ${report.target || report.url}`,
+    `Final URL: ${report.url || report.target}`,
+    `Risk: ${report.risk_label || report.risk || 'Unknown'} | Score: ${report.score || `${report.risk_score || 0}/100`}`,
+    `HTTP Status: ${report.http_status || 'Unknown'} | Server: ${report.server || 'Not disclosed'}`,
+    `Content Type: ${report.content_type || 'Unknown'} | Content Length: ${report.content_length || 'Unknown'}`,
+    `Scan Mode: ${report.scan_mode || 'quick'} | Checks Run: ${report.summary?.checks_run || report.checks?.length || 0}`,
+    `Date: ${report.date || ''} ${report.time || ''} | Duration: ${report.duration || ''}`,
+    '',
+    'Severity Breakdown',
+    `Critical: ${severityCounts.Critical || 0} | High: ${severityCounts.High || 0} | Medium: ${severityCounts.Medium || 0} | Low: ${severityCounts.Low || 0}`,
+    '',
+    'TLS Summary',
+    `TLS Valid: ${report.tls?.valid === false ? 'No' : report.tls ? 'Yes' : 'Not applicable'}`,
+    `Issuer: ${report.tls?.issuer || 'Not available'}`,
+    `Expires: ${report.tls?.expires || 'Not available'}`,
+    '',
+  ];
+
+  lines.push('Findings');
+  if (report.findings?.length) {
+    report.findings.forEach((finding, index) => {
+      lines.push(`${index + 1}. [${finding.severity || 'Info'}] ${finding.title || finding.code || 'Finding'}`);
+      addWrappedPdfLines(lines, 'Impact', finding.description);
+      addWrappedPdfLines(lines, 'Fix', finding.recommendation);
+      lines.push('');
+    });
+  } else {
+    lines.push('No findings detected by the selected checks.');
+    lines.push('');
+  }
+
+  lines.push('Executed Checks');
+  if (report.checks?.length) {
+    report.checks.forEach((check, index) => {
+      lines.push(`${index + 1}. [${check.status || 'Info'}] ${check.name || 'Check'}`);
+      addWrappedPdfLines(lines, 'Details', check.details);
+      if (check.evidence) addWrappedPdfLines(lines, 'Evidence', check.evidence);
+    });
+  } else {
+    lines.push('No detailed checks were attached to this report.');
+  }
+  lines.push('');
+
+  lines.push('Security Header Snapshot');
+  if (report.headers && Object.keys(report.headers).length) {
+    Object.entries(report.headers).forEach(([header, value]) => {
+      addWrappedPdfLines(lines, header, formatHeaderValue(value));
+    });
+  } else {
+    lines.push('No header snapshot was attached to this report.');
+  }
+  lines.push('');
+
+  lines.push('Prioritized Recommendations');
+  if (report.recommendations?.length) {
+    report.recommendations.forEach((recommendation, index) => {
+      addWrappedPdfLines(lines, `${index + 1}`, recommendation);
+    });
+  } else {
+    lines.push('No recommendations were generated.');
+  }
+
+  const linesPerPage = 44;
+  const pages = [];
+  for (let index = 0; index < lines.length; index += linesPerPage) {
+    pages.push(lines.slice(index, index + linesPerPage));
+  }
+
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '',
+    '3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+  ];
+  const pageObjectIds = [];
+
+  pages.forEach((pageLines, pageIndex) => {
+    const pageObjectId = 4 + pageIndex * 2;
+    const contentObjectId = pageObjectId + 1;
+    pageObjectIds.push(pageObjectId);
+
+    const commands = ['BT'];
+    let y = 752;
+    pageLines.forEach((line) => {
+      const isMainTitle = line === 'Threat Hunters Vulnerability Report';
+      const isSectionTitle = [
+        'Executive Summary',
+        'Severity Breakdown',
+        'TLS Summary',
+        'Findings',
+        'Executed Checks',
+        'Security Header Snapshot',
+        'Prioritized Recommendations',
+      ].includes(line);
+      const size = isMainTitle ? 18 : isSectionTitle ? 14 : 9;
+      commands.push(`/F1 ${size} Tf`);
+      commands.push(`1 0 0 1 54 ${y} Tm (${escapePdfText(line).slice(0, 118)}) Tj`);
+      y -= isMainTitle ? 24 : isSectionTitle ? 20 : 14;
+    });
+    commands.push(`/F1 8 Tf`);
+    commands.push(`1 0 0 1 500 28 Tm (Page ${pageIndex + 1} of ${pages.length}) Tj`);
+    commands.push('ET');
+
+    const stream = commands.join('\n');
+    objects.push(`${pageObjectId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectId} 0 R >>\nendobj\n`);
+    objects.push(`${contentObjectId} 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`);
+  });
+
+  objects[1] = `2 0 obj\n<< /Type /Pages /Kids [${pageObjectIds.map((id) => `${id} 0 R`).join(' ')}] /Count ${pageObjectIds.length} >>\nendobj\n`;
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(pdf.length);
+    pdf += object;
+  }
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let index = 1; index <= objects.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return new Blob([pdf], { type: 'application/pdf' });
+};
+
+const downloadScanReport = (report) => {
+  const blob = buildScanReportPdf(report);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${report.id || 'threat-hunters-report'}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 };
 
 const getLinePoints = (values, width, height, padding = 16) => {
@@ -433,11 +398,41 @@ const getLinePoints = (values, width, height, padding = 16) => {
   });
 };
 
-function DashboardPage({ onNavigate, currentPage, initialSection }) {
-  const { user, getProfile, updateProfile, changePassword } = useAuth();
+const SCAN_REPORTS_STORAGE_KEY = 'threatHuntersScanReports';
+
+const loadStoredScanReports = () => {
+  try {
+    const storedReports = window.localStorage.getItem(SCAN_REPORTS_STORAGE_KEY);
+    const parsedReports = JSON.parse(storedReports || '[]');
+    return Array.isArray(parsedReports) ? parsedReports : [];
+  } catch {
+    return [];
+  }
+};
+
+const storeScanReports = (reports) => {
+  try {
+    window.localStorage.setItem(SCAN_REPORTS_STORAGE_KEY, JSON.stringify(reports.slice(0, 12)));
+  } catch {
+    // Scan results still stay in memory if localStorage is unavailable.
+  }
+};
+
+function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
+  const {
+    user,
+    getProfile,
+    updateProfile,
+    changePassword,
+    getSettings,
+    updateSettings,
+    deleteAccount,
+  } = useAuth();
   const [activeSection, setActiveSection] = useState(initialSection || 'dashboard');
   const [scanUrl, setScanUrl] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const [scanReports, setScanReports] = useState(loadStoredScanReports);
   const [isAdvancedScanOpen, setIsAdvancedScanOpen] = useState(false);
   const [advancedScanMode, setAdvancedScanMode] = useState('quick');
   const [advancedFastMode, setAdvancedFastMode] = useState(true);
@@ -447,13 +442,13 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
     deep: true,
   });
   const [reportSearchQuery, setReportSearchQuery] = useState('');
-  const [profileTwoFactorEnabled, setProfileTwoFactorEnabled] = useState(true);
+  const [profileTwoFactorEnabled, setProfileTwoFactorEnabled] = useState(false);
   const [profileForm, setProfileForm] = useState({
-    username: 'Tyler_Durden_Pentest',
-    email: 'Tyler_Durden@Gmail.com',
-    phone: '+1 (555) 123-4567',
-    lastLogin: 'December 9,2025 - 9:10 PM',
-    bio: 'Experienced security analyst specializing in web vulnerability assessment and penetration testing. Passionate about identifying and mitigating security risks.',
+    username: '',
+    email: '',
+    phone: '',
+    lastLogin: 'Current session',
+    bio: '',
   });
   const [passwordForm, setPasswordForm] = useState({
     current: '',
@@ -461,6 +456,11 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
     confirm: '',
   });
   const [profileNotice, setProfileNotice] = useState('');
+  const [settingsNotice, setSettingsNotice] = useState('');
+  const [settingsForm, setSettingsForm] = useState({
+    language: 'English (US)',
+    timezone: 'UTC+02:00 (Cairo)',
+  });
   const [scanMode, setScanMode] = useState('quick');
   const [notificationPrefs, setNotificationPrefs] = useState({
     completion: true,
@@ -473,8 +473,8 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
     aiSummary: true,
     autoPdf: false,
   });
-  const scanTimerRef = useRef(null);
   const profileLoadedRef = useRef(false);
+  const settingsLoadedRef = useRef(false);
 
   useEffect(() => {
     if (profileLoadedRef.current) {
@@ -491,7 +491,9 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
 
       setProfileForm((current) => ({
         ...current,
-        username: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.email || current.username,
+        username: `${profile.firstName || ''} ${profile.lastName || ''}`.trim()
+          || profile.email?.split('@')[0]
+          || current.username,
         email: profile.email || current.email,
         phone: profile.phone || '',
         lastLogin: profile.lastLogin || profile.loginTime || 'Current session',
@@ -502,14 +504,35 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
     loadProfile();
   }, [getProfile, user]);
 
-  useEffect(
-    () => () => {
-      if (scanTimerRef.current) {
-        clearTimeout(scanTimerRef.current);
-      }
-    },
-    [],
-  );
+  useEffect(() => {
+    if (settingsLoadedRef.current) {
+      return;
+    }
+
+    settingsLoadedRef.current = true;
+
+    const loadSettings = async () => {
+      const result = await getSettings?.();
+      if (!result?.success || !result.data) return;
+
+      setSettingsForm({
+        language: result.data.language || 'English (US)',
+        timezone: result.data.timezone || 'UTC+02:00 (Cairo)',
+      });
+      setScanMode(result.data.scanMode || 'quick');
+      setProfileTwoFactorEnabled(Boolean(result.data.twoFactorEnabled));
+      setNotificationPrefs((current) => ({
+        ...current,
+        ...(result.data.notifications || {}),
+      }));
+      setReportPrefs((current) => ({
+        ...current,
+        ...(result.data.reports || {}),
+      }));
+    };
+
+    loadSettings();
+  }, [getSettings]);
 
   useEffect(() => {
     if (!isAdvancedScanOpen || activeSection !== 'dashboard') return undefined;
@@ -539,17 +562,36 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
     onNavigate(section);
   };
 
-  const startScan = () => {
-    const value = scanUrl.trim();
-    if (!value || isScanning) return;
-    if (scanTimerRef.current) {
-      clearTimeout(scanTimerRef.current);
-    }
-    setIsScanning(true);
-    scanTimerRef.current = setTimeout(() => {
+  const startScan = async () => {
+    if (isScanning) return;
+
+    try {
+      const target = normalizeWebsiteUrl(scanUrl);
+      const enabledScanTypes = Object.entries(dashboardScanTypes)
+        .filter(([, enabled]) => enabled)
+        .map(([key]) => key);
+
+      setScanError('');
+      setIsScanning(true);
+
+      const result = await scannerAPI.scanWebsite({
+        target,
+        scan_mode: enabledScanTypes.includes('deep') ? 'deep' : 'quick',
+        modules: {
+          dashboard: enabledScanTypes,
+          advanced: advancedScanChecks,
+        },
+      });
+
+      const nextReports = [result, ...scanReports].slice(0, 12);
+      storeScanReports(nextReports);
+      setScanReports(nextReports);
+      navigateToSection('reports');
+    } catch (error) {
+      setScanError(error.message || 'Scan failed. Check the URL and try again.');
+    } finally {
       setIsScanning(false);
-      scanTimerRef.current = null;
-    }, 2200);
+    }
   };
 
   const toggleDashboardScanType = (key) => {
@@ -562,10 +604,12 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
 
   const toggleNotification = (key) => {
     setNotificationPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+    setSettingsNotice('');
   };
 
   const toggleReportPref = (key) => {
     setReportPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+    setSettingsNotice('');
   };
 
   const updateProfileForm = (key, value) => {
@@ -578,6 +622,11 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
     setProfileNotice('');
   };
 
+  const updateSettingsForm = (key, value) => {
+    setSettingsForm((prev) => ({ ...prev, [key]: value }));
+    setSettingsNotice('');
+  };
+
   const handleProfileUpdate = async () => {
     const [firstName = '', ...restName] = profileForm.username.trim().split(/\s+/);
     const lastName = restName.join(' ');
@@ -585,6 +634,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
     const result = await updateProfile({
       firstName,
       lastName,
+      email: profileForm.email,
       phone: profileForm.phone,
       bio: profileForm.bio,
     });
@@ -616,6 +666,102 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
     setPasswordForm({ current: '', next: '', confirm: '' });
     setProfileNotice('Password updated successfully.');
   };
+
+  const saveSettings = async (overrides = {}) => {
+    const payload = {
+      language: settingsForm.language,
+      timezone: settingsForm.timezone,
+      scanMode,
+      twoFactorEnabled: profileTwoFactorEnabled,
+      notifications: notificationPrefs,
+      reports: reportPrefs,
+      ...overrides,
+    };
+
+    const result = await updateSettings?.(payload);
+    if (!result?.success) {
+      setSettingsNotice(result?.error || 'Settings could not be saved.');
+      setProfileNotice(result?.error || 'Security setting could not be saved.');
+      return false;
+    }
+
+    setSettingsNotice('Settings saved successfully.');
+    setProfileNotice('Security settings saved successfully.');
+    return true;
+  };
+
+  const toggleTwoFactor = async () => {
+    const nextValue = !profileTwoFactorEnabled;
+    setProfileTwoFactorEnabled(nextValue);
+    await saveSettings({ twoFactorEnabled: nextValue });
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm('Delete this account permanently? This will remove the local session and account data.');
+    if (!confirmed) return;
+
+    const result = await deleteAccount?.();
+    if (!result?.success) {
+      setProfileNotice(result?.error || 'Account could not be deleted.');
+      return;
+    }
+
+    onLogout?.();
+    onNavigate?.('home');
+  };
+
+  const reportCards = scanReports.map(reportToCard);
+  const latestReport = scanReports[0] || null;
+  const profileDisplayName = profileForm.username || (user?.email ? user.email.split('@')[0] : '') || 'Threat Hunters User';
+  const profileEmail = profileForm.email || user?.email || 'No email available';
+  const profileInitial = profileDisplayName.trim().charAt(0).toUpperCase() || 'U';
+  const memberSince = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : 'Current member';
+  const profileScanStats = [
+    { label: 'Total Scans', value: String(scanReports.length) },
+    { label: 'Last Scan', value: latestReport ? `${latestReport.date || ''} ${latestReport.time || ''}`.trim() : 'No scans yet' },
+    { label: 'Critical issues', value: String(scanReports.reduce((sum, report) => sum + countFindingsBySeverity(report, 'Critical'), 0)) },
+  ];
+  const profileScanRows = scanReports.slice(0, 5).map((report) => ({
+    website: report.url || report.target,
+    risk: report.risk || 'Low',
+    date: report.date || new Date(report.created_at || Date.now()).toLocaleDateString('en-US'),
+  }));
+  const recentScanRows = scanReports.length
+    ? scanReports.map((report) => {
+        const firstFinding = report.findings?.[0];
+        return {
+          target: report.url || report.target,
+          status: report.status || 'Completed',
+          issue: firstFinding ? firstFinding.title : 'No issues found',
+          risk: report.risk || 'Low',
+          date: report.date || new Date(report.created_at || Date.now()).toLocaleDateString('en-US'),
+          raw: report,
+        };
+      })
+    : [];
+  const dashboardOverviewCards = [
+    { label: 'Total Scans', value: String(scanReports.length), subtitle: 'Saved in your console', icon: Activity },
+    {
+      label: 'Critical Issues',
+      value: String(scanReports.reduce((sum, report) => sum + countFindingsBySeverity(report, 'Critical'), 0)),
+      subtitle: 'Need immediate remediation',
+      icon: Bell,
+    },
+    {
+      label: 'Vulnerabilities Found',
+      value: String(scanReports.reduce((sum, report) => sum + (report.findings?.length || 0), 0)),
+      subtitle: 'Across latest assessments',
+      icon: AlertTriangle,
+    },
+    {
+      label: 'Last Scan',
+      value: latestReport ? latestReport.time || 'Now' : 'None',
+      subtitle: latestReport?.target || 'Run a scan to populate data',
+      icon: Clock3,
+    },
+  ];
 
   const renderAdvancedScanModal = () => (
     <div
@@ -812,24 +958,76 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
   );
 
   const renderDashboardSection = () => {
-    const linePoints = getLinePoints(SCAN_ACTIVITY_VALUES, 360, 160, 16);
+    const severityDistribution = [
+      { label: 'Low', value: scanReports.reduce((sum, report) => sum + countFindingsBySeverity(report, 'Low'), 0), color: 'var(--accent-green)' },
+      { label: 'Medium', value: scanReports.reduce((sum, report) => sum + countFindingsBySeverity(report, 'Medium'), 0), color: 'var(--accent-yellow)' },
+      { label: 'High', value: scanReports.reduce((sum, report) => sum + countFindingsBySeverity(report, 'High'), 0), color: 'var(--accent-coral)' },
+      { label: 'Critical', value: scanReports.reduce((sum, report) => sum + countFindingsBySeverity(report, 'Critical'), 0), color: 'var(--accent-red)' },
+    ];
+    const activityDays = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - index));
+      return {
+        key: date.toISOString().slice(0, 10),
+        label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      };
+    });
+    const scanActivityValues = activityDays.map((day) => (
+      scanReports.filter((report) => (report.date || '').slice(0, 10) === day.key).length
+    ));
+    const chartValues = scanActivityValues.some(Boolean) ? scanActivityValues : [0, 0, 0, 0, 0, 0, 0];
+    const linePoints = getLinePoints(chartValues, 360, 160, 16);
     const linePath = linePoints
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
       .join(' ');
-    const distributionTotal = VULNERABILITY_DISTRIBUTION.reduce((sum, item) => sum + item.value, 0);
+    const distributionTotal = severityDistribution.reduce((sum, item) => sum + item.value, 0) || 1;
     let segmentStart = 0;
-    const donutStops = VULNERABILITY_DISTRIBUTION.map((item) => {
+    const donutStops = severityDistribution.map((item) => {
       const segmentSize = (item.value / distributionTotal) * 100;
       const segmentEnd = segmentStart + segmentSize;
       const stop = `${item.color} ${segmentStart.toFixed(2)}% ${segmentEnd.toFixed(2)}%`;
       segmentStart = segmentEnd;
       return stop;
     }).join(', ');
+    const recommendationItems = latestReport?.findings?.length
+      ? latestReport.findings.slice(0, 4).map((finding) => ({
+          title: finding.title,
+          severity: finding.severity,
+          description: finding.description,
+          aiRecommendation: finding.recommendation,
+          steps: [
+            finding.recommendation,
+            'Validate the fix in staging before production release.',
+            'Run a follow-up scan and archive the updated PDF report.',
+          ],
+        }))
+      : [];
+    const intelligenceItems = latestReport?.checks?.length
+      ? latestReport.checks.slice(0, 4).map((check, index) => ({
+          cve: check.name || `CHECK-${index + 1}`,
+          severity: check.status === 'Review' ? 'Medium' : check.status === 'Skipped' ? 'Low' : 'Low',
+          description: check.details || 'Scanner check completed.',
+        }))
+      : [];
+    const activitySummaryStats = [
+      {
+        label: 'Average',
+        value: `${Math.round(scanActivityValues.reduce((sum, value) => sum + value, 0) / scanActivityValues.length)} Scans`,
+      },
+      {
+        label: 'Total',
+        value: `${scanReports.length} Scans`,
+      },
+      {
+        label: 'Peak',
+        value: `${Math.max(...scanActivityValues, 0)} Scans`,
+      },
+    ];
 
     return (
       <div className="db-dashboard-layout">
         <section className="db-overview-grid">
-          {DASHBOARD_OVERVIEW_CARDS.map((card) => (
+          {dashboardOverviewCards.map((card) => (
             <article key={card.label} className="db-overview-card">
               <span className="db-overview-icon">
                 <card.icon size={16} />
@@ -853,15 +1051,15 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
                   r="34"
                   className="db-risk-progress"
                   strokeDasharray={2 * Math.PI * 34}
-                  strokeDashoffset={toDashOffset(72)}
+                  strokeDashoffset={toDashOffset(latestReport?.risk_score || 0)}
                 />
               </svg>
-              <strong>72%</strong>
+              <strong>{latestReport ? `${latestReport.risk_score}%` : '0%'}</strong>
             </div>
             <p className="db-risk-copy">
-              Overall security level estimate
+              {latestReport ? latestReport.risk_label : 'No scan completed yet'}
               <br />
-              Moderate risk detected
+              {latestReport ? latestReport.target : 'Start a scan to calculate risk'}
             </p>
           </article>
         </section>
@@ -897,7 +1095,10 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
               type="url"
               placeholder="https://yourwebsite.com"
               value={scanUrl}
-              onChange={(event) => setScanUrl(event.target.value)}
+              onChange={(event) => {
+                setScanUrl(event.target.value);
+                setScanError('');
+              }}
               className="db-input"
             />
             <button className="db-primary-btn db-start-scan-btn" onClick={startScan} disabled={isScanning}>
@@ -910,6 +1111,12 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
             <Settings size={14} />
             Advanced Scan Settings
           </button>
+          {scanError && (
+            <div className="db-scan-error" role="alert">
+              <AlertTriangle size={14} />
+              <span>{scanError}</span>
+            </div>
+          )}
           <p className="db-quick-copy">Comprehensive security analysis powered by AI technology</p>
         </section>
 
@@ -929,7 +1136,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
               <span>Date</span>
               <span>Action</span>
             </div>
-            {RECENT_SCANS.map((row, index) => (
+            {recentScanRows.map((row, index) => (
               <div key={`${row.target}-${row.date}-${index}`} className="db-table-row">
                 <span className="db-scan-target">{row.target}</span>
                 <span className={`db-chip ${row.status.toLowerCase().replace(/\s+/g, '-')}`}>
@@ -938,11 +1145,21 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
                 <span>{row.issue}</span>
                 <span className={`db-risk ${row.risk.toLowerCase()}`}>{row.risk}</span>
                 <span>{row.date}</span>
-                <button type="button" className="db-action-btn" aria-label={`More actions for ${row.target}`}>
-                  <MoreVertical size={14} />
+                <button
+                  type="button"
+                  className="db-action-btn"
+                  aria-label={`Download report for ${row.target}`}
+                  onClick={() => downloadScanReport(row.raw)}
+                >
+                  <Download size={14} />
                 </button>
               </div>
             ))}
+            {!recentScanRows.length && (
+              <div className="db-table-row db-table-empty">
+                <span>Run your first website scan to populate real results.</span>
+              </div>
+            )}
           </div>
         </section>
 
@@ -960,7 +1177,17 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           </div>
 
           <div className="db-insight-grid">
-            {AI_INSIGHT_STATS.map((item) => (
+            {(latestReport ? [
+              { label: 'Critical Issues Detected', value: String(countFindingsBySeverity(latestReport, 'Critical')) },
+              { label: 'High-Risk Issues Detected', value: String(countFindingsBySeverity(latestReport, 'High')) },
+              { label: 'Medium-Risk Issues Detected', value: String(countFindingsBySeverity(latestReport, 'Medium')) },
+              { label: 'Low-Risk Issues Detected', value: String(countFindingsBySeverity(latestReport, 'Low')) },
+            ] : [
+              { label: 'Critical Issues Detected', value: '0' },
+              { label: 'High-Risk Issues Detected', value: '0' },
+              { label: 'Medium-Risk Issues Detected', value: '0' },
+              { label: 'Low-Risk Issues Detected', value: '0' },
+            ]).map((item) => (
               <article className="db-insight-item" key={item.label}>
                 <p>{item.label}</p>
                 <strong>{item.value}</strong>
@@ -969,13 +1196,12 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           </div>
 
           <p className="db-insight-copy">
-            The AI security engine has detected 342 total vulnerabilities across your web application. Analysis
-            reveals 23 critical security issues including SQL injection vulnerabilities and authentication weaknesses
-            that require immediate attention. Detailed recommendations for manual remediation are available in the
-            comprehensive AI report below.
+            {latestReport
+              ? `The scanner checked ${latestReport.target} and found ${latestReport.findings?.length || 0} issue(s). The current score is ${latestReport.score}, with ${latestReport.risk_label}. Download the report for remediation details.`
+              : 'Run a website scan to generate live security insights, risk scoring, recommendations, and a downloadable report.'}
           </p>
 
-          <button type="button" className="db-secondary-btn db-report-btn">
+          <button type="button" className="db-secondary-btn db-report-btn" onClick={() => setActiveSection('reports')}>
             View Report
             <ChevronRight size={14} />
           </button>
@@ -994,8 +1220,14 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           </div>
 
           <div className="db-summary-body">
-            {AI_SUMMARY_LINES.map((line) => (
-              <p key={line}>{line}</p>
+            {(latestReport
+              ? [
+                  `${latestReport.target} returned HTTP ${latestReport.http_status || 'unknown'} and completed in ${latestReport.duration}.`,
+                  `Risk score is ${latestReport.score}; total findings detected: ${latestReport.findings?.length || 0}.`,
+                  ...(latestReport.recommendations?.length ? latestReport.recommendations : ['No urgent recommendations were generated by the selected checks.']),
+                ]
+              : ['Run a scan to replace this placeholder with a live report summary.']).map((line, index) => (
+              <p key={`${index}-${line}`}>{line}</p>
             ))}
           </div>
         </section>
@@ -1014,7 +1246,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           </div>
 
           <div className="db-recommend-list">
-            {RECOMMENDATION_ITEMS.map((item) => (
+            {recommendationItems.map((item) => (
               <article className="db-recommend-item" key={item.title}>
                 <div className="db-recommend-top">
                   <h3>
@@ -1036,12 +1268,17 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
                 </ul>
 
                 <div className="db-recommend-actions">
-                  <button type="button" className="db-mini-btn db-mini-btn-flat">View Full Details</button>
-                  <button type="button" className="db-mini-btn db-mini-btn-flat">Export Report</button>
-                  <button type="button" className="db-mini-btn db-mini-btn-flat">Mark as Reviewed</button>
+                  <button type="button" className="db-mini-btn db-mini-btn-flat" onClick={() => navigateToSection('reports')}>View Full Details</button>
+                  <button type="button" className="db-mini-btn db-mini-btn-flat" onClick={() => downloadScanReport(latestReport)}>Export Report</button>
+                  <button type="button" className="db-mini-btn db-mini-btn-flat">Reviewed</button>
                 </div>
               </article>
             ))}
+            {!recommendationItems.length && (
+              <div className="db-reports-empty compact">
+                <p>Run a scan to generate real recommendations.</p>
+              </div>
+            )}
           </div>
         </section>
 
@@ -1054,7 +1291,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           </div>
 
           <div className="db-threat-grid">
-            {THREAT_INTELLIGENCE_ITEMS.map((item) => (
+            {intelligenceItems.map((item) => (
               <article key={item.cve} className="db-threat-item">
                 <div className="db-threat-top">
                   <h3>
@@ -1064,12 +1301,17 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
                   <span className={`db-risk ${item.severity.toLowerCase()}`}>{item.severity}</span>
                 </div>
                 <p>{item.description}</p>
-                <button type="button" className="db-mini-btn db-threat-btn">
-                  View More
+                <button type="button" className="db-mini-btn db-threat-btn" onClick={() => navigateToSection('reports')}>
+                  View Report
                   <ChevronRight size={14} />
                 </button>
               </article>
             ))}
+            {!intelligenceItems.length && (
+              <div className="db-reports-empty compact">
+                <p>Run a deep scan to populate live scanner intelligence.</p>
+              </div>
+            )}
           </div>
         </section>
 
@@ -1114,7 +1356,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
               </div>
 
               <div className="db-donut-legend">
-                {VULNERABILITY_DISTRIBUTION.map((item) => (
+                {severityDistribution.map((item) => (
                   <div key={item.label} className="db-donut-row">
                     <span className="db-donut-label">
                       <i style={{ background: item.color }} />
@@ -1155,14 +1397,14 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
               </svg>
 
               <div className="db-line-days">
-                {SCAN_ACTIVITY_DAYS.map((day) => (
-                  <span key={day}>{day}</span>
+                {activityDays.map((day) => (
+                  <span key={day.key}>{day.label}</span>
                 ))}
               </div>
             </div>
 
             <div className="db-line-stats">
-              {SCAN_ACTIVITY_SUMMARY_STATS.map((item) => (
+              {activitySummaryStats.map((item) => (
                 <article key={item.label}>
                   <p>{item.label}</p>
                   <strong>{item.value}</strong>
@@ -1177,15 +1419,56 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
 
   const renderReportsSection = () => {
     const normalizedQuery = reportSearchQuery.trim().toLowerCase();
-    const filteredReportCards = REPORT_RESULT_CARDS.filter((card) => (
+    const filteredReportCards = reportCards.filter((card) => (
       !normalizedQuery
       || [card.id, card.url, card.reference, card.riskLabel].some((value) => value.toLowerCase().includes(normalizedQuery))
     ));
-    const filteredHistoryItems = REPORT_HISTORY_ITEMS.filter((item) => (
+    const reportHistoryItems = scanReports.map((report, index) => ({
+      index: index + 1,
+      url: report.url || report.target,
+      timestamp: `${report.date || ''} at ${report.time || ''}`.trim(),
+      vulnerabilities: report.findings?.length || 0,
+      score: report.score || `${report.risk_score || 0}/100`,
+      scoreTone: severityTone(report.risk),
+      raw: report,
+    }));
+    const filteredHistoryItems = reportHistoryItems.filter((item) => (
       !normalizedQuery
       || [`${item.index}`, item.url, item.timestamp, `${item.vulnerabilities}`, item.score]
         .some((value) => value.toLowerCase().includes(normalizedQuery))
     ));
+    const reportStats = [
+      {
+        label: 'Total Reports',
+        value: String(scanReports.length),
+        subtitle: 'Generated reports',
+        icon: FileText,
+        tone: 'primary',
+      },
+      {
+        label: 'Total Vulnerabilities',
+        value: String(scanReports.reduce((sum, report) => sum + (report.findings?.length || 0), 0)),
+        subtitle: 'Issues detected',
+        icon: AlertTriangle,
+        tone: 'medium',
+      },
+      {
+        label: 'Critical Issues',
+        value: String(scanReports.reduce((sum, report) => sum + countFindingsBySeverity(report, 'Critical'), 0)),
+        subtitle: 'Require immediate action',
+        icon: Bell,
+        tone: 'high',
+      },
+      {
+        label: 'Average Risk Score',
+        value: scanReports.length
+          ? String(Math.round(scanReports.reduce((sum, report) => sum + Number(report.risk_score || 0), 0) / scanReports.length))
+          : '0',
+        subtitle: 'Across all scans',
+        icon: Activity,
+        tone: 'low',
+      },
+    ];
 
     return (
       <div className="db-reports-layout">
@@ -1195,7 +1478,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
         </section>
 
         <section className="db-reports-stats-grid">
-          {REPORT_OVERVIEW_CARDS.map((card) => (
+          {reportStats.map((card) => (
             <article key={card.label} className={`db-report-stat-card ${card.tone}`}>
               <span className="db-report-stat-icon">
                 <card.icon size={18} />
@@ -1251,7 +1534,12 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
                   </div>
                 </div>
 
-                <button type="button" className="db-report-card-download" aria-label={`Download ${card.id}`}>
+                <button
+                  type="button"
+                  className="db-report-card-download"
+                  aria-label={`Download ${card.id}`}
+                  onClick={() => downloadScanReport(card.raw)}
+                >
                   <Download size={14} />
                 </button>
               </div>
@@ -1324,7 +1612,12 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
                     <span>Risk Score</span>
                     <strong className={item.scoreTone}>{item.score}</strong>
                   </div>
-                  <button type="button" className="db-reports-history-download" aria-label={`Download history row ${item.index}`}>
+                  <button
+                    type="button"
+                    className="db-reports-history-download"
+                    aria-label={`Download history row ${item.index}`}
+                    onClick={() => downloadScanReport(item.raw)}
+                  >
                     <Download size={13} />
                   </button>
                 </div>
@@ -1339,7 +1632,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           </div>
 
           <div className="db-reports-history-footer">
-            <p>Showing 5 of 17 scans</p>
+            <p>{`Showing ${filteredHistoryItems.length} of ${reportHistoryItems.length} scans`}</p>
             <button type="button" className="db-reports-history-link">
               View All History
               <ArrowUpRight size={15} />
@@ -1371,7 +1664,12 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
         <div className="db-settings-field">
           <label htmlFor="settings-language">Language</label>
           <div className="db-settings-select-wrap">
-            <select id="settings-language" defaultValue="English (US)" className="db-settings-select">
+            <select
+              id="settings-language"
+              value={settingsForm.language}
+              className="db-settings-select"
+              onChange={(event) => updateSettingsForm('language', event.target.value)}
+            >
               <option>English (US)</option>
               <option>Arabic</option>
               <option>French</option>
@@ -1383,7 +1681,12 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
         <div className="db-settings-field">
           <label htmlFor="settings-timezone">Timezone</label>
           <div className="db-settings-select-wrap">
-            <select id="settings-timezone" defaultValue="UTC (GMT+0:00)" className="db-settings-select">
+            <select
+              id="settings-timezone"
+              value={settingsForm.timezone}
+              className="db-settings-select"
+              onChange={(event) => updateSettingsForm('timezone', event.target.value)}
+            >
               <option>UTC (GMT+0:00)</option>
               <option>UTC-08:00 (Pacific)</option>
               <option>UTC-05:00 (Eastern)</option>
@@ -1402,7 +1705,10 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
                   type="radio"
                   name="scan-mode"
                   checked={scanMode === option.key}
-                  onChange={() => setScanMode(option.key)}
+                  onChange={() => {
+                    setScanMode(option.key);
+                    setSettingsNotice('');
+                  }}
                 />
                 <span className="db-settings-mode-radio" />
                 <span className="db-settings-mode-copy">
@@ -1413,6 +1719,10 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
             ))}
           </div>
         </div>
+
+        <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()}>
+          Save General Settings
+        </button>
       </section>
 
       <section className="db-settings-panel">
@@ -1444,6 +1754,10 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
             </label>
           ))}
         </div>
+
+        <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()}>
+          Save Notification Settings
+        </button>
       </section>
 
       <section className="db-settings-panel db-settings-panel-report">
@@ -1473,6 +1787,11 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
             </label>
           ))}
         </div>
+
+        <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()}>
+          Save Report Settings
+        </button>
+        {settingsNotice && <p className="db-user-profile-form-note">{settingsNotice}</p>}
       </section>
     </div>
   );
@@ -1487,30 +1806,34 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
       <section className="db-user-profile-card db-user-profile-summary-card">
         <div className="db-user-profile-summary">
           <div className="db-user-profile-avatar">
-            <User size={54} />
+            <span>{profileInitial}</span>
           </div>
 
           <div className="db-user-profile-summary-copy">
-            <h2>Tyler Durden</h2>
-            <p>Security Analyst</p>
+            <h2>{profileDisplayName}</h2>
+            <p>{user?.role ? `${user.role.charAt(0).toUpperCase()}${user.role.slice(1)} Account` : 'Threat Hunters Account'}</p>
 
             <div className="db-user-profile-summary-meta">
               <span>
                 <Mail size={14} />
-                Tyler_Dureden@gmail.com
+                {profileEmail}
               </span>
               <span>
                 <CalendarDays size={14} />
-                Member Since December 2025
+                {`Member Since ${memberSince}`}
               </span>
             </div>
           </div>
 
-          <button type="button" className="db-user-profile-action-btn">
+          <button
+            type="button"
+            className="db-user-profile-action-btn"
+            onClick={() => document.getElementById('profile-username')?.focus()}
+          >
             <Pencil size={13} />
             Edit Profile
           </button>
-          <button type="button" className="db-user-profile-action-btn is-logout" onClick={() => onNavigate('home')}>
+          <button type="button" className="db-user-profile-action-btn is-logout" onClick={onLogout || (() => onNavigate('home'))}>
             <LogOut size={14} />
             Log Out
           </button>
@@ -1539,6 +1862,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           <label className="db-user-profile-field">
             <span>Username</span>
             <input
+              id="profile-username"
               className="db-user-profile-input"
               value={profileForm.username}
               onChange={(event) => updateProfileForm('username', event.target.value)}
@@ -1657,7 +1981,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
             <input
               type="checkbox"
               checked={profileTwoFactorEnabled}
-              onChange={() => setProfileTwoFactorEnabled((prev) => !prev)}
+              onChange={toggleTwoFactor}
             />
             <span className="db-user-profile-switch-track" />
           </label>
@@ -1678,7 +2002,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
         </div>
 
         <div className="db-user-profile-stat-grid">
-          {PROFILE_SCAN_STATS.map((item) => (
+          {profileScanStats.map((item) => (
             <article key={item.label} className="db-user-profile-stat-card">
               <p>{item.label}</p>
               <strong>{item.value}</strong>
@@ -1692,13 +2016,20 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
             <span>Risk Level</span>
             <span>Date</span>
           </div>
-          {PROFILE_SCAN_ROWS.map((item, index) => (
+          {profileScanRows.map((item, index) => (
             <div key={`${item.website}-${item.risk}-${index}`} className="db-user-profile-table-row">
               <span>{item.website}</span>
               <span className={`db-risk ${item.risk.toLowerCase()}`}>{item.risk}</span>
               <span>{item.date}</span>
             </div>
           ))}
+          {!profileScanRows.length && (
+            <div className="db-user-profile-table-row">
+              <span>No scans yet</span>
+              <span className="db-risk low">Ready</span>
+              <span>Run your first scan</span>
+            </div>
+          )}
         </div>
       </section>
 
@@ -1713,7 +2044,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           </div>
         </div>
 
-        <button type="button" className="db-user-profile-action-btn is-logout primary-logout" onClick={() => onNavigate('home')}>
+        <button type="button" className="db-user-profile-action-btn is-logout primary-logout" onClick={onLogout || (() => onNavigate('home'))}>
           <LogOut size={14} />
           Log Out
         </button>
@@ -1728,7 +2059,7 @@ function DashboardPage({ onNavigate, currentPage, initialSection }) {
           Once you delete your account, there is no going back. This action will permanently delete all your data
           including scan history, reports, and settings. Please be certain before proceeding.
         </p>
-        <button type="button" className="db-user-profile-delete-btn">
+        <button type="button" className="db-user-profile-delete-btn" onClick={handleDeleteAccount}>
           <Trash2 size={14} />
           Delete Account
         </button>

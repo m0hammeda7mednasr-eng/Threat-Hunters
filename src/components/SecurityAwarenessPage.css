@@ -1220,3 +1220,157 @@
     animation: none;
   }
 }
+
+.awareness-section--live {
+  padding-top: 58px;
+}
+
+.awareness-live__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.awareness-live__eyebrow {
+  margin: 0 0 8px;
+  color: var(--awareness-link);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.awareness-live__actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.awareness-live__status {
+  color: var(--awareness-muted);
+  font-size: 14px;
+}
+
+.awareness-live__refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--primary-border-20);
+  border-radius: 999px;
+  background: var(--surface-elevated);
+  color: var(--awareness-text);
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.awareness-live__refresh:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--primary-border-35);
+  box-shadow: var(--state-focus-ring-sm);
+}
+
+.awareness-live__refresh:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+.awareness-empty-state--live {
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.awareness-live-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.awareness-live-card {
+  min-height: 278px;
+  padding: 24px;
+  border: 1px solid var(--primary-border-20);
+  border-radius: 18px;
+  background: var(--awareness-surface);
+  box-shadow: var(--elevation-shadow-sm);
+}
+
+.awareness-live-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.awareness-live-card__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--primary-tint-20);
+  color: var(--awareness-link);
+  font-size: 13px;
+}
+
+.awareness-live-card__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.awareness-live-card__item,
+.awareness-live-card__placeholder {
+  padding: 14px;
+  border: 1px solid var(--awareness-border);
+  border-radius: 14px;
+  background: var(--awareness-surface-soft);
+}
+
+.awareness-live-card__item strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+
+.awareness-live-card__item span {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--awareness-link);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.awareness-live-card__item p,
+.awareness-live-card__placeholder {
+  margin: 0;
+  color: var(--awareness-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1120px) {
+  .awareness-live-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .awareness-live__header {
+    flex-direction: column;
+  }
+
+  .awareness-live__actions {
+    justify-content: flex-start;
+  }
+}

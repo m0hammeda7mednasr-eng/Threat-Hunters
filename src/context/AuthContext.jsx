@@ -148,6 +148,44 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const getSettings = async () => {
+    try {
+      setError(null);
+      const response = await authAPI.getSettings();
+      return { success: true, data: response };
+    } catch (err) {
+      const errorMessage = err.message || "Failed to fetch settings";
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  const updateSettings = async (settingsData) => {
+    try {
+      setError(null);
+      const response = await authAPI.updateSettings(settingsData);
+      return { success: true, data: response };
+    } catch (err) {
+      const errorMessage = err.message || "Failed to update settings";
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  const deleteAccount = async () => {
+    try {
+      setError(null);
+      const response = await authAPI.deleteAccount();
+      utils.logout();
+      setUser(null);
+      return { success: true, data: response };
+    } catch (err) {
+      const errorMessage = err.message || "Failed to delete account";
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
   const requestPasswordReset = async (payload) => {
     try {
       setError(null);
@@ -209,6 +247,9 @@ export const AuthProvider = ({ children }) => {
     getProfile,
     updateProfile,
     changePassword,
+    getSettings,
+    updateSettings,
+    deleteAccount,
     requestPasswordReset,
     resetPassword,
     hasRole,
