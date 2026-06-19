@@ -147,7 +147,8 @@ PARAMETER_HINTS = {
     },
     "sqli": {
         "id", "uid", "user", "userid", "item", "page_id", "product", "cat", "category",
-        "sort", "order", "orderby", "order_by", "cylinder", "cylinders",
+        "sort", "order", "orderby", "order_by", "cylinder", "cylinders", "query",
+        "q", "search", "ref", "returl", "returnurl",
     },
     "lfi": {"file", "path", "page", "template", "include", "inc", "view", "doc", "document", "download", "folder"},
     "open_redirect": {"url", "uri", "redirect", "redirect_uri", "next", "return", "returnurl", "continue", "dest", "destination"},
@@ -165,6 +166,13 @@ WEAK_SSRF_REFERENCE_PARAMS = {"ref", "referer", "reference", "source"}
 DYNAMIC_ROUTE_VALUE_RE = re.compile(
     r"(?i)^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{16,}|\d{4,})$"
 )
+
+SQLI_GENERIC_PARAMETER_HINTS = {
+    "id", "uid", "userid", "user_id", "product", "product_id", "item", "item_id",
+    "cat", "category", "category_id", "page", "page_id", "article", "article_id",
+    "thread", "thread_id", "forum", "forum_id", "post", "post_id", "query", "q",
+    "search", "sort", "order", "orderby", "order_by", "ref", "returl", "returnurl",
+}
 
 LFI_PAYLOADS = [
     "../../../../../../../../etc/passwd",
@@ -1656,6 +1664,7 @@ def parse_sqlmap_output_text(
                 "place": block.group("place").strip(),
                 "types": types,
                 "titles": titles,
+                "payload_count": len(payloads),
             },
         ))
 
@@ -1718,6 +1727,84 @@ def _parse_sqlmap_logs(output_dir: str, input_urls: list[str], telemetry: dict) 
     return _finalize_findings(findings)
 
 
+def _matching_sqlmap_finding(
+    findings: list[dict],
+    url: str,
+    parameter: str,
+    parameter_url_counts: dict[str, int],
+) -> dict | None:
+    exact_route = _normalized_route_key(url)
+    same_parameter = [
+        finding for finding in findings
+        if str(finding.get("parameter") or "") == str(parameter or "")
+    ]
+    for finding in same_parameter:
+        finding_url = str(finding.get("url") or "")
+        if finding_url and _normalized_route_key(finding_url) == exact_route:
+            return finding
+    if parameter_url_counts.get(str(parameter or ""), 0) == 1 and same_parameter:
+        return same_parameter[0]
+    return None
+
+
+def _record_sqlmap_validation_records(
+    telemetry: dict,
+    urls: list[str],
+    findings: list[dict],
+    *,
+    run_status: str = "completed",
+) -> None:
+    parameter_url_counts: dict[str, int] = {}
+    for url in urls:
+        for parameter in _parameter_names(url):
+            parameter_url_counts[parameter] = parameter_url_counts.get(parameter, 0) + 1
+
+    for url in urls:
+        for parameter in _parameter_names(url):
+            finding = _matching_sqlmap_finding(findings, url, parameter, parameter_url_counts)
+            if finding:
+                raw = finding.get("raw", {}) if isinstance(finding.get("raw"), dict) else {}
+                response_summary = finding.get("response_summary", {}) if isinstance(finding.get("response_summary"), dict) else {}
+                status = str(finding.get("status") or "candidate").lower()
+                if status not in {"confirmed", "candidate", "not_confirmed", "blocked", "inconclusive"}:
+                    status = "candidate"
+                payload_count = raw.get("payload_count")
+                if not isinstance(payload_count, int):
+                    payload_count = 1 if finding.get("payload") or finding.get("payload_used") else 0
+                _record_validation_result(
+                    telemetry,
+                    test_type="sqlmap_sql_injection",
+                    url=url,
+                    parameter=parameter,
+                    status=status,
+                    reason=str(raw.get("classification_reason") or "sqlmap_actionable_output"),
+                    payloads_sent=payload_count,
+                    response_status=response_summary.get("status_code"),
+                    evidence=_first_evidence_value(finding),
+                    response_snippet=str(response_summary.get("snippet") or raw.get("source_excerpt") or ""),
+                )
+                continue
+
+            status = "not_confirmed"
+            reason = "sqlmap_completed_without_actionable_parameter_block"
+            if run_status == "timeout":
+                status = "error"
+                reason = "timeout"
+            elif run_status == "error":
+                status = "error"
+                reason = "error"
+            _record_validation_result(
+                telemetry,
+                test_type="sqlmap_sql_injection",
+                url=url,
+                parameter=parameter,
+                status=status,
+                reason=reason,
+                payloads_sent=0,
+                evidence="SQLMap ran for this URL/parameter; no confirmed parameter block was parsed.",
+            )
+
+
 async def _run_sqlmap(urls: list[str], profile: str, telemetry: dict, scan_config: dict | None = None) -> list[dict]:
     if not urls:
         return []
@@ -1740,6 +1827,7 @@ async def _run_sqlmap(urls: list[str], profile: str, telemetry: dict, scan_confi
     urls_file = _write_targets(urls)
     output_dir = tempfile.mkdtemp(prefix="sqlmap_out_")
     stdout_text = ""
+    run_status = "completed"
     cmd = [
         sys.executable, sqlmap_py,
         "-m", urls_file,
@@ -1767,9 +1855,11 @@ async def _run_sqlmap(urls: list[str], profile: str, telemetry: dict, scan_confi
                 telemetry["errors_count"] += 1
     except asyncio.TimeoutError:
         telemetry["timeout_count"] += 1
+        run_status = "timeout"
         log.warning("[targeted_vulns] SQLMap timed out; parsing any partial output")
     except Exception as exc:
         telemetry["errors_count"] += 1
+        run_status = "error"
         log.error(f"[targeted_vulns] SQLMap error: {exc}")
     finally:
         if os.path.exists(urls_file):
@@ -1778,6 +1868,7 @@ async def _run_sqlmap(urls: list[str], profile: str, telemetry: dict, scan_confi
     findings = _parse_sqlmap_logs(output_dir, urls, telemetry)
     if stdout_text:
         findings = _finalize_findings([*findings, *parse_sqlmap_output_text(stdout_text, urls, telemetry=telemetry)])
+    _record_sqlmap_validation_records(telemetry, urls, findings, run_status=run_status)
     shutil.rmtree(output_dir, ignore_errors=True)
     return findings
 
@@ -1966,6 +2057,7 @@ def _record_validation_result(
     payloads_sent: int = 0,
     response_status: int | None = None,
     evidence: str = "",
+    response_snippet: str = "",
 ) -> None:
     results = telemetry.setdefault("active_validation_results", [])
     results.append({
@@ -1979,6 +2071,7 @@ def _record_validation_result(
         "payloads_sent": payloads_sent,
         "response_status": response_status,
         "evidence": _snippet(evidence, limit=220),
+        "response_snippet": _snippet(response_snippet, limit=260),
     })
 
 
@@ -2017,12 +2110,21 @@ def _safe_sql_payloads(url: str, parameter: str) -> list[str]:
     parsed = urlparse(url)
     value = (parse_qs(parsed.query, keep_blank_values=True).get(parameter) or [""])[0]
     normalized_parameter = _normalize_parameter_name(parameter)
-    if normalized_parameter == "id" and re.fullmatch(r"-?\d+", str(value or "0")):
-        base = value or "0"
+    value_text = str(value or "").strip()
+    is_numeric = bool(re.fullmatch(r"-?\d+", value_text or "0"))
+    is_candidate = (
+        is_numeric
+        or normalized_parameter in SQLI_GENERIC_PARAMETER_HINTS
+        or _parameter_matches_category("sqli", parameter, value_text)
+        or (parsed.path.lower() in SAFE_SQLI_PATHS and normalized_parameter == "item")
+    )
+    if not is_candidate:
+        return []
+    if is_numeric:
+        base = value_text or "0"
         return [f"{base} AND 1=1", f"{base} AND 1=2", f"{base}'"]
-    if parsed.path.lower() in SAFE_SQLI_PATHS and normalized_parameter == "item":
-        return [f"{value}'"]
-    return []
+    base = value_text or "test"
+    return [f"{base}'", f'{base}"']
 
 
 async def _safe_validate_sqli_url(
@@ -2030,19 +2132,7 @@ async def _safe_validate_sqli_url(
     url: str,
     telemetry: dict,
 ) -> list[dict]:
-    parsed = urlparse(url)
     parameters = _parameter_names(url)
-    if parsed.path.lower() not in SAFE_SQLI_PATHS:
-        for parameter in parameters:
-            _record_validation_result(
-                telemetry,
-                test_type="sql_injection",
-                url=url,
-                parameter=parameter,
-                status="skipped",
-                reason="safe_sql_validator_not_enabled_for_path",
-            )
-        return []
     baseline_response, baseline_body = await _safe_get(client, url, telemetry)
     if baseline_response is None or _is_binary_response(baseline_response):
         for parameter in parameters:
@@ -2053,6 +2143,7 @@ async def _safe_validate_sqli_url(
                 parameter=parameter,
                 status="skipped",
                 reason="baseline_response_unavailable_or_binary",
+                response_status=baseline_response.status_code if baseline_response is not None else None,
             )
         return []
 
@@ -2066,12 +2157,16 @@ async def _safe_validate_sqli_url(
                 url=url,
                 parameter=parameter,
                 status="skipped",
-                reason="no_safe_payload_for_parameter_shape",
+                reason="not_candidate_for_safe_sql_probe",
+                response_status=baseline_response.status_code,
+                evidence="Parameter name/value did not match the safe SQLi candidate rules.",
+                response_snippet=baseline_body,
             )
             continue
         probe_results: list[tuple[str, httpx.Response, str, str]] = []
         responses_seen = 0
         last_status = None
+        last_body = ""
         for payload in payloads:
             test_url = _url_with_payload(url, parameter, payload)
             test_response, test_body = await _safe_get(client, test_url, telemetry)
@@ -2079,6 +2174,7 @@ async def _safe_validate_sqli_url(
                 continue
             responses_seen += 1
             last_status = test_response.status_code
+            last_body = test_body
             reason = _response_difference_reason(baseline_response, baseline_body, test_response, test_body)
             if reason:
                 probe_results.append((payload, test_response, test_body, reason))
@@ -2096,6 +2192,7 @@ async def _safe_validate_sqli_url(
                 payloads_sent=len(payloads),
                 response_status=response.status_code,
                 evidence="SQL error marker observed during safe validation.",
+                response_snippet=body,
             )
             findings.append(_make_finding(
                 finding_id="sql_injection_candidate",
@@ -2131,6 +2228,7 @@ async def _safe_validate_sqli_url(
                 payloads_sent=len(payloads),
                 response_status=response.status_code,
                 evidence="Consistent response difference across safe SQL probes.",
+                response_snippet=body,
             )
             findings.append(_make_finding(
                 finding_id="sql_injection_candidate",
@@ -2166,6 +2264,7 @@ async def _safe_validate_sqli_url(
             payloads_sent=len(payloads),
             response_status=last_status,
             evidence=f"{responses_seen} SQL probe response(s) compared with baseline.",
+            response_snippet=last_body or baseline_body,
         )
     return _finalize_findings(findings)
 
@@ -2186,6 +2285,7 @@ async def _safe_validate_xss_url(
                 parameter=parameter,
                 status="skipped",
                 reason="baseline_response_unavailable_or_binary",
+                response_status=baseline_response.status_code if baseline_response is not None else None,
             )
         return []
     findings: list[dict] = []
@@ -2215,6 +2315,7 @@ async def _safe_validate_xss_url(
                 payloads_sent=1,
                 response_status=response.status_code,
                 evidence="Harmless XSS marker reflected in response.",
+                response_snippet=body,
             )
             findings.append(_make_finding(
                 finding_id="xss_candidate",
@@ -2250,6 +2351,7 @@ async def _safe_validate_xss_url(
                 payloads_sent=1,
                 response_status=response.status_code,
                 evidence="Harmless XSS marker was not reflected in the response body.",
+                response_snippet=body,
             )
     return _finalize_findings(findings)
 

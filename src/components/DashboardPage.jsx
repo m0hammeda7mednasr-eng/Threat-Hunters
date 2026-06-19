@@ -290,6 +290,7 @@ const normalizeScanReport = (report) => {
   const parameterInventory = Array.isArray(mergedReport.parameter_inventory) ? mergedReport.parameter_inventory : [];
   const formInventory = Array.isArray(mergedReport.form_inventory) ? mergedReport.form_inventory : [];
   const activeValidationResults = Array.isArray(mergedReport.active_validation_results) ? mergedReport.active_validation_results : [];
+  const toolAvailability = Array.isArray(mergedReport.tool_availability) ? mergedReport.tool_availability : [];
   const headers = mergedReport.headers && typeof mergedReport.headers === 'object'
     ? mergedReport.headers
     : firstHostResponse.headers && typeof firstHostResponse.headers === 'object'
@@ -328,6 +329,7 @@ const normalizeScanReport = (report) => {
     form_inventory: formInventory,
     active_validation_results: activeValidationResults,
     active_validation_summary: mergedReport.active_validation_summary || {},
+    tool_availability: toolAvailability,
     discovered_urls: Array.isArray(mergedReport.discovered_urls) ? mergedReport.discovered_urls : [],
     headers,
     recommendations: Array.isArray(mergedReport.recommendations) ? mergedReport.recommendations : [],
@@ -371,6 +373,7 @@ const buildScanReportPdf = (report) => {
   const parameterInventory = Array.isArray(normalizedReport.parameter_inventory) ? normalizedReport.parameter_inventory : [];
   const formInventory = Array.isArray(normalizedReport.form_inventory) ? normalizedReport.form_inventory : [];
   const activeValidationResults = Array.isArray(normalizedReport.active_validation_results) ? normalizedReport.active_validation_results : [];
+  const toolAvailability = Array.isArray(normalizedReport.tool_availability) ? normalizedReport.tool_availability : [];
   const headers = normalizedReport.headers && typeof normalizedReport.headers === 'object' ? normalizedReport.headers : {};
   const severityCounts = normalizedReport.summary?.severity_counts || findings.reduce((acc, finding) => {
     if (!finding || typeof finding !== 'object') {
@@ -432,6 +435,20 @@ const buildScanReportPdf = (report) => {
         body: 'The lanes below show how the detected signals are distributed. Critical and high items should be assigned immediately before lower-risk hygiene tasks.',
         accent: '#ff5f6d',
         severityCounts,
+      },
+      {
+        title: 'Tool Availability',
+        kicker: 'Scanner Runtime',
+        body: 'External tools are reported here so missing dependencies reduce coverage and never look like successful checks.',
+        accent: '#4eb6ff',
+        rows: toolAvailability.length
+          ? toolAvailability.slice(0, 18).map((tool) => ({
+            label: tool.tool || 'tool',
+            value: tool.available ? 'Available' : 'Missing',
+            tone: tool.available ? 'Success' : 'Info',
+            detail: `Path: ${tool.path || 'n/a'} | Version: ${tool.version || 'n/a'} | Used: ${tool.used ? 'yes' : 'no'} | Reason: ${tool.reason || 'ready'}`,
+          }))
+          : [{ label: 'Tools', value: 'Not attached', detail: 'No tool inventory was attached to this report.' }],
       },
       {
         title: 'TLS & Transport Posture',

@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import importlib.metadata
 import os
+import subprocess
 import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, urlunparse
 
+from .archive_urls import run_archive_url_collection
 from .alive import check_alive
 from .crlfuzz import run_crlfuzz
 from .extraction import run_extraction
@@ -27,7 +30,7 @@ from .scan_config import (
 from .security_headers import run_security_header_audit
 from .sensitive_files import run_sensitive_file_hunt
 from .targeted_vulns import run_targeted_vulns
-from .utils import build_report, check_tool, get_available_tool, normalize_target, save_report
+from .utils import TOOLS_DIR, build_report, check_tool, get_available_tool, get_tool_path, normalize_target, save_report
 from .vuln import run_nuclei
 from .websocket_scanner import run_websocket_scan
 
@@ -36,6 +39,43 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 REPORTS_DIR = Path(os.getenv("SCANNER_REPORTS_DIR", str(PACKAGE_DIR / "reports"))).expanduser()
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_REPORT_SUFFIXES = {".json", ".md", ".html"}
+
+
+TOOL_MODULES = {
+    "nuclei": ("vulns",),
+    "ffuf": ("fuzz",),
+    "gobuster": ("fuzz",),
+    "dalfox": ("targeted",),
+    "sqlmap": ("targeted",),
+    "naabu": ("ports",),
+    "nmap": ("ports",),
+    "crlfuzz": ("crlfuzz",),
+    "subfinder": ("subdomain",),
+    "amass": ("subdomain",),
+    "theHarvester": ("osint",),
+    "gowitness": ("screenshot",),
+    "eyewitness": ("screenshot",),
+    "gau": ("archive_cdx",),
+    "katana": ("extraction",),
+    "httpx": ("python_dependency",),
+}
+
+VERSION_ARGS = {
+    "nuclei": ["-version"],
+    "ffuf": ["-V"],
+    "gobuster": ["version"],
+    "dalfox": ["version"],
+    "naabu": ["-version"],
+    "nmap": ["--version"],
+    "crlfuzz": ["-version"],
+    "subfinder": ["-version"],
+    "amass": ["-version"],
+    "theHarvester": ["--version"],
+    "gowitness": ["version"],
+    "eyewitness": ["--version"],
+    "gau": ["--version"],
+    "katana": ["-version"],
+}
 
 
 def _is_local_target_identifier(value: str) -> bool:
@@ -63,6 +103,85 @@ def _as_bool(value) -> bool:
     if value is None:
         return False
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _bundled_sqlmap_path() -> str:
+    return str(Path(TOOLS_DIR) / "sqlmap-master" / "sqlmap.py")
+
+
+def _tool_path(tool_name: str) -> str:
+    if tool_name == "sqlmap":
+        bundled = _bundled_sqlmap_path()
+        if Path(bundled).exists():
+            return bundled
+    if tool_name == "httpx":
+        return "python:httpx"
+    return get_tool_path(tool_name) if check_tool(tool_name) else ""
+
+
+def _tool_available(tool_name: str) -> bool:
+    if tool_name == "sqlmap":
+        return Path(_bundled_sqlmap_path()).exists() or check_tool("sqlmap")
+    if tool_name == "httpx":
+        try:
+            importlib.metadata.version("httpx")
+            return True
+        except importlib.metadata.PackageNotFoundError:
+            return False
+    return check_tool(tool_name)
+
+
+def _tool_version(tool_name: str, path: str) -> str:
+    if not path:
+        return ""
+    if tool_name == "httpx":
+        try:
+            return importlib.metadata.version("httpx")
+        except importlib.metadata.PackageNotFoundError:
+            return ""
+    if tool_name == "sqlmap" and path.endswith("sqlmap.py"):
+        return "bundled"
+    args = VERSION_ARGS.get(tool_name)
+    if not args:
+        return ""
+    try:
+        proc = subprocess.run(
+            [path, *args],
+            capture_output=True,
+            text=True,
+            timeout=6,
+            check=False,
+        )
+    except Exception:
+        return ""
+    text = (proc.stdout or proc.stderr or "").strip().splitlines()
+    return text[0][:160] if text else ""
+
+
+def _collect_tool_availability(tools: dict) -> list[dict]:
+    inventory = []
+    for tool_name, module_names in TOOL_MODULES.items():
+        available = _tool_available(tool_name)
+        path = _tool_path(tool_name) if available else ""
+        module_enabled = any(tools.get(module_name) for module_name in module_names if module_name != "python_dependency")
+        used = bool(available and module_enabled)
+        reason = ""
+        if not available:
+            reason = "missing_tool"
+        elif not module_enabled and module_names != ("python_dependency",):
+            reason = "module_disabled"
+        elif tool_name == "gau" and tools.get("archive_cdx"):
+            reason = "used_if_available; internal_wayback_cdx_fallback_enabled"
+        inventory.append({
+            "tool": tool_name,
+            "available": available,
+            "path": path,
+            "version": _tool_version(tool_name, path) if available else "",
+            "used": used,
+            "reason": reason,
+            "modules": [name for name in module_names],
+        })
+    return inventory
 
 
 TOOL_KEYS = {
@@ -534,6 +653,7 @@ async def _run_scan_async(
         "scan_config": stored_scan_config,
         "requested_modules": {name: _as_bool(enabled) for name, enabled in normalized_modules.items() if name in tools},
         "effective_modules": dict(tools),
+        "tool_availability": _collect_tool_availability(tools),
         "telemetry": {"modules": {}},
     }
     _record_disabled_modules(scan_data, tools)
@@ -595,19 +715,15 @@ async def _run_scan_async(
                     _merge_hosts(alive_hosts, ports_results)
 
         if tools["fuzz"]:
-            if not get_available_tool("fuzz"):
-                _record_module_state(scan_data, "fuzz", "not_run", "missing_tool:ffuf|gobuster")
-                await progress("fuzz", "skipped", "No fuzzing tool found. Skipping.")
-            else:
-                fuzz_results = await _run_module_safely(
-                    "fuzz",
-                    scan_data,
-                    progress,
-                    lambda: fuzz_endpoints(alive_hosts, profile=profile, callback=progress),
-                    "Running rate-limited content discovery",
-                )
-                if fuzz_results is not None:
-                    alive_hosts = fuzz_results
+            fuzz_results = await _run_module_safely(
+                "fuzz",
+                scan_data,
+                progress,
+                lambda: fuzz_endpoints(alive_hosts, profile=profile, callback=progress),
+                "Running rate-limited content discovery",
+            )
+            if fuzz_results is not None:
+                alive_hosts = fuzz_results
 
         if tools["sensitive_files"]:
             sensitive_results = await _run_module_safely(
@@ -694,7 +810,31 @@ async def _run_scan_async(
                 _merge_hosts(alive_hosts, websocket_results)
 
         if tools["archive_cdx"]:
-            _record_module_state(scan_data, "archive_cdx", "not_run", "module_not_implemented:archive_cdx")
+            archive_results = await _run_module_safely(
+                "archive_cdx",
+                scan_data,
+                progress,
+                lambda: run_archive_url_collection(copy.deepcopy(alive_hosts), callback=progress),
+                "Collecting archived in-scope URLs",
+            )
+            if archive_results is not None:
+                alive_hosts = archive_results
+                archive_issue = any(
+                    isinstance(host, dict)
+                    and not host.get("archive_urls")
+                    and (
+                        int((host.get("archive_telemetry") or {}).get("errors_count") or 0) > 0
+                        or int((host.get("archive_telemetry") or {}).get("timeout_count") or 0) > 0
+                    )
+                    for host in alive_hosts
+                )
+                if archive_issue:
+                    _record_module_state(
+                        scan_data,
+                        "archive_cdx",
+                        "warning",
+                        "Archive URL collection ran, but CDX/gau returned no URLs due to timeout or upstream error.",
+                    )
 
         scan_data.setdefault("telemetry", {})["nuclei_correlation"] = correlate_nuclei_with_core_findings(alive_hosts)
     else:

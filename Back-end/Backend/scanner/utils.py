@@ -195,6 +195,7 @@ TELEMETRY_FIELD_NAMES = {
     "security_headers_telemetry": "security_headers",
     "security_header_telemetry": "security_headers",
     "subdomain_telemetry": "subdomain",
+    "archive_telemetry": "archive_cdx",
 }
 
 SCAN_TELEMETRY_PATHS = (
@@ -206,6 +207,7 @@ SCAN_TELEMETRY_PATHS = (
     ("js_secrets", "js_telemetry", "js_checks"),
     ("sensitive_files", "telemetry", "sensitive_files"),
     ("security_headers", "telemetry", "security_headers"),
+    ("archive_telemetry", "archive_cdx"),
 )
 
 
@@ -632,6 +634,8 @@ def _status_for_module_check(module_status: str, finding_count: int) -> str:
     normalized = str(module_status or "").lower()
     if normalized == "ran":
         return "Warning" if finding_count else "Passed"
+    if normalized == "warning":
+        return "Warning"
     if normalized in {"failed", "timed_out"}:
         return "Failed"
     if normalized in {"skipped", "not_run"}:
@@ -699,11 +703,13 @@ def _module_check_detail(module_name: str, module_data: dict, telemetry: dict, f
             records = targeted.get("active_validation_results", []) or []
             active_count = len(records)
             sqli_counts = _active_record_counts(records, {"sql_injection"})
+            sqlmap_counts = _active_record_counts(records, {"sqlmap_sql_injection"})
             xss_counts = _active_record_counts(records, {"xss_reflection", "dalfox_xss", "stored_xss"})
             lfi_counts = _active_record_counts(records, {"template_lfi", "lfi"})
             message = (
                 f"{message} Active validation records={active_count}. "
                 f"{_format_active_counts('SQLi', sqli_counts)}. "
+                f"{_format_active_counts('SQLMap', sqlmap_counts)}. "
                 f"{_format_active_counts('XSS', xss_counts)}. "
                 f"{_format_active_counts('LFI', lfi_counts)}."
             )
@@ -712,7 +718,8 @@ def _module_check_detail(module_name: str, module_data: dict, telemetry: dict, f
             evidence = (
                 f"urls_tested={targeted.get('urls_tested', targeted.get('total_urls_tested', 'n/a'))}; "
                 f"parameters_tested={targeted.get('parameters_tested', 'n/a')}; "
-                f"safe_validation_results={targeted.get('safe_validation_results_count', 0)}"
+                f"safe_validation_results={targeted.get('safe_validation_results_count', 0)}; "
+                f"sqlmap_results={targeted.get('sqlmap_results_count', 0)}"
             )
     elif normalized_name == "forms":
         form_data = telemetry.get("form_scanner", {}) if isinstance(telemetry, dict) else {}
@@ -851,7 +858,7 @@ def _collect_discovered_urls(alive_hosts: list[dict]) -> list[str]:
         for field_name in ("url", "final_url"):
             if host.get(field_name):
                 urls.add(str(host.get(field_name)))
-        for field_name in ("endpoints", "extracted_urls", "expanded_urls"):
+        for field_name in ("endpoints", "extracted_urls", "expanded_urls", "archive_urls"):
             for value in host.get(field_name, []) or []:
                 if value:
                     urls.add(str(value))
@@ -1519,6 +1526,9 @@ def build_report(domain: str, subdomains: list, alive_hosts: list, scan_data: di
     if execution_modules:
         telemetry["modules"] = execution_modules
     scan_data["telemetry"] = telemetry
+    tool_availability = scan_data.get("tool_availability", []) if isinstance(scan_data, dict) else []
+    if not isinstance(tool_availability, list):
+        tool_availability = []
     nuclei_correlation = telemetry.get("nuclei_correlation", {}) if isinstance(telemetry, dict) else {}
     if not isinstance(nuclei_correlation, dict):
         nuclei_correlation = {}
@@ -1628,6 +1638,8 @@ def build_report(domain: str, subdomains: list, alive_hosts: list, scan_data: di
         "modules_skipped": scan_quality["skipped_modules"],
         "modules_not_run": scan_quality["not_run_modules"],
         "modules_failed": scan_quality["failed_modules"],
+        "tools_available": sum(1 for tool in tool_availability if isinstance(tool, dict) and tool.get("available")),
+        "tools_missing": sum(1 for tool in tool_availability if isinstance(tool, dict) and not tool.get("available")),
         "checks_run": sum(1 for check in checks if str(check.get("status") or "").lower() not in {"skipped", "not run"}),
         "severity_counts": _severity_counts(report_findings),
         "all_severity_counts": _severity_counts(all_findings),
@@ -1677,6 +1689,7 @@ def build_report(domain: str, subdomains: list, alive_hosts: list, scan_data: di
         "content_length": primary_host.get("content_length") or "",
         "duration": f"{module_duration_seconds:.1f}s",
         "headers": headers_snapshot,
+        "tool_availability": tool_availability,
         "checks": checks,
         "recommendations": recommendations,
         "discovered_urls": _collect_discovered_urls(alive_hosts),
