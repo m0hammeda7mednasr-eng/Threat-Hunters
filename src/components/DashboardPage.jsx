@@ -1803,8 +1803,17 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   const renderSettingsSection = () => (
     <div className="db-settings-layout">
       <header className="db-settings-hero">
-        <h1>Settings</h1>
-        <p>Configure your application preferences</p>
+        <div className="db-settings-hero-copy">
+          <h1>Settings</h1>
+          <p>Configure the controls that actually affect your console behavior.</p>
+        </div>
+
+        <div className="db-settings-hero-actions">
+          {settingsNotice && <p className="db-user-profile-form-note db-settings-notice">{settingsNotice}</p>}
+          <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()}>
+            Save All Settings
+          </button>
+        </div>
       </header>
 
       <section className="db-settings-panel db-settings-panel-general">
@@ -1877,9 +1886,6 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           </div>
         </div>
 
-        <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()}>
-          Save General Settings
-        </button>
       </section>
 
       <section className="db-settings-panel">
@@ -1912,9 +1918,6 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           ))}
         </div>
 
-        <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()}>
-          Save Notification Settings
-        </button>
       </section>
 
       <section className="db-settings-panel db-settings-panel-report">
@@ -1945,10 +1948,6 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           ))}
         </div>
 
-        <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()}>
-          Save Report Settings
-        </button>
-        {settingsNotice && <p className="db-user-profile-form-note">{settingsNotice}</p>}
       </section>
     </div>
   );

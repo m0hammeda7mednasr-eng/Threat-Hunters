@@ -2172,8 +2172,29 @@
 }
 
 .db-settings-hero {
-  display: grid;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.db-settings-hero-copy {
+  display: flex;
+  flex-direction: column;
   gap: 0.2rem;
+}
+
+.db-settings-hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.55rem;
+}
+
+.db-settings-notice {
+  margin: 0;
+  text-align: right;
 }
 
 .db-settings-hero h1 {
@@ -4512,6 +4533,19 @@
 
   .db-settings-layout {
     width: 100%;
+  }
+
+  .db-settings-hero {
+    flex-direction: column;
+  }
+
+  .db-settings-hero-actions {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .db-settings-notice {
+    text-align: left;
   }
 
   .db-user-profile-layout {
