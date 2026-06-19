@@ -223,6 +223,7 @@ const MetaRow = ({ author, authorInitial, date, readTime, views, compact = false
 
 const BlogPage = ({
   onNavigateToSignUp,
+  onNavigateToSignIn,
   onNavigateToHome,
   onNavigateToAwareness,
   onNavigateToTools,
@@ -287,6 +288,11 @@ const BlogPage = ({
       .sort((a, b) => (b.views + (b.likes || 0) * 4 + (b.shares || 0) * 2) - (a.views + (a.likes || 0) * 4 + (a.shares || 0) * 2))
       .slice(0, 4);
   }, [posts]);
+
+  const patchPostState = useCallback((postId, updater) => {
+    setPosts((current) => current.map((post) => (post.id === postId ? updater(post) : post)));
+    setSelectedPost((current) => (current && current.id === postId ? updater(current) : current));
+  }, []);
 
   const loadPostDetail = useCallback(async (postId) => {
     if (!postId) return;
@@ -540,9 +546,26 @@ const BlogPage = ({
   };
 
   const handleLike = async (postId) => {
+    if (!isLoggedIn) {
+      setError("Sign in to like posts.");
+      if (onNavigateToSignIn) {
+        onNavigateToSignIn();
+      } else {
+        window.location.hash = "#signin";
+      }
+      return;
+    }
+
     setBusyAction({ type: "like", id: postId });
     try {
-      await blogAPI.toggleLike(postId);
+      const result = await blogAPI.toggleLike(postId);
+      const liked = Boolean(result?.liked);
+
+      patchPostState(postId, (post) => ({
+        ...post,
+        likes: Math.max(0, Number(post.likes || 0) + (liked ? 1 : -1)),
+      }));
+
       await loadPosts(postId);
       await loadPostDetail(postId);
     } catch (err) {
@@ -581,14 +604,11 @@ const BlogPage = ({
     try {
       await blogAPI.addComment(selectedPostId, { content: commentDraft.trim() });
       setCommentDraft("");
+      patchPostState(selectedPostId, (post) => ({
+        ...post,
+        comments_count: Number(post.comments_count || 0) + 1,
+      }));
       await loadPostDetail(selectedPostId);
-      setPosts((current) =>
-        current.map((post) =>
-          post.id === selectedPostId
-            ? { ...post, comments_count: Number(post.comments_count || 0) + 1 }
-            : post,
-        ),
-      );
     } catch (err) {
       setError(err.message || "Unable to add comment.");
     }
@@ -605,14 +625,11 @@ const BlogPage = ({
     try {
       await blogAPI.addReply(selectedPostId, commentId, { content: text });
       setReplyDrafts((current) => ({ ...current, [key]: "" }));
+      patchPostState(selectedPostId, (post) => ({
+        ...post,
+        comments_count: Number(post.comments_count || 0) + 1,
+      }));
       await loadPostDetail(selectedPostId);
-      setPosts((current) =>
-        current.map((post) =>
-          post.id === selectedPostId
-            ? { ...post, comments_count: Number(post.comments_count || 0) + 1 }
-            : post,
-        ),
-      );
     } catch (err) {
       setError(err.message || "Unable to add reply.");
     }
@@ -906,6 +923,8 @@ const BlogPage = ({
                     </div>
 
                     <div className="blog-action-row">
+                      <span className="blog-inline-count">{Number(article.likes || 0)} likes</span>
+                      <span className="blog-inline-count">{Number(article.comments_count || 0)} comments</span>
                       {isAdmin && (
                         <>
                           <button
