@@ -1,7 +1,7 @@
 github:
   - "${GITHUB_TOKEN}"
 virustotal:
-  - "${VIRUSTOTAL_API_KEY}"
+  - "${c3a292bfdebe8a9166e3a1f6a275a825cfe297d04e33cf18abc443e77639aacf}"
 censys:
   - "${CENSYS_API_ID}:${CENSYS_API_SECRET}"
 shodan:
