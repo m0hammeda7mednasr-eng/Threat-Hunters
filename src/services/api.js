@@ -177,6 +177,14 @@ export const securityAPI = {
     });
   },
 
+  // Analyze password strength and exposure risk
+  analyzePassword: async (payload) => {
+    return apiRequest("/security/analyze-password", {
+      method: "POST",
+      body: payload,
+    });
+  },
+
   // Check email against HIBP breach data
   checkEmailBreach: async (payload) => {
     return apiRequest("/security/check-email", {

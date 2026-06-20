@@ -16,6 +16,7 @@ import {
   DollarSign,
   FileText,
   Users,
+  Wifi,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { adminAPI } from '../services/api';
@@ -218,13 +219,38 @@ function AdminSettingsPage({ onNavigate, onLogout, currentPage = 'admin-settings
   };
 
   const toggleField = (section, field) => {
+    const nextSection = {
+      ...settingsState[section],
+      [field]: !settingsState[section][field],
+    };
+
     setSettingsState((prev) => ({
       ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: !prev[section][field],
-      },
+      [section]: nextSection,
     }));
+
+    if (section === 'notifications' || section === 'security') {
+      void (async () => {
+        try {
+          setNotice('Syncing live changes...');
+          const payload = await adminAPI.updateSettings({
+            ...settingsState,
+            [section]: nextSection,
+          });
+          setSettingsState((prev) => ({
+            ...prev,
+            ...payload,
+            general: { ...prev.general, ...(payload.general || {}) },
+            notifications: { ...prev.notifications, ...(payload.notifications || {}) },
+            security: { ...prev.security, ...(payload.security || {}) },
+            email: { ...prev.email, ...(payload.email || {}) },
+          }));
+          setNotice('Notification preferences saved instantly.');
+        } catch (error) {
+          setNotice(error.message || 'Unable to save notification settings.');
+        }
+      })();
+    }
   };
 
   const renderPanel = () => {
@@ -457,7 +483,7 @@ function AdminSettingsPage({ onNavigate, onLogout, currentPage = 'admin-settings
           <section className="admin-settings-header">
             <div className="admin-section-head admin-cardless">
               <h1>Settings</h1>
-              <p>Manage your system settings and preferences</p>
+              <p>Manage your system settings and preferences with live backend sync.</p>
             </div>
 
             <button type="button" className="admin-settings-save-btn" onClick={saveSettings} disabled={isSaving}>
@@ -491,6 +517,12 @@ function AdminSettingsPage({ onNavigate, onLogout, currentPage = 'admin-settings
               <div className="admin-section-head">
                 <h2>{currentTab.title}</h2>
                 <p>{currentTab.description}</p>
+                {activeTab === 'notifications' && (
+                  <div className="admin-settings-live-note">
+                    <Wifi size={14} />
+                    <span>Notification changes save instantly when you toggle them.</span>
+                  </div>
+                )}
               </div>
               {renderPanel()}
             </article>

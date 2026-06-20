@@ -106,9 +106,32 @@ def check_email_breach(data):
 
     headers = _headers(include_api_key=True)
     if not headers:
+        local_part, _, domain = email.partition("@")
+        public_domains = {"gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com", "proton.me", "protonmail.com"}
+        alias_used = "+" in local_part
+        domain_risk = "Medium" if domain in public_domains else "Low"
+        if alias_used:
+            domain_risk = "Low"
+
         return jsonify({
-            "message": "HIBP_API_KEY is required for email breach checks",
-        }), 503
+            "email": email,
+            "breached": False,
+            "risk_level": domain_risk,
+            "breach_count": 0,
+            "verified_breach_count": 0,
+            "stealer_log_count": 0,
+            "latest_breach": None,
+            "exposed_data": [],
+            "summary": {
+                "verified_breaches": 0,
+                "stealer_logs": 0,
+                "latest_breach": None,
+                "risk_level": domain_risk,
+            },
+            "breaches": [],
+            "lookup_mode": "local-preview",
+            "message": "HIBP_API_KEY is not configured. Returning a local email hygiene preview instead.",
+        }), 200
 
     url = (
         f"{HIBP_BREACH_URL.format(email=quote(email))}"
@@ -254,7 +277,28 @@ def analyze_password(data):
     ]
 
     recommendations = []
+    issues = []
+    checks = []
     score = 0
+
+    def add_check(key, title, passed, detail, severity="info", fix=None):
+        checks.append({
+            "key": key,
+            "title": title,
+            "passed": passed,
+            "detail": detail,
+            "severity": severity,
+            "fix": fix,
+        })
+
+        if not passed:
+            issues.append({
+                "key": key,
+                "title": title,
+                "severity": severity,
+                "detail": detail,
+                "fix": fix,
+            })
 
     has_upper = any(char.isupper() for char in password)
     has_lower = any(char.islower() for char in password)
@@ -276,28 +320,79 @@ def analyze_password(data):
 
     if len(password) >= 12:
         score += 20
+        add_check(
+            "length",
+            "Length baseline",
+            True,
+            f"{len(password)} characters meets the safer length target.",
+            "safe",
+        )
     else:
         recommendations.append("Use at least 12 characters")
+        add_check(
+            "length",
+            "Length baseline",
+            False,
+            f"{len(password)} characters is too short for a stronger password posture.",
+            "watch",
+            "Use a passphrase of at least 12 to 16 characters.",
+        )
 
     if has_upper:
         score += 20
+        add_check("uppercase", "Uppercase coverage", True, "Uppercase letters are present.", "safe")
     else:
         recommendations.append("Add uppercase letters")
+        add_check(
+            "uppercase",
+            "Uppercase coverage",
+            False,
+            "No uppercase letter was detected.",
+            "watch",
+            "Add at least one uppercase character.",
+        )
 
     if has_lower:
         score += 20
+        add_check("lowercase", "Lowercase coverage", True, "Lowercase letters are present.", "safe")
     else:
         recommendations.append("Add lowercase letters")
+        add_check(
+            "lowercase",
+            "Lowercase coverage",
+            False,
+            "No lowercase letter was detected.",
+            "watch",
+            "Add at least one lowercase character.",
+        )
 
     if has_digit:
         score += 20
+        add_check("numbers", "Numeric coverage", True, "Digits are present.", "safe")
     else:
         recommendations.append("Add numbers")
+        add_check(
+            "numbers",
+            "Numeric coverage",
+            False,
+            "No digit was detected.",
+            "watch",
+            "Add numbers to increase the available character set.",
+        )
 
     if has_special:
         score += 20
+        add_check("special", "Special characters", True, "Special characters are present.", "safe")
     else:
         recommendations.append("Add special characters")
+        add_check(
+            "special",
+            "Special characters",
+            False,
+            "No special character was detected.",
+            "watch",
+            "Add symbols such as !, @, #, or %.",
+        )
 
     dictionary_word_found = False
     for word in common_words:
@@ -305,7 +400,24 @@ def analyze_password(data):
             dictionary_word_found = True
             score -= 20
             recommendations.append(f"Contains common word: {word}")
+            add_check(
+                "dictionary",
+                "Dictionary word risk",
+                False,
+                f"The password contains the common word '{word}'.",
+                "watch",
+                "Remove common words and use a more unique passphrase.",
+            )
             break
+
+    if not dictionary_word_found:
+        add_check(
+            "dictionary",
+            "Dictionary word risk",
+            True,
+            "No obvious common password word was detected.",
+            "safe",
+        )
 
     sequential_pattern_found = False
     for pattern in sequential_patterns:
@@ -313,7 +425,24 @@ def analyze_password(data):
             sequential_pattern_found = True
             score -= 15
             recommendations.append(f"Contains predictable pattern: {pattern}")
+            add_check(
+                "pattern",
+                "Predictable pattern risk",
+                False,
+                f"The password contains a predictable pattern like '{pattern}'.",
+                "watch",
+                "Avoid keyboard walks, repeated digits, and ordered sequences.",
+            )
             break
+
+    if not sequential_pattern_found:
+        add_check(
+            "pattern",
+            "Predictable pattern risk",
+            True,
+            "No sequential keyboard walk or repeated number pattern was detected.",
+            "safe",
+        )
 
     breached_count = 0
     breach_error = None
@@ -327,10 +456,53 @@ def analyze_password(data):
         recommendations.append(
             f"Password appeared {breached_count:,} times in known breaches"
         )
+        add_check(
+            "breach",
+            "Known breach exposure",
+            False,
+            f"The password appeared {breached_count:,} times in known breach data.",
+            "critical",
+            "Replace it immediately with a unique password.",
+        )
+    else:
+        add_check(
+            "breach",
+            "Known breach exposure",
+            True,
+            "No direct breach hit was returned from the corpus.",
+            "safe",
+        )
+
+    if entropy_bits >= 80:
+        add_check(
+            "entropy",
+            "Entropy estimate",
+            True,
+            f"Estimated entropy is {entropy_bits} bits, which is in a strong range.",
+            "safe",
+        )
+    elif entropy_bits >= 60:
+        add_check(
+            "entropy",
+            "Entropy estimate",
+            True,
+            f"Estimated entropy is {entropy_bits} bits, which is acceptable but not ideal.",
+            "info",
+            "Increase the length a bit to push the estimate higher.",
+        )
+    else:
+        add_check(
+            "entropy",
+            "Entropy estimate",
+            False,
+            f"Estimated entropy is only {entropy_bits} bits.",
+            "watch",
+            "Use a longer passphrase with more character variety.",
+        )
 
     score = max(0, min(score, 100))
 
-    if score <= 20:
+    if breached_count > 0 or score <= 20:
         strength = "Very Weak"
     elif score <= 40:
         strength = "Weak"
@@ -352,9 +524,30 @@ def analyze_password(data):
     else:
         entropy_level = "Very Weak"
 
+    if breached_count > 0:
+        risk_level = "Critical"
+    elif score >= 80:
+        risk_level = "Low"
+    elif score >= 60:
+        risk_level = "Medium"
+    else:
+        risk_level = "High"
+
+    priority_actions = [issue["fix"] for issue in issues if issue.get("fix")]
+    if breached_count > 0 and "Replace it immediately with a unique password." not in priority_actions:
+        priority_actions.insert(0, "Replace it immediately with a unique password.")
+
+    if not priority_actions:
+        priority_actions = [
+            "Keep the password unique for each account.",
+            "Store it in a password manager.",
+            "Review the result again after the next password rotation.",
+        ]
+
     return jsonify({
         "strength": strength,
         "score": score,
+        "risk_level": risk_level,
         "breached": breached_count > 0,
         "breach_count": breached_count,
         "breach_error": breach_error,
@@ -366,6 +559,9 @@ def analyze_password(data):
         "entropy_bits": entropy_bits,
         "entropy_level": entropy_level,
         "recommendations": recommendations,
+        "priority_actions": priority_actions,
+        "issues": issues,
+        "checks": checks,
         "dictionary_word_found": dictionary_word_found,
         "sequential_pattern_found": sequential_pattern_found,
     }), 200

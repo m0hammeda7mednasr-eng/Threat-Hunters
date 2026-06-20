@@ -361,6 +361,55 @@ const reportToCard = (report) => {
   };
 };
 
+const buildFindingSnapshot = (finding, index = 0) => {
+  if (!finding || typeof finding !== 'object') {
+    return null;
+  }
+
+  const locationBits = [
+    finding.parameter ? `parameter ${finding.parameter}` : null,
+    finding.endpoint || finding.url ? `${finding.endpoint || finding.url}` : null,
+    finding.location ? `location ${finding.location}` : null,
+    finding.path ? `path ${finding.path}` : null,
+    finding.method ? `${finding.method} request` : null,
+  ].filter(Boolean);
+  const where = locationBits.length
+    ? locationBits.join(' | ')
+    : finding.target || finding.host || 'not explicitly stated';
+  const whyItMatters = finding.impact || finding.description || finding.evidence || finding.proof || 'The report did not include a full impact statement, so manual review is recommended.';
+  const avoidance = finding.recommendation || finding.remediation || finding.fix || 'Re-test after remediation and keep the issue tied to an owner and deadline.';
+
+  return {
+    title: finding.title || finding.name || finding.code || finding.id || `Finding ${index + 1}`,
+    severity: String(finding.severity || finding.status || 'info').trim() || 'info',
+    cause: finding.description || finding.proof || finding.evidence || 'No evidence details were supplied.',
+    fix: finding.recommendation || finding.remediation || 'Review manually and document a remediation path.',
+    where,
+    whyItMatters,
+    avoidance,
+  };
+};
+
+const buildLatestAnalysisSnapshot = (report) => {
+  const normalizedReport = normalizeScanReport(report);
+  const findings = Array.isArray(normalizedReport.findings) ? normalizedReport.findings : [];
+  const recommendations = Array.isArray(normalizedReport.recommendations) ? normalizedReport.recommendations : [];
+  const issueCards = findings.slice(0, 3).map((finding, index) => {
+    const snapshot = buildFindingSnapshot(finding, index);
+    return snapshot
+      ? {
+          id: `${normalizedReport.id || 'report'}-${index}`,
+          ...snapshot,
+        }
+      : null;
+  }).filter(Boolean);
+
+  return {
+    issueCards,
+    fallbackFix: recommendations[0] || 'Run a deeper scan or enable additional modules for broader coverage.',
+  };
+};
+
 const formatHeaderValue = (value) => {
   const normalizedValue = String(value || 'Missing');
   return normalizedValue.length > 140 ? `${normalizedValue.slice(0, 137)}...` : normalizedValue;
@@ -393,11 +442,25 @@ const buildScanReportPdf = (report) => {
       'Prioritize exploitable issues before routine hardening tasks.',
       'Keep a dated copy of this report with the remediation owner and next review date.',
     ];
+  const findingSnapshots = findings.slice(0, 3).map((finding, index) => buildFindingSnapshot(finding, index)).filter(Boolean);
   const score = normalizedReport.score || `${normalizedReport.risk_score || 0}/100`;
   const risk = normalizedReport.risk_label || normalizedReport.risk || 'Unknown Risk';
   const coverage = deriveScanCoverage(normalizedReport);
   const confidence = deriveScanConfidence(normalizedReport);
   const generatedDate = `${normalizedReport.date || ''} ${normalizedReport.time || ''}`.trim() || new Date().toLocaleString('en-US');
+  const whereIssueIs = findingSnapshots.length
+    ? findingSnapshots.map((snapshot) => snapshot.where).filter(Boolean).join(' | ')
+    : 'No exact hotspot was listed in the findings data.';
+  const whatItMeans = findingSnapshots.length
+    ? `The scan produced ${findingSnapshots.length} highlighted issue(s). That means the target has at least one actionable weakness that should be triaged before the next release or re-scan.`
+    : 'The scan did not return active findings, but the report still documents coverage and evidence so the absence of issues can be trusted with context.';
+  const howToAvoidIt = findingSnapshots.length
+    ? findingSnapshots.map((snapshot) => snapshot.avoidance).filter(Boolean)
+    : [
+        'Keep scanning with the deeper profile when you want broader assurance.',
+        'Re-test after any code or infrastructure change.',
+        'Maintain the same scan owner and remediation deadline for follow-up.',
+      ];
 
   return buildBrandedPdfBlob({
     title: 'Vulnerability Scan Report',
@@ -428,6 +491,18 @@ const buildScanReportPdf = (report) => {
           { label: 'Target', value: normalizedReport.target || normalizedReport.url || 'Not available', detail: `Final URL: ${normalizedReport.url || normalizedReport.target || 'Not available'}` },
           { label: 'Response', value: normalizedReport.http_status || 'Unknown', detail: `Server: ${normalizedReport.server || 'Not disclosed'} | Content: ${normalizedReport.content_type || 'Unknown'} | Length: ${normalizedReport.content_length || 'Unknown'}` },
         ],
+      },
+      {
+        title: 'What This Means',
+        kicker: 'Plain English',
+        body: whatItMeans,
+        accent: '#6c5ce7',
+      },
+      {
+        title: 'Where The Issue Is',
+        kicker: 'Location Clues',
+        body: whereIssueIs,
+        accent: '#ff8b3d',
       },
       {
         title: 'Severity Lanes',
@@ -480,15 +555,18 @@ const buildScanReportPdf = (report) => {
         title: 'Finding Evidence',
         kicker: 'What Changed',
         body: findings.length
-          ? 'Each finding includes the business impact and a clear remediation path so the report can move directly into action.'
+          ? 'Each finding includes the business impact, where the issue lives, and a clear remediation path so the report can move directly into action.'
           : 'No findings were returned by the selected checks. Keep monitoring and run a deeper scan for stronger assurance.',
         accent: '#00c2ff',
         items: findings.length
-          ? findings.map((finding, index) => ({
-            tone: finding.severity || 'Info',
-            title: `${index + 1}. [${finding.severity || 'Info'}] ${finding.title || finding.name || finding.code || finding.id || 'Finding'}`,
-            detail: `${finding.description || finding.proof || 'No impact description supplied.'} Fix: ${finding.recommendation || finding.remediation || 'Review manually and document remediation.'}`,
-          }))
+          ? findings.map((finding, index) => {
+            const snapshot = buildFindingSnapshot(finding, index);
+            return {
+              tone: snapshot?.severity || 'Info',
+              title: `${index + 1}. [${snapshot?.severity || 'Info'}] ${snapshot?.title || 'Finding'}`,
+              detail: `Why it matters: ${snapshot?.whyItMatters || snapshot?.cause || 'No evidence supplied.'} Where: ${snapshot?.where || 'not stated'} Fix: ${snapshot?.avoidance || snapshot?.fix || 'Review manually and document remediation.'}`,
+            };
+          })
           : ['No findings detected by the selected checks.'],
       },
       {
@@ -564,11 +642,14 @@ const buildScanReportPdf = (report) => {
           : [{ label: 'Headers', value: 'No snapshot', detail: 'No header snapshot was attached to this report.' }],
       },
       {
-        title: 'Prioritized Recommendations',
+        title: 'How To Avoid It',
         kicker: 'Next Moves',
-        body: 'Use this section as the remediation checklist for the next sprint or handoff conversation.',
+        body: 'Use this section as the remediation checklist for the next sprint or handoff conversation. It translates the findings into prevention steps instead of only listing issues.',
         accent: '#7c6cff',
-        items: recommendations.map((recommendation, index) => `${index + 1}. ${recommendation}`),
+        items: [
+          ...howToAvoidIt.map((item, index) => `${index + 1}. ${item}`),
+          ...recommendations.map((recommendation, index) => `${index + 1}. ${recommendation}`),
+        ].filter(Boolean).slice(0, 10),
       },
     ],
   });
@@ -651,6 +732,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   });
   const [profileNotice, setProfileNotice] = useState('');
   const [settingsNotice, setSettingsNotice] = useState('');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsForm, setSettingsForm] = useState({
     language: 'English (US)',
     timezone: 'UTC+02:00 (Cairo)',
@@ -847,12 +929,16 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   };
 
   const toggleNotification = (key) => {
-    setNotificationPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+    const nextPrefs = { ...notificationPrefs, [key]: !notificationPrefs[key] };
+    setNotificationPrefs(nextPrefs);
+    void saveSettings({ notifications: nextPrefs });
     setSettingsNotice('');
   };
 
   const toggleReportPref = (key) => {
-    setReportPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+    const nextPrefs = { ...reportPrefs, [key]: !reportPrefs[key] };
+    setReportPrefs(nextPrefs);
+    void saveSettings({ reports: nextPrefs });
     setSettingsNotice('');
   };
 
@@ -922,16 +1008,21 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
       ...overrides,
     };
 
-    const result = await updateSettings?.(payload);
-    if (!result?.success) {
-      setSettingsNotice(result?.error || 'Settings could not be saved.');
-      setProfileNotice(result?.error || 'Security setting could not be saved.');
-      return false;
-    }
+    setIsSavingSettings(true);
+    try {
+      const result = await updateSettings?.(payload);
+      if (!result?.success) {
+        setSettingsNotice(result?.error || 'Settings could not be saved.');
+        setProfileNotice(result?.error || 'Security setting could not be saved.');
+        return false;
+      }
 
-    setSettingsNotice('Settings saved successfully.');
-    setProfileNotice('Security settings saved successfully.');
-    return true;
+      setSettingsNotice('Settings saved successfully.');
+      setProfileNotice('Security settings saved successfully.');
+      return true;
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   const toggleTwoFactor = async () => {
@@ -960,6 +1051,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   const latestRiskLabel = latestReport ? deriveRiskLabel(latestReport) : 'No scan completed yet';
   const latestScanCoverage = latestReport ? deriveScanCoverage(latestReport) : 0;
   const latestScanConfidence = latestReport ? deriveScanConfidence(latestReport) : 0;
+  const latestAnalysis = latestReport ? buildLatestAnalysisSnapshot(latestReport) : null;
   const profileDisplayName = profileForm.username || (user?.email ? user.email.split('@')[0] : '') || 'Threat Hunters User';
   const profileEmail = profileForm.email || user?.email || 'No email available';
   const profileInitial = profileDisplayName.trim().charAt(0).toUpperCase() || 'U';
@@ -1358,10 +1450,31 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
               : 'Run a website scan to generate live security insights, risk scoring, recommendations, and a downloadable report.'}
           </p>
 
-          <button type="button" className="db-secondary-btn db-report-btn" onClick={() => setActiveSection('reports')}>
-            View Report
-            <ChevronRight size={14} />
-          </button>
+          {latestAnalysis && latestAnalysis.issueCards.length > 0 && (
+            <div className="db-analysis-grid">
+              {latestAnalysis.issueCards.map((issue, index) => (
+                <article className="db-analysis-card" key={issue.id}>
+                  <span className="db-analysis-badge">{index + 1}</span>
+                  <h3>{issue.title}</h3>
+                  <p>{issue.cause}</p>
+                  <small>Fix: {issue.fix}</small>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <div className="db-insight-actions">
+            <button type="button" className="db-secondary-btn db-report-btn" onClick={() => setActiveSection('reports')}>
+              View Report
+              <ChevronRight size={14} />
+            </button>
+            {latestReport && (
+              <button type="button" className="db-secondary-btn db-report-btn ghost" onClick={() => downloadScanReport(latestReport)}>
+                Export PDF
+                <Download size={14} />
+              </button>
+            )}
+          </div>
         </section>
 
         <section className="db-panel db-ai-summary-panel">
@@ -1723,7 +1836,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
                 </div>
 
                 <div className="db-report-breakdown-grid">
-                  {card.breakdown.map((item) => (
+                  {card.breakdown.map((item, index) => (
                     <article key={`${card.id}-${card.reference}-${item.label}-${index}`} className="db-report-breakdown-item">
                       <strong className={item.tone}>{item.value}</strong>
                       <span>{item.label}</span>
@@ -1809,9 +1922,13 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
         </div>
 
         <div className="db-settings-hero-actions">
+          <span className="db-settings-live-badge">
+            <Wifi size={14} />
+            Live sync enabled
+          </span>
           {settingsNotice && <p className="db-user-profile-form-note db-settings-notice">{settingsNotice}</p>}
-          <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()}>
-            Save All Settings
+          <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()} disabled={isSavingSettings}>
+            {isSavingSettings ? 'Saving...' : 'Save All Settings'}
           </button>
         </div>
       </header>
@@ -1895,8 +2012,13 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           </span>
           <div className="db-settings-panel-copy">
             <h2>Notification Settings</h2>
-            <p>Manage your notification preferences</p>
+            <p>Manage notification delivery and keep each change synced instantly.</p>
           </div>
+        </div>
+
+        <div className="db-settings-panel-note">
+          <Wifi size={14} />
+          <span>Every toggle is saved automatically to your account.</span>
         </div>
 
         <div className="db-settings-toggle-list">

@@ -19,3 +19,8 @@ def security_check_email():
 @breach_bp.route("/security/analyze-password", methods=["POST"])
 def security_analyze_password():
     return analyze_password(request.json)
+
+
+@breach_bp.route("/security/password-analysis", methods=["POST"])
+def security_password_analysis():
+    return analyze_password(request.json)

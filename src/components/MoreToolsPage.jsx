@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Gauge,
   Globe,
+  Download,
   KeyRound,
   Mail,
   Play,
@@ -18,6 +19,7 @@ import './MoreToolsPage.css';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { securityAPI } from '../services/api';
+import { buildBrandedPdfBlob, downloadPdfBlob } from '../utils/pdfBuilder';
 
 const tabContent = {
   password: {
@@ -29,10 +31,10 @@ const tabContent = {
     inputType: 'password',
     placeholder: 'Enter a password',
     heroCopy: 'Audit password quality, weak construction patterns, and policy fit before reuse becomes a real risk.',
-    detailCopy: 'A fast way to preview strength, reuse, and exposure-style hints through the backend.',
+    detailCopy: 'A fast way to preview strength, reuse, exposure, and a downloadable backend-backed report.',
     idleTitle: 'Password review is standing by',
     idleCopy: 'Run the checker to see live breach counts, risk level, and reuse-style guidance.',
-    helperCopy: 'The password check runs through the backend against the live Pwned Passwords API.',
+    helperCopy: 'The password analysis runs through the backend, checks live Pwned Passwords exposure, and can export a PDF report.',
     signalTags: ['Entropy score', 'Length policy', 'Weak patterns'],
     examples: ['CorrectHorseBattery!42', 'Vault-Access-2026!'],
     heroStats: [
@@ -171,6 +173,37 @@ const scanStatusMeta = {
   error: { label: 'Check failed', tone: 'watch' },
 };
 
+const getScanStatusMeta = (activeTab, scanState, scanResult) => {
+  if (scanState !== 'success') {
+    return scanStatusMeta[scanState] || scanStatusMeta.idle;
+  }
+
+  if (activeTab === 'password') {
+    const score = Number(scanResult?.score || 0);
+    const breached = Boolean(scanResult?.breached);
+
+    if (breached || score < 60) {
+      return { label: 'Needs attention', tone: 'watch' };
+    }
+
+    if (score >= 80) {
+      return { label: 'Strong posture', tone: 'success' };
+    }
+
+    return { label: 'Review needed', tone: 'checking' };
+  }
+
+  if (activeTab === 'email') {
+    if (scanResult?.breached) {
+      return { label: scanResult?.risk_level || 'Exposure found', tone: 'watch' };
+    }
+
+    return { label: 'No breach hit', tone: 'success' };
+  }
+
+  return scanStatusMeta.success;
+};
+
 const getEmailLiveNote = (value) => {
   const trimmedValue = value.trim();
 
@@ -227,75 +260,204 @@ const validateToolInput = (activeTab, value) => {
 };
 
 const buildPasswordResultView = (result) => {
-  const count = Number(result?.count || 0);
+  const count = Number(result?.count || result?.breach_count || 0);
   const breached = Boolean(result?.breached);
-  const riskLevel = result?.risk_level || (breached ? 'Low' : 'Safe');
+  const riskLevel = result?.risk_level || (breached ? 'Critical' : 'Safe');
+  const score = Number(result?.score || 0);
+  const strength = result?.strength || 'Unknown';
+  const entropyBits = Number(result?.entropy_bits || 0);
+  const entropyLevel = result?.entropy_level || 'Unknown';
+  const recommendations = Array.isArray(result?.recommendations) ? result.recommendations : [];
+  const priorityActions = Array.isArray(result?.priority_actions) ? result.priority_actions : [];
+  const issues = Array.isArray(result?.issues) ? result.issues : [];
+  const checks = Array.isArray(result?.checks) ? result.checks : [];
   const safeTone = breached ? 'watch' : 'safe';
+  const failedChecks = checks.filter((item) => !item.passed);
+  const passedChecks = checks.filter((item) => item.passed).length;
 
   return {
-    title: breached ? 'Password is present in breach data' : 'No breach match found',
+    title: breached ? 'Password needs immediate replacement' : 'Password posture review is ready',
     copy: breached
-      ? `This password appeared ${formatCount(count)} times in known breaches. Rotate it immediately.`
-      : 'No match returned from the live Pwned Passwords corpus. Keep using unique passwords.',
+      ? `This password appeared ${formatCount(count)} times in known breaches and needs to be rotated immediately.`
+      : 'The live review did not find a breach match. Use the detailed checks below to harden it further.',
     summary: [
       {
+        label: 'Score',
+        value: `${score}/100`,
+        note: strength,
+        tone: safeTone,
+      },
+      {
         label: 'Exposure',
-        value: breached ? 'Pwned' : 'Clean',
-        note: breached ? `${formatCount(count)} hits` : 'No match in corpus',
+        value: breached ? 'Pwned' : 'Clear',
+        note: breached ? `${formatCount(count)} hits` : 'No breach hit',
         tone: safeTone,
       },
       {
-        label: 'Risk level',
-        value: riskLevel,
-        note: breached ? 'Change it now' : 'Looks better',
-        tone: safeTone,
-      },
-      {
-        label: 'Count',
-        value: formatCount(count),
-        note: 'Known breach hits',
+        label: 'Entropy',
+        value: `${entropyBits} bits`,
+        note: entropyLevel,
         tone: 'info',
+      },
+      {
+        label: 'Checks',
+        value: `${passedChecks}/${checks.length || 1}`,
+        note: failedChecks.length ? `${failedChecks.length} flagged` : 'All passed',
+        tone: failedChecks.length ? 'watch' : 'safe',
       },
     ],
     insights: breached
       ? [
           {
-            title: 'Rotate this password',
-            copy: 'A live HIBP match means the password should be replaced with a unique passphrase immediately.',
+            title: 'Known breach exposure',
+            copy: `The password appeared ${formatCount(count)} times in the live Pwned Passwords corpus.`,
             tone: 'watch',
           },
           {
-            title: 'Avoid reuse everywhere',
-            copy: 'If this password has been exposed once, reuse across other accounts becomes the bigger risk.',
+            title: 'Replace it everywhere',
+            copy: 'Use a unique passphrase for every account and rotate any reused copies first.',
             tone: 'info',
           },
           {
-            title: 'Use a manager',
-            copy: 'A password manager will help generate and store stronger unique credentials per account.',
+            title: 'Save the fix in a manager',
+            copy: 'A password manager will help keep the replacement strong, unique, and realistic to maintain.',
             tone: 'safe',
           },
         ]
       : [
           {
-            title: 'No live breach hit surfaced',
-            copy: 'The Pwned Passwords check did not find this secret in the known corpus.',
+            title: 'No breach hit surfaced',
+            copy: 'The live HIBP check did not match this password against the current breach corpus.',
             tone: 'safe',
           },
           {
-            title: 'Keep the length high',
-            copy: 'Long passphrases still matter, even when no current breach match is returned.',
-            tone: 'info',
+            title: 'Review the weaker checks',
+            copy: failedChecks.length
+              ? `${failedChecks.length} check(s) still need attention before you should trust this password.`
+              : 'The password passed the structural checks in this review.',
+            tone: failedChecks.length ? 'watch' : 'info',
           },
           {
-            title: 'Stay unique',
-            copy: 'The safest next step is still a unique password per account, stored in a manager.',
+            title: 'Keep the passphrase unique',
+            copy: 'Even a clean breach result should still stay unique, long, and hard to guess.',
             tone: 'safe',
           },
         ],
     tags: breached
       ? ['Rotate now', 'No reuse', 'Password manager']
       : ['No direct hit', 'Unique password', 'Passphrase'],
+    issues,
+    checks,
+    recommendations,
+    priorityActions,
   };
+};
+
+const buildPasswordAnalysisPdf = (password, resultView, rawResult) => {
+  const score = Number(rawResult?.score || 0);
+  const strength = rawResult?.strength || 'Unknown';
+  const riskLevel = rawResult?.risk_level || 'Medium';
+  const entropyBits = Number(rawResult?.entropy_bits || 0);
+  const passwordLength = Number(rawResult?.password_length || password.length);
+  const breachedCount = Number(rawResult?.breach_count || 0);
+  const checks = Array.isArray(resultView?.checks) ? resultView.checks : [];
+  const issues = Array.isArray(resultView?.issues) ? resultView.issues : [];
+  const recommendations = Array.isArray(resultView?.recommendations) ? resultView.recommendations : [];
+  const priorityActions = Array.isArray(resultView?.priorityActions) && resultView.priorityActions.length
+    ? resultView.priorityActions
+    : ['Replace weak credentials with a unique passphrase.', 'Use a password manager.', 'Retest after the change.'];
+  const weakChecks = checks.filter((item) => !item.passed);
+  const passwordTraits = [
+    `Length: ${passwordLength} characters`,
+    `Uppercase: ${rawResult?.has_uppercase ? 'yes' : 'no'}`,
+    `Lowercase: ${rawResult?.has_lowercase ? 'yes' : 'no'}`,
+    `Numbers: ${rawResult?.has_numbers ? 'yes' : 'no'}`,
+    `Symbols: ${rawResult?.has_special_characters ? 'yes' : 'no'}`,
+  ];
+  const whereIssueIs = rawResult?.breached
+    ? `The password matches known breach data, so the weak point is credential exposure itself rather than just composition.`
+    : weakChecks.length
+      ? `The weak points are in the password structure: ${weakChecks.slice(0, 3).map((item) => item.title || item.key || 'check').join(', ')}.`
+      : 'No single structural hotspot was flagged, but the password still benefits from stronger uniqueness and rotation discipline.';
+  const whatItMeans = rawResult?.breached
+    ? `This password is present in breach data ${formatCount(breachedCount)} time(s), which means it should be treated as compromised and replaced immediately.`
+    : `The password is not currently matched in breach data, but the structure still matters because weak composition can make guessing, reuse, or policy failure easier.`;
+  const howToAvoidIt = rawResult?.breached
+    ? [
+        'Replace the password everywhere it is reused.',
+        'Store the new secret in a password manager so it stays unique.',
+        'Review connected accounts and enable MFA where possible.',
+      ]
+    : [
+        'Use a longer, unique passphrase instead of a predictable pattern.',
+        'Add variation with upper/lowercase, numbers, and symbols only when it stays memorable.',
+        'Keep it out of shared notes and recheck after any policy change.',
+      ];
+  const analysisSummary = rawResult?.breached
+    ? 'The password is exposed in known breach data and should be replaced immediately.'
+    : `The password is not currently matched in breach data, but structural review still found ${issues.length} weak point(s).`;
+
+  return buildBrandedPdfBlob({
+    eyebrow: 'Password Analysis Report',
+    title: 'Password Review Summary',
+    subtitle: analysisSummary,
+    generatedAt: new Date().toLocaleString('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }),
+    classification: 'CONFIDENTIAL PASSWORD REVIEW',
+    metrics: [
+      { label: 'Score', value: `${score}/100`, fill: '#eef6ff', valueColor: score >= 80 ? '#11855d' : '#b35d00' },
+      { label: 'Strength', value: strength, fill: '#fff7ed', valueColor: rawResult?.breached ? '#c62828' : '#8a5b00' },
+      { label: 'Entropy', value: `${entropyBits} bits`, fill: '#eefbf7', valueColor: '#11855d' },
+      { label: 'Length', value: `${passwordLength} chars`, fill: '#f4f0ff', valueColor: '#6d4cff' },
+      { label: 'Exposure', value: `${breachedCount.toLocaleString()} hits`, fill: '#fff0f0', valueColor: rawResult?.breached ? '#c62828' : '#0b66c3' },
+      { label: 'Risk', value: riskLevel, fill: '#f4f7ff', valueColor: rawResult?.breached ? '#c62828' : '#0b66c3' },
+    ],
+    sections: [
+      {
+        title: 'Executive Summary',
+        body: analysisSummary,
+        accent: '#8b7cff',
+      },
+      {
+        title: 'What This Means',
+        body: whatItMeans,
+        accent: '#6c5ce7',
+      },
+      {
+        title: 'Where The Issue Is',
+        body: whereIssueIs,
+        rows: passwordTraits.map((trait) => ({
+          label: trait.split(': ')[0],
+          value: trait.split(': ')[1] || 'Unknown',
+          detail: 'This property helps explain the current risk shape.',
+        })),
+        accent: '#ff8b3d',
+      },
+      {
+        title: 'Top Issues',
+        items: issues.length
+          ? issues.map((issue) => `${issue.title}: ${issue.detail}${issue.fix ? ` Fix: ${issue.fix}` : ''}`)
+          : ['No structural issues were flagged by the review.'],
+        accent: '#ffb347',
+      },
+      {
+        title: 'Checks Passed',
+        items: checks.filter((item) => item.passed).map((item) => `${item.title}: ${item.detail}`).slice(0, 6),
+        accent: '#18a058',
+      },
+      {
+        title: 'How To Avoid It',
+        items: [
+          ...howToAvoidIt,
+          ...priorityActions,
+          ...recommendations.filter(Boolean),
+        ].filter(Boolean).slice(0, 10),
+        accent: '#00b8d9',
+      },
+    ],
+  });
 };
 
 const buildEmailResultView = (result) => {
@@ -309,6 +471,88 @@ const buildEmailResultView = (result) => {
   const latestLabel = latestBreach?.title || latestBreach?.name || 'No breach';
   const latestDate = latestBreach?.breach_date || 'Not found';
   const safeTone = breached ? 'watch' : 'safe';
+  const checks = [
+    {
+      key: 'breach-count',
+      title: 'Breach exposure',
+      passed: !breached,
+      detail: breached
+        ? `${formatCount(breachCount)} breach record(s) were returned.`
+        : 'No breach record was returned by the backend lookup.',
+      severity: breached ? 'critical' : 'safe',
+      fix: breached ? 'Reset the password and monitor the account.' : null,
+    },
+    {
+      key: 'verified-count',
+      title: 'Verified breach coverage',
+      passed: verifiedCount === 0,
+      detail: `${formatCount(verifiedCount)} verified breach(s) were matched.`,
+      severity: verifiedCount > 0 ? 'watch' : 'safe',
+      fix: verifiedCount > 0 ? 'Review the breached services and rotate any reused credentials.' : null,
+    },
+    {
+      key: 'stealer-count',
+      title: 'Stealer log exposure',
+      passed: stealerCount === 0,
+      detail: `${formatCount(stealerCount)} stealer log hit(s) were matched.`,
+      severity: stealerCount > 0 ? 'critical' : 'safe',
+      fix: stealerCount > 0 ? 'Change the password immediately and review account recovery paths.' : null,
+    },
+  ];
+  const exposedIssues = Array.isArray(result?.breaches) ? result.breaches.slice(0, 3).map((breach) => ({
+    key: breach.name || breach.title || 'breach',
+    title: breach.title || breach.name || 'Breach exposure',
+    severity: breach.stealer_log ? 'critical' : breach.verified ? 'watch' : 'info',
+    detail: [
+      breach.domain ? `Domain: ${breach.domain}` : null,
+      breach.breach_date ? `Breach date: ${breach.breach_date}` : null,
+      Array.isArray(breach.data_classes) && breach.data_classes.length ? `Data: ${breach.data_classes.slice(0, 5).join(', ')}` : null,
+    ].filter(Boolean).join(' | ') || 'No breach metadata was returned.',
+    fix: 'Treat the exposed account as compromised and rotate related credentials.',
+  })) : [];
+  const whereIssueIs = breached
+    ? [
+        latestBreach?.title ? `Latest match: ${latestBreach.title}` : null,
+        latestBreach?.domain ? `Source domain: ${latestBreach.domain}` : null,
+        latestBreach?.breach_date ? `Breach date: ${latestBreach.breach_date}` : null,
+        exposedData.length ? `Exposed data classes: ${exposedData.slice(0, 6).join(', ')}` : null,
+      ].filter(Boolean).join(' | ')
+    : 'No breach source was returned, so there is no confirmed exposure location in the current lookup.';
+  const whatItMeans = breached
+    ? `This address appears in ${formatCount(breachCount)} breach record(s), with ${formatCount(verifiedCount)} verified and ${formatCount(stealerCount)} stealer-log hit(s). That means the account should be treated as exposed until credentials and recovery paths are refreshed.`
+    : 'No live breach hit was returned, which lowers immediate exposure risk, but it does not remove the need for unique passwords and periodic rechecks.';
+  const howToAvoidIt = breached
+    ? [
+        'Change the password for this inbox and any account that reused it.',
+        'Turn on MFA and review recovery email/phone settings.',
+        'Watch sign-ins and connected app access for the next few days.',
+      ]
+    : [
+        'Keep a unique password per inbox and avoid reuse across services.',
+        'Use a password manager so the account stays easy to maintain.',
+        'Recheck exposure periodically and rotate secrets if the risk profile changes.',
+      ];
+  const recommendations = breached
+    ? [
+        'Rotate this password immediately.',
+        'Update reused credentials on other accounts.',
+        'Enable two-factor authentication where available.',
+      ]
+    : [
+        'Keep the password unique per account.',
+        'Store the replacement in a password manager.',
+        'Recheck exposure periodically.',
+      ];
+  const priorityActions = breached
+    ? [
+        'Replace the password with a unique passphrase.',
+        'Review any accounts that reused the same secret.',
+        'Enable stronger account recovery controls.',
+      ]
+    : [
+        'Keep the password unique and long.',
+        'Use a manager for storage and rotation.',
+      ];
 
   return {
     title: breached ? 'Email appears in breach data' : 'No breach match found',
@@ -375,7 +619,97 @@ const buildEmailResultView = (result) => {
     tags: breached
       ? exposedData.slice(0, 6)
       : ['No direct hit', 'Exposure review', 'Hygiene'],
+    checks,
+    issues: exposedIssues,
+    recommendations,
+    priorityActions,
+    latestBreach,
   };
+};
+
+const buildEmailAnalysisPdf = (emailValue, resultView, rawResult) => {
+  const email = String(emailValue || rawResult?.email || 'Email').trim() || 'Email';
+  const breachCount = Number(rawResult?.breach_count || 0);
+  const verifiedCount = Number(rawResult?.verified_breach_count || 0);
+  const stealerCount = Number(rawResult?.stealer_log_count || 0);
+  const breached = Boolean(rawResult?.breached);
+  const riskLevel = rawResult?.risk_level || (breached ? 'Critical' : 'Safe');
+  const checks = Array.isArray(resultView?.checks) ? resultView.checks : [];
+  const issues = Array.isArray(resultView?.issues) ? resultView.issues : [];
+  const recommendations = Array.isArray(resultView?.recommendations) ? resultView.recommendations : [];
+  const priorityActions = Array.isArray(resultView?.priorityActions) && resultView.priorityActions.length
+    ? resultView.priorityActions
+    : ['Keep the address unique.', 'Use a manager for stored credentials.', 'Review exposure again later.'];
+  const exposedData = Array.isArray(rawResult?.exposed_data) ? rawResult.exposed_data : [];
+  const latestBreach = rawResult?.latest_breach || null;
+
+  return buildBrandedPdfBlob({
+    eyebrow: 'Email Exposure Report',
+    title: `Email Review for ${email}`,
+    subtitle: breached
+      ? 'The address appears in breach data and needs immediate review.'
+      : 'The lookup did not return a live breach hit, but the hygiene review remains useful.',
+    generatedAt: new Date().toLocaleString('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }),
+    classification: 'CONFIDENTIAL EMAIL REVIEW',
+    metrics: [
+      { label: 'Risk', value: riskLevel, fill: '#fff5f6', valueColor: breached ? '#c62828' : '#11855d' },
+      { label: 'Breaches', value: String(breachCount), fill: '#eef6ff', valueColor: '#0b66c3' },
+      { label: 'Verified', value: String(verifiedCount), fill: '#f3f0ff', valueColor: '#6d4cff' },
+      { label: 'Stealer logs', value: String(stealerCount), fill: '#fff0f0', valueColor: stealerCount > 0 ? '#c62828' : '#0b66c3' },
+    ],
+    sections: [
+      {
+        title: 'Executive Summary',
+        body: breached
+          ? `The address appears in ${formatCount(breachCount)} breach record(s) and should be reviewed immediately.`
+          : 'The address was not matched in the live breach corpus, but account hygiene guidance is still included below.',
+        accent: '#8b7cff',
+      },
+      {
+        title: 'What This Means',
+        body: whatItMeans,
+        accent: '#6c5ce7',
+      },
+      {
+        title: 'Where The Issue Is',
+        body: whereIssueIs,
+        accent: '#ff8b3d',
+      },
+      {
+        title: 'Top Issues',
+        items: issues.length
+          ? issues.map((issue) => `${issue.title}: ${issue.detail}${issue.fix ? ` Fix: ${issue.fix}` : ''}`)
+          : ['No breach-specific issues were returned by the lookup.'],
+        accent: '#ffb347',
+      },
+      {
+        title: 'Checks',
+        items: checks.map((check) => `${check.title}: ${check.detail}${check.fix ? ` Fix: ${check.fix}` : ''}`).slice(0, 6),
+        accent: '#18a058',
+      },
+      {
+        title: 'How To Avoid It',
+        items: [
+          ...howToAvoidIt,
+          ...priorityActions,
+          ...recommendations,
+        ].filter(Boolean).slice(0, 8),
+        accent: '#00b8d9',
+      },
+      {
+        title: 'Exposure Detail',
+        items: [
+          latestBreach?.title ? `Latest breach: ${latestBreach.title}` : 'Latest breach: not available',
+          latestBreach?.breach_date ? `Breach date: ${latestBreach.breach_date}` : 'Breach date: not available',
+          exposedData.length ? `Exposed data: ${exposedData.slice(0, 6).join(', ')}` : 'Exposed data: not returned',
+        ],
+        accent: '#ffb347',
+      },
+    ],
+  });
 };
 
 const MoreToolsPage = ({
@@ -396,7 +730,7 @@ const MoreToolsPage = ({
   const activeContent = tabContent[activeTab];
   const currentValue = activeTab === 'email' ? email : password;
   const canScan = currentValue.trim().length > 0;
-  const statusMeta = scanStatusMeta[scanState];
+  const statusMeta = getScanStatusMeta(activeTab, scanState, scanResult);
   const liveNote = activeTab === 'email' ? getEmailLiveNote(email) : getPasswordLiveNote(password);
   const ToolIcon = activeContent.icon;
   const resultView = scanState === 'success'
@@ -439,7 +773,7 @@ const MoreToolsPage = ({
     try {
       const result = activeTab === 'email'
         ? await securityAPI.checkEmailBreach({ email: currentValue.trim() })
-        : await securityAPI.checkPasswordBreach({ password: currentValue });
+        : await securityAPI.analyzePassword({ password: currentValue });
 
       setScanResult(result);
       setScanError('');
@@ -464,6 +798,20 @@ const MoreToolsPage = ({
   const handleScan = async () => {
     await runLiveCheck();
   };
+
+  const handleDownloadReport = useCallback(() => {
+    if (scanState !== 'success' || !scanResult) {
+      return;
+    }
+
+    const report = activeTab === 'password'
+      ? buildPasswordAnalysisPdf(password, resultView, scanResult)
+      : buildEmailAnalysisPdf(email, resultView, scanResult);
+    const safeName = activeTab === 'password'
+      ? (password.trim() ? `password-analysis-${password.length}-chars` : 'password-analysis')
+      : (email.trim().replace(/[^a-z0-9]+/gi, '-').replace(/(^-|-$)/g, '') || 'email-analysis');
+    downloadPdfBlob(report, `${safeName}.pdf`);
+  }, [activeTab, email, password, resultView, scanResult, scanState]);
 
   const handleInputChange = (nextValue) => {
     resetScanState();
@@ -625,15 +973,28 @@ const MoreToolsPage = ({
                   <span>{scanState === 'checking' ? 'Scanning...' : 'Start scan'}</span>
                 </button>
 
-                <button
-                  className="more-tools-reset-button"
-                  disabled={!currentValue && scanState === 'idle'}
-                  onClick={handleReset}
-                  type="button"
-                >
-                  <RotateCcw aria-hidden="true" size={16} />
-                  <span>Reset</span>
-                </button>
+                <div className="more-tools-action-cluster">
+                  {scanState === 'success' && (
+                    <button
+                      className="more-tools-download-button"
+                      onClick={handleDownloadReport}
+                      type="button"
+                    >
+                      <Download aria-hidden="true" size={16} />
+                      <span>Download PDF</span>
+                    </button>
+                  )}
+
+                  <button
+                    className="more-tools-reset-button"
+                    disabled={!currentValue && scanState === 'idle'}
+                    onClick={handleReset}
+                    type="button"
+                  >
+                    <RotateCcw aria-hidden="true" size={16} />
+                    <span>Reset</span>
+                  </button>
+                </div>
               </div>
 
               <div className="more-tools-helper-row">
