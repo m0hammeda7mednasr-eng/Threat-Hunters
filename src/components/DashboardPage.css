@@ -3055,13 +3055,15 @@
 :where(.db-dashboard-layout) .db-threat-grid,
 :where(.db-dashboard-layout) .db-awareness-grid {
   width: 100%;
-  grid-template-columns: repeat(3, minmax(0, 317.464px));
-  justify-content: space-between;
-  gap: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-content: stretch;
+  gap: 0.72rem;
 }
 
 :where(.db-dashboard-layout) .db-threat-item,
 :where(.db-dashboard-layout) .db-awareness-item {
+  display: flex;
+  flex-direction: column;
   min-height: 250px;
   padding: 1rem;
 }
@@ -3073,12 +3075,20 @@
 :where(.db-dashboard-layout) .db-threat-top h3,
 :where(.db-dashboard-layout) .db-awareness-item h3 {
   font-size: 0.98rem;
+  min-width: 0;
 }
 
 :where(.db-dashboard-layout) .db-threat-item p,
 :where(.db-dashboard-layout) .db-awareness-item p {
+  flex: 1;
   font-size: 0.84rem;
   line-height: 1.58;
+  overflow-wrap: anywhere;
+}
+
+:where(.db-dashboard-layout) .db-threat-btn {
+  width: fit-content;
+  margin-top: auto;
 }
 
 :where(.db-dashboard-layout) .db-awareness-icon {
