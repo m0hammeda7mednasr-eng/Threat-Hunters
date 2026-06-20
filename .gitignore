@@ -30,3 +30,6 @@ __pycache__/
 .vercel
 .codex-run/
 server/data/
+
+# Local QA artifacts
+blog-*.png
