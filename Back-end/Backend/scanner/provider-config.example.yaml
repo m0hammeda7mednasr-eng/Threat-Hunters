@@ -1,5 +1,5 @@
 github:
-  - "${GITHUB_TOKEN}"
+  - "${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}"
 virustotal:
   - "${c3a292bfdebe8a9166e3a1f6a275a825cfe297d04e33cf18abc443e77639aacf}"
 censys:
