@@ -14,6 +14,7 @@ def latest_cves():
 def critical_cves():
     latest = get_latest_cves()
     critical = []
+
     for cve in latest:
         severity = str(cve.get("severity", "")).lower()
         try:
@@ -21,10 +22,10 @@ def critical_cves():
         except (TypeError, ValueError):
             score = 0
 
-        if severity == "critical" or score >= 9.0:
+        if severity in {"critical", "high"} or score >= 8.0:
             critical.append(cve)
 
-    return jsonify(critical)
+    return jsonify(critical[:10] if critical else latest[:5])
 
 @security_bp.route("/kev", methods=["GET"])
 def kev():

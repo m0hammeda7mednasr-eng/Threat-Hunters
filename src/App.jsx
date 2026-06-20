@@ -10,6 +10,7 @@ const SignUpPage = lazy(() => import('./components/SignUpPage'));
 const SignInPage = lazy(() => import('./components/SignInPage'));
 const BlogPage = lazy(() => import('./components/BlogPage'));
 const SecurityAwarenessPage = lazy(() => import('./components/SecurityAwarenessPage'));
+const AwarenessDetailPage = lazy(() => import('./components/AwarenessDetailPage'));
 const MoreToolsPage = lazy(() => import('./components/MoreToolsPage'));
 const DashboardPage = lazy(() => import('./components/DashboardPage'));
 const AdminDashboardPage = lazy(() => import('./components/AdminDashboardPage'));
@@ -42,9 +43,9 @@ const SUPPORT_PAGES = new Set([
   'responsible-disclosure',
   'data-protection',
 ]);
-const PUBLIC_PAGES = new Set(['home', 'signin', 'signup', 'blog', 'awareness', 'tools', ...SUPPORT_PAGES]);
+const PUBLIC_PAGES = new Set(['home', 'signin', 'signup', 'blog', 'awareness', 'awareness-detail', 'tools', ...SUPPORT_PAGES]);
 const ADMIN_PAGES = new Set(['admin-dashboard', 'admin-team', 'admin-users', 'admin-reports', 'admin-web-edit', 'admin-pricing', 'admin-settings']);
-const PRIVATE_PAGES = new Set(['dashboard', ...ADMIN_PAGES, 'blog', 'awareness', 'tools', ...SUPPORT_PAGES]);
+const PRIVATE_PAGES = new Set(['dashboard', ...ADMIN_PAGES, 'blog', 'awareness', 'awareness-detail', 'tools', ...SUPPORT_PAGES]);
 const DASHBOARD_SECTIONS = new Set(['dashboard', 'reports', 'settings', 'profile']);
 
 const safeStorage = {
@@ -143,6 +144,21 @@ const parseRouteFromHash = (hashValue) => {
     return { page: 'admin-settings', section: 'dashboard' };
   }
 
+  if (normalizedHash.startsWith('awareness/')) {
+    const [page, kind, ...rest] = normalizedHash.split('/').filter(Boolean);
+
+    if (page === 'awareness' && kind && rest.length) {
+      return {
+        page: 'awareness-detail',
+        section: 'dashboard',
+        awarenessDetail: {
+          kind,
+          id: rest.join('/'),
+        },
+      };
+    }
+  }
+
   if (normalizedHash.startsWith('dashboard-')) {
     const sectionCandidate = normalizedHash.replace('dashboard-', '');
     const section = DASHBOARD_SECTIONS.has(sectionCandidate) ? sectionCandidate : 'dashboard';
@@ -170,15 +186,20 @@ function App() {
   const [userEmail, setUserEmail] = useState(getInitialUserEmail);
   const [showBootSplash, setShowBootSplash] = useState(getInitialSplashState);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [currentPage, setCurrentPage] = useState(() => parseRouteFromHash(window.location.hash).page);
+  const initialRoute = useMemo(() => parseRouteFromHash(window.location.hash), []);
+  const [currentPage, setCurrentPage] = useState(initialRoute.page);
   const [dashboardSection, setDashboardSection] = useState(
-    () => parseRouteFromHash(window.location.hash).section,
+    () => initialRoute.section,
   );
+  const [awarenessDetail, setAwarenessDetail] = useState(() => initialRoute.awarenessDetail || null);
 
   const routeTransitionKey = useMemo(() => {
     const sectionKey = currentPage === 'dashboard' ? dashboardSection : 'page';
-    return `${isLoggedIn ? userRole : 'guest'}-${currentPage}-${sectionKey}`;
-  }, [currentPage, dashboardSection, isLoggedIn, userRole]);
+    const awarenessKey = currentPage === 'awareness-detail'
+      ? `${awarenessDetail?.kind || 'detail'}-${awarenessDetail?.id || 'unknown'}`
+      : 'none';
+    return `${isLoggedIn ? userRole : 'guest'}-${currentPage}-${sectionKey}-${awarenessKey}`;
+  }, [awarenessDetail?.id, awarenessDetail?.kind, currentPage, dashboardSection, isLoggedIn, userRole]);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -210,7 +231,7 @@ function App() {
 
   useEffect(() => {
     const syncRouteFromHash = () => {
-      const { page, section } = parseRouteFromHash(window.location.hash);
+      const { page, section, awarenessDetail: nextAwarenessDetail } = parseRouteFromHash(window.location.hash);
       const isAdminPage = ADMIN_PAGES.has(page);
 
       if ((page === 'dashboard' || isAdminPage) && !isLoggedIn) {
@@ -260,9 +281,12 @@ function App() {
       }
 
       setCurrentPage(page);
+      setAwarenessDetail(nextAwarenessDetail || null);
 
       if (page === 'dashboard') {
         setDashboardSection(section);
+      } else {
+        setDashboardSection('dashboard');
       }
     };
 
@@ -465,6 +489,17 @@ function App() {
     [isLoggedIn, userRole],
   );
 
+  const openAwarenessDetail = useCallback((detail) => {
+    const kind = String(detail?.kind || '').trim();
+    const id = String(detail?.id || '').trim();
+
+    if (!kind || !id) {
+      return;
+    }
+
+    window.location.hash = `#awareness/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`;
+  }, []);
+
   const handleLogout = useCallback(() => {
     setIsLoggedIn(false);
     setUserRole('user');
@@ -477,12 +512,14 @@ function App() {
   const publicNavigationProps = useMemo(
     () => ({
       onNavigateToSignUp: () => handleNavigation('signup'),
+      onNavigateToSignIn: () => handleNavigation('signin'),
       onNavigateToHome: () => handleNavigation('home'),
       onNavigateToBlog: () => handleNavigation('blog'),
       onNavigateToAwareness: () => handleNavigation('awareness'),
       onNavigateToTools: () => handleNavigation('tools'),
+      onOpenAwarenessDetail: openAwarenessDetail,
     }),
-    [handleNavigation],
+    [handleNavigation, openAwarenessDetail],
   );
 
   return (
@@ -588,6 +625,18 @@ function App() {
             </div>
           )}
 
+          {isLoggedIn && currentPage === 'awareness-detail' && (
+            <div className="logged-in-page">
+              {userRole === 'admin' ? (
+                <AdminTopNav onNavigate={handleNavigation} onLogout={handleLogout} currentPage={currentPage} />
+              ) : (
+                <AuthNavbar onNavigate={handleNavigation} currentPage={currentPage} />
+              )}
+              <AwarenessDetailPage {...publicNavigationProps} detail={awarenessDetail} isLoggedIn />
+              <Footer />
+            </div>
+          )}
+
           {isLoggedIn && currentPage === 'tools' && (
             <div className="logged-in-page">
               {userRole === 'admin' ? (
@@ -638,6 +687,10 @@ function App() {
 
           {!isLoggedIn && currentPage === 'awareness' && (
             <SecurityAwarenessPage {...publicNavigationProps} onLogin={handleLogin} isLoggedIn={false} />
+          )}
+
+          {!isLoggedIn && currentPage === 'awareness-detail' && (
+            <AwarenessDetailPage {...publicNavigationProps} detail={awarenessDetail} isLoggedIn={false} />
           )}
 
           {!isLoggedIn && currentPage === 'tools' && (

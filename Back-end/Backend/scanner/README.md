@@ -31,6 +31,89 @@ Optional external tools are discovered from `PATH` or `D:\scanner\tools`:
 - `ffuf` or `gobuster` can be used for rate-limited content discovery
 - `katana`, `gau`, `dalfox`, and `crlfuzz` are used by related modules when installed and enabled
 
+## Scanner Core Requirements And Tools
+
+### Runtime Requirements
+
+- Python 3.10 or newer
+- MongoDB connection for the full Flask backend
+- Authorized target permission before running scans
+
+### Backend Python Requirements
+
+These are required by the backend and scanner core:
+
+- `flask==3.0.3`
+- `flask-pymongo==2.3.0`
+- `flask-bcrypt==1.0.1`
+- `flask-cors==4.0.0`
+- `pyjwt==2.8.0`
+- `email-validator==2.1.1`
+- `dnspython==2.6.1`
+- `python-dotenv==1.0.1`
+- `httpx>=0.27.0`
+- `beautifulsoup4>=4.12.0`
+- `jinja2>=3.1.0`
+- `markdown>=3.5.0`
+
+### Required Scanner Core Files
+
+- `scanner/__init__.py`
+- `scanner/runner.py`
+- `scanner/wordlists/common.txt`
+- `scanner/wordlists/directory-list-2.3-small.txt`
+- `scanner/wordlists/directory-list-2.3-medium.txt`
+- `scanner/wordlists/raft-large-directories.txt`
+- `scanner/wordlists/api/api-small.txt`
+- `scanner/wordlists/api/debug-internal-small.txt`
+- `scanner/wordlists/api/graphql-seclists.txt`
+- `scanner/wordlists/api/swagger-seclists.txt`
+- `scanner/tools/sqlmap-master/sqlmap.py`
+
+### Scan Modes
+
+- `light` scan: safe, bounded checks that work without external scanner tools.
+- `deep` scan: broader coverage with additional modules enabled where authorized and available.
+
+### Main Scanner Tools
+
+Base/light scans can run without external scanner tools. These tools are optional and are used only when their related module is enabled or available:
+
+1. `sqlmap`
+2. `nuclei`
+3. `ffuf`
+4. `gobuster`
+5. `katana`
+6. `gau`
+7. `dalfox`
+8. `crlfuzz`
+9. `naabu`
+10. `nmap`
+11. `subfinder`
+12. `amass`
+13. `theHarvester`
+14. `gowitness`
+15. `eyewitness`
+
+### Tool Search Paths
+
+The scanner checks these locations for external tools:
+
+- `scanner/tools`
+- `%USERPROFILE%\go\bin`
+- `%USERPROFILE%\.local\bin`
+
+### Optional Provider Environment Variables
+
+Use placeholders only in committed example config files. Do not commit real tokens or API keys.
+
+- `GITHUB_TOKEN`
+- `VIRUSTOTAL_API_KEY`
+- `CENSYS_API_ID`
+- `CENSYS_API_SECRET`
+- `SHODAN_API_KEY`
+- `SECURITYTRAILS_API_KEY`
+
 ## Run As A Package
 
 Run from the parent directory so Python can import the package:

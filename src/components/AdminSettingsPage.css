@@ -55,6 +55,13 @@
   box-shadow: var(--button-shadow-strong);
 }
 
+.admin-settings-save-btn:disabled {
+  cursor: wait;
+  opacity: 0.82;
+  transform: none;
+  box-shadow: var(--button-shadow-sm);
+}
+
 .admin-settings-layout {
   align-items: flex-start;
   gap: 1.4rem;
@@ -102,6 +109,20 @@
   gap: 1.2rem;
   border-color: rgba(109, 124, 255, 0.16);
   background: color-mix(in srgb, var(--bg-card) 86%, transparent);
+}
+
+.admin-settings-live-note {
+  margin-top: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding: 0.42rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid rgba(109, 124, 255, 0.18);
+  background: rgba(109, 124, 255, 0.08);
+  color: var(--primary-80);
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .admin-settings-form-grid,

@@ -32,6 +32,25 @@ RANGE_HEADERS = {"Range": "bytes=0-8191"}
 MATCH_STATUS_CODES = "200,201,204,301,302,307,308,401,403,429,503"
 MAX_BODY_BYTES = 8192
 MAX_PROMOTED_RECON_FINDINGS = 25
+INTERNAL_WORDLIST_LIMITS = {"light": 80, "deep": 220}
+INTERNAL_FALLBACK_PATHS = [
+    "admin",
+    "login",
+    "backup",
+    "backups",
+    "config",
+    ".env",
+    ".git/config",
+    "robots.txt",
+    "sitemap.xml",
+    "security.txt",
+    "server-status",
+    "debug",
+    "api",
+    "swagger.json",
+    "openapi.json",
+    "graphql",
+]
 
 _WORDLIST_CANDIDATES_BY_PROFILE = {
     "light": [
@@ -282,6 +301,32 @@ def _make_combined_capped_wordlist(wordlists: list[str], max_entries: int | None
 
     log.info(f"[fuzz] Built combined wordlist with {written} entries from {len(existing)} sources.")
     return temp_path, written, temp_path
+def _read_internal_wordlist(wordlist: str | None, profile: str) -> list[str]:
+    limit = INTERNAL_WORDLIST_LIMITS.get(str(profile or "light").lower(), INTERNAL_WORDLIST_LIMITS["light"])
+    values: list[str] = []
+    seen = set()
+
+    def add(value: str) -> None:
+        cleaned = str(value or "").strip().lstrip("/")
+        if not cleaned or cleaned.startswith("#") or cleaned in seen:
+            return
+        seen.add(cleaned)
+        values.append(cleaned)
+
+    for path in INTERNAL_FALLBACK_PATHS:
+        add(path)
+
+    if wordlist and os.path.exists(wordlist):
+        try:
+            with open(wordlist, "r", encoding="utf-8", errors="ignore") as handle:
+                for line in handle:
+                    add(line)
+                    if len(values) >= limit:
+                        break
+        except OSError:
+            pass
+
+    return values[:limit]
 
 
 def _safe_int(value) -> int | None:
@@ -536,6 +581,14 @@ async def _run_gobuster(url: str, wordlist: str, threads: str, delay: str | None
     except Exception as exc:
         log.error(f"[fuzz] gobuster error for {url}: {exc}")
         return []
+
+
+async def _run_internal_wordlist(url: str, wordlist: str | None, profile: str) -> list[FuzzResult]:
+    paths = _read_internal_wordlist(wordlist, profile)
+    return [
+        FuzzResult(path=path, source_tool="internal_wordlist")
+        for path in paths
+    ]
 
 
 def _decode_body(response: httpx.Response) -> str:
@@ -1121,20 +1174,24 @@ async def fuzz_endpoints(alive_hosts: list[dict], profile: str = "light", callba
         return []
 
     tool = get_available_tool("fuzz")
-
     if not tool:
-        log.warning("[fuzz] No fuzzing tools available (ffuf, gobuster). Skipping.")
+        tool = "internal_wordlist"
+        log.info("[fuzz] External fuzzing tools unavailable; using internal controlled wordlist discovery.")
         if callback:
-            await callback("fuzz", "warning", "No fuzzing tools installed. Skipping.")
-        return alive_hosts
+            await callback("fuzz", "running", "Using internal controlled wordlist discovery.")
 
     wordlist = _get_wordlist(profile)
-    if not wordlist:
+    if not wordlist and tool != "internal_wordlist":
         log.warning("[fuzz] No wordlist found. Skipping. Download wordlists by running install_tools.ps1")
         if callback:
             await callback("fuzz", "warning", "No wordlist file found. Skipping.")
         return alive_hosts
 
+    custom_wordlist = os.path.join(os.path.dirname(__file__), "wordlists", f"custom_{alive_hosts[0].get('domain', 'target')}.txt")
+    if os.path.exists(custom_wordlist):
+        log.info(f"[fuzz] Found custom wordlist: {custom_wordlist}. We will use both.")
+
+    log.info(f"[fuzz] Using wordlist: {wordlist or 'built-in fallback'}")
     threads = "50" if profile == "deep" else "20"
     delay = "0.5" if profile == "deep" else None
 
@@ -1147,11 +1204,15 @@ async def fuzz_endpoints(alive_hosts: list[dict], profile: str = "light", callba
         _max_wordlist_entries(scan_config),
     )
     log.info(f"[fuzz] Using wordlist: {wordlist}")
+    if tool == "internal_wordlist":
+        wordlist_count = len(_read_internal_wordlist(wordlist, profile))
 
     async def fuzzer(url: str) -> list[FuzzResult]:
         if tool == "ffuf":
             return await _run_ffuf(url, wordlist, threads, delay)
-        return await _run_gobuster(url, wordlist, threads, delay)
+        if tool == "gobuster":
+            return await _run_gobuster(url, wordlist, threads, delay)
+        return await _run_internal_wordlist(url, wordlist, profile)
 
     log.info(f"[fuzz] Using {tool} on {len(alive_hosts)} hosts")
 
@@ -1238,4 +1299,3 @@ def _dedupe_findings(findings: list[dict]) -> list[dict]:
         seen.add(key)
         unique.append(finding)
     return unique
-

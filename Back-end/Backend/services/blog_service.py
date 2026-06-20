@@ -50,7 +50,7 @@ def generate_slug(title):
     return slug or "post"
 
 
-def _serialize_blog(blog, include_content=False):
+def _serialize_blog(blog, include_content=False, include_media=False):
     payload = {
         "id": str(blog["_id"]),
         "title": blog.get("title", ""),
@@ -65,14 +65,16 @@ def _serialize_blog(blog, include_content=False):
         "comments_count": blog.get("comments_count", 0),
         "tags": blog.get("tags", []),
         "status": blog.get("status", "published"),
-        "imageUrl": blog.get("imageUrl", ""),
-        "imageName": blog.get("imageName", ""),
         "createdAt": blog.get("createdAt"),
         "updatedAt": blog.get("updatedAt"),
     }
 
     if include_content:
         payload["content"] = blog.get("content", "")
+
+    if include_media:
+        payload["imageUrl"] = blog.get("imageUrl", "")
+        payload["imageName"] = blog.get("imageName", "")
 
     return payload
 
@@ -140,7 +142,7 @@ def create_blog(data, user_id, username):
         "blog_id": str(result.inserted_id),
         "id": str(result.inserted_id),
         "slug": slug,
-        "blog": _serialize_blog(created_blog, include_content=True),
+        "blog": _serialize_blog(created_blog, include_content=True, include_media=True),
     }), 201
 
 
@@ -214,7 +216,7 @@ def update_blog(blog_id, data, current_user):
         "message": "Blog updated successfully",
         "id": blog_id,
         "slug": updated_blog.get("slug", blog.get("slug")),
-        "blog": _serialize_blog(updated_blog, include_content=True),
+        "blog": _serialize_blog(updated_blog, include_content=True, include_media=True),
     }), 200
 
 
@@ -284,7 +286,7 @@ def get_blogs(current_user=None, include_hidden=False):
     cursor = mongo.db.blogs.find(query).sort("createdAt", -1)
 
     for blog in cursor:
-        blogs.append(_serialize_blog(blog, include_content=True))
+        blogs.append(_serialize_blog(blog))
 
     return jsonify(blogs), 200
 
@@ -317,4 +319,4 @@ def get_blog_by_id(blog_id, current_user):
             mongo.db.blogs.update_one({"_id": object_id}, {"$inc": {"views": 1}})
             blog["views"] = blog.get("views", 0) + 1
 
-    return jsonify(_serialize_blog(blog, include_content=True)), 200
+    return jsonify(_serialize_blog(blog, include_content=True, include_media=True)), 200

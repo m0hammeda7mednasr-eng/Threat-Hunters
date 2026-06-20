@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import importlib.metadata
 import os
+import subprocess
 import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, urlunparse
 
+from .archive_urls import run_archive_url_collection
 from .alive import check_alive
 from .crlfuzz import run_crlfuzz
 from .extraction import run_extraction
@@ -28,7 +31,7 @@ from .scan_config import (
 from .security_headers import run_security_header_audit
 from .sensitive_files import run_sensitive_file_hunt
 from .targeted_vulns import run_targeted_vulns
-from .utils import build_report, check_tool, get_available_tool, normalize_target, save_report
+from .utils import TOOLS_DIR, build_report, check_tool, get_available_tool, get_tool_path, normalize_target, save_report
 from .vuln import run_nuclei
 from .websocket_scanner import run_websocket_scan
 
@@ -50,6 +53,43 @@ DEFAULT_LIMITS_BY_PROFILE = {
         "delay_ms": 250,
         "timeout_seconds": 15,
     },
+}
+
+
+TOOL_MODULES = {
+    "nuclei": ("vulns",),
+    "ffuf": ("fuzz",),
+    "gobuster": ("fuzz",),
+    "dalfox": ("targeted",),
+    "sqlmap": ("targeted",),
+    "naabu": ("ports",),
+    "nmap": ("ports",),
+    "crlfuzz": ("crlfuzz",),
+    "subfinder": ("subdomain",),
+    "amass": ("subdomain",),
+    "theHarvester": ("osint",),
+    "gowitness": ("screenshot",),
+    "eyewitness": ("screenshot",),
+    "gau": ("archive_cdx",),
+    "katana": ("extraction",),
+    "httpx": ("python_dependency",),
+}
+
+VERSION_ARGS = {
+    "nuclei": ["-version"],
+    "ffuf": ["-V"],
+    "gobuster": ["version"],
+    "dalfox": ["version"],
+    "naabu": ["-version"],
+    "nmap": ["--version"],
+    "crlfuzz": ["-version"],
+    "subfinder": ["-version"],
+    "amass": ["-version"],
+    "theHarvester": ["--version"],
+    "gowitness": ["version"],
+    "eyewitness": ["--version"],
+    "gau": ["--version"],
+    "katana": ["-version"],
 }
 
 
@@ -78,6 +118,151 @@ def _as_bool(value) -> bool:
     if value is None:
         return False
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _bundled_sqlmap_path() -> str:
+    return str(Path(TOOLS_DIR) / "sqlmap-master" / "sqlmap.py")
+
+
+def _tool_path(tool_name: str) -> str:
+    if tool_name == "sqlmap":
+        bundled = _bundled_sqlmap_path()
+        if Path(bundled).exists():
+            return bundled
+    if tool_name == "httpx":
+        return "python:httpx"
+    return get_tool_path(tool_name) if check_tool(tool_name) else ""
+
+
+def _tool_available(tool_name: str) -> bool:
+    if tool_name == "sqlmap":
+        return Path(_bundled_sqlmap_path()).exists() or check_tool("sqlmap")
+    if tool_name == "httpx":
+        try:
+            importlib.metadata.version("httpx")
+            return True
+        except importlib.metadata.PackageNotFoundError:
+            return False
+    return check_tool(tool_name)
+
+
+def _tool_version(tool_name: str, path: str) -> str:
+    if not path:
+        return ""
+    if tool_name == "httpx":
+        try:
+            return importlib.metadata.version("httpx")
+        except importlib.metadata.PackageNotFoundError:
+            return ""
+    if tool_name == "sqlmap" and path.endswith("sqlmap.py"):
+        return "bundled"
+    args = VERSION_ARGS.get(tool_name)
+    if not args:
+        return ""
+    try:
+        proc = subprocess.run(
+            [path, *args],
+            capture_output=True,
+            text=True,
+            timeout=6,
+            check=False,
+        )
+    except Exception:
+        return ""
+    text = (proc.stdout or proc.stderr or "").strip().splitlines()
+    return text[0][:160] if text else ""
+
+
+def _collect_tool_availability(tools: dict) -> list[dict]:
+    inventory = []
+    for tool_name, module_names in TOOL_MODULES.items():
+        available = _tool_available(tool_name)
+        path = _tool_path(tool_name) if available else ""
+        module_enabled = any(tools.get(module_name) for module_name in module_names if module_name != "python_dependency")
+        used = bool(available and module_enabled)
+        reason = ""
+        if not available:
+            reason = "missing_tool"
+        elif not module_enabled and module_names != ("python_dependency",):
+            reason = "module_disabled"
+        elif tool_name == "gau" and tools.get("archive_cdx"):
+            reason = "used_if_available; internal_wayback_cdx_fallback_enabled"
+        inventory.append({
+            "tool": tool_name,
+            "available": available,
+            "path": path,
+            "version": _tool_version(tool_name, path) if available else "",
+            "used": used,
+            "reason": reason,
+            "modules": [name for name in module_names],
+        })
+    return inventory
+
+
+TOOL_KEYS = {
+    "extraction",
+    "security_headers",
+    "sensitive_files",
+    "targeted",
+    "forms",
+    "crlfuzz",
+    "websocket",
+    "vulns",
+    "ports",
+    "fuzz",
+    "archive_cdx",
+    "subdomain",
+    "js_secrets",
+    "osint",
+    "screenshot",
+    "s3scanner",
+    "apk_recon",
+}
+
+TOOL_OVERRIDE_ALIASES = {
+    "qbasicport": "ports",
+    "qfingerprint": "extraction",
+    "qserverinfo": "extraction",
+    "qheaders": "security_headers",
+    "qlightdirectory": "fuzz",
+    "dfullport": "ports",
+    "daggressivenmap": "ports",
+    "dnsescripts": "ports",
+    "dnikto": "targeted",
+    "dsqlmap": "targeted",
+    "dxsstrike": "targeted",
+    "ddirsearch": "fuzz",
+    "doutdated": "vulns",
+    "dbruteforce": "targeted",
+    "dssltls": "security_headers",
+    "jssecrets": "js_secrets",
+    "js-secrets": "js_secrets",
+    "apk": "apk_recon",
+    "apk-recon": "apk_recon",
+}
+
+
+def _normalize_tool_overrides(overrides: dict | None) -> dict:
+    flat: dict[str, bool] = {}
+    if not isinstance(overrides, dict):
+        return flat
+
+    def visit(mapping: dict) -> None:
+        for key, value in mapping.items():
+            key_text = str(key or "").strip().lower()
+            if not key_text:
+                continue
+            if key_text in {"dashboard", "advanced", "modules", "tools"} and isinstance(value, dict):
+                visit(value)
+                continue
+            if key_text == "dashboard" and isinstance(value, (list, tuple, set)):
+                continue
+            canonical = TOOL_OVERRIDE_ALIASES.get(key_text, key_text)
+            if canonical in TOOL_KEYS:
+                flat[canonical] = _as_bool(value)
+
+    visit(overrides)
+    return flat
 
 
 def _normalized_finding_route(url: str) -> str:
@@ -273,6 +458,7 @@ def correlate_nuclei_with_core_findings(alive_hosts: list[dict]) -> dict:
 def _default_tools(scan_mode: str, enable_nuclei: bool) -> dict:
     deep = scan_mode == "deep"
     return {
+        "subdomain": False,
         "extraction": True,
         "security_headers": True,
         "sensitive_files": True,
@@ -286,16 +472,19 @@ def _default_tools(scan_mode: str, enable_nuclei: bool) -> dict:
         "ports": deep,
         "fuzz": deep,
         "archive_cdx": False,
+        "js_secrets": deep,
+        "osint": False,
+        "screenshot": False,
+        "s3scanner": False,
+        "apk_recon": False,
     }
 
 
 def _merge_tool_overrides(defaults: dict, overrides: dict | None) -> dict:
     tools = dict(defaults)
-    if not isinstance(overrides, dict):
-        return tools
-    for name, enabled in overrides.items():
+    for name, enabled in _normalize_tool_overrides(overrides).items():
         if name in tools:
-            tools[name] = _as_bool(enabled)
+            tools[name] = enabled
     return tools
 
 
@@ -339,9 +528,62 @@ def _record_module_state(
 
 
 def _record_disabled_modules(scan_data: dict, tools: dict) -> None:
+    disabled_reasons = {
+        "subdomain": "Subdomain enumeration disabled by scan mode or options.",
+        "crlfuzz": "Disabled by scan mode or options. Enable CRLF checks explicitly for this scan.",
+        "ports": "Disabled by scan mode or options. Enable safe port checks explicitly for this scan.",
+        "fuzz": "Content discovery disabled by scan mode or options.",
+        "vulns": "Nuclei checks disabled by scan mode or options.",
+        "archive_cdx": "Archive URL collection disabled by scan mode or options.",
+        "js_secrets": "JavaScript secret analysis disabled by scan mode or options.",
+        "osint": "OSINT collection disabled by scan mode or options.",
+        "screenshot": "Screenshot capture disabled by scan mode or options.",
+        "s3scanner": "S3 bucket checks disabled by scan mode or options.",
+        "apk_recon": "APK reconnaissance disabled by scan mode or options.",
+    }
     for module_name, enabled in tools.items():
         if not enabled:
-            _record_module_state(scan_data, module_name, "skipped", "Disabled by scan mode or options.")
+            _record_module_state(
+                scan_data,
+                module_name,
+                "skipped",
+                disabled_reasons.get(module_name, "Disabled by scan mode or options."),
+            )
+
+
+def _record_external_module_not_run(scan_data: dict, module_name: str, reason: str) -> None:
+    existing = scan_data.get("telemetry", {}).get("modules", {}).get(module_name)
+    if isinstance(existing, dict) and existing.get("status") in {"ran", "running", "failed", "timed_out", "not_run"}:
+        return
+    _record_module_state(scan_data, module_name, "not_run", reason)
+
+
+def _record_unimplemented_or_missing_modules(scan_data: dict, tools: dict) -> None:
+    tool_requirements = {
+        "subdomain": ("subfinder", "amass"),
+        "osint": ("theHarvester",),
+        "screenshot": ("gowitness", "eyewitness"),
+    }
+    for module_name, required_tools in tool_requirements.items():
+        if not tools.get(module_name):
+            continue
+        if not any(check_tool(tool) for tool in required_tools):
+            _record_external_module_not_run(
+                scan_data,
+                module_name,
+                f"missing_tool:{'|'.join(required_tools)}",
+            )
+        else:
+            _record_external_module_not_run(
+                scan_data,
+                module_name,
+                "tool_available_but_module_integration_pending",
+            )
+
+    if tools.get("s3scanner"):
+        _record_external_module_not_run(scan_data, "s3scanner", "module_not_applicable_to_http_target_or_not_integrated")
+    if tools.get("apk_recon"):
+        _record_external_module_not_run(scan_data, "apk_recon", "module_requires_apk_input_not_url_target")
 
 
 def _merge_js_results_into_hosts(domain: str, alive_hosts: list[dict], js_results: dict | None) -> None:
@@ -456,8 +698,9 @@ async def _run_scan_async(
     prepared = prepare_scan_config(req, domain=domain, default_profile=profile)
     stored_scan_config = prepared["redacted"]
     runtime_scan_config = prepared["runtime"]
+    normalized_modules = _normalize_tool_overrides(modules)
     tools = _merge_tool_overrides(_default_tools(profile, enable_nuclei), modules)
-    if tools.get("vulns") and not (profile == "deep" and enable_nuclei):
+    if tools.get("vulns") and profile != "deep":
         tools["vulns"] = False
     scan_id = uuid.uuid4().hex[:12]
     progress_events: list[dict] = []
@@ -475,11 +718,13 @@ async def _run_scan_async(
         "scan_id": scan_id,
         "profile": profile,
         "scan_config": stored_scan_config,
-        "requested_modules": {name: _as_bool(enabled) for name, enabled in (modules or {}).items() if name in tools},
+        "requested_modules": {name: _as_bool(enabled) for name, enabled in normalized_modules.items() if name in tools},
         "effective_modules": dict(tools),
+        "tool_availability": _collect_tool_availability(tools),
         "telemetry": {"modules": {}},
     }
     _record_disabled_modules(scan_data, tools)
+    _record_unimplemented_or_missing_modules(scan_data, tools)
     subdomains = [normalized_target if target_is_local else (normalized_target or domain)]
 
     await progress("alive", "starting", "Checking target availability")
@@ -523,7 +768,7 @@ async def _run_scan_async(
 
         if tools["ports"]:
             if not check_tool("naabu") and not check_tool("nmap"):
-                _record_module_state(scan_data, "ports", "skipped", "No safe port scanning tool found (naabu or nmap).")
+                _record_module_state(scan_data, "ports", "not_run", "missing_tool:naabu|nmap")
                 await progress("ports", "skipped", "No safe port scanning tool found. Skipping.")
             else:
                 ports_results = await _run_module_safely(
@@ -609,26 +854,34 @@ async def _run_scan_async(
                 _merge_hosts(alive_hosts, form_results)
 
         if tools["crlfuzz"]:
-            crlf_results = await _run_module_safely(
-                "crlfuzz",
-                scan_data,
-                progress,
-                lambda: run_crlfuzz(copy.deepcopy(alive_hosts), callback=progress),
-                "Running CRLF checks",
-            )
-            if crlf_results is not None:
-                _merge_hosts(alive_hosts, crlf_results)
+            if not check_tool("crlfuzz"):
+                _record_module_state(scan_data, "crlfuzz", "not_run", "missing_tool:crlfuzz")
+                await progress("crlfuzz", "skipped", "crlfuzz not installed; CRLF checks not run.")
+            else:
+                crlf_results = await _run_module_safely(
+                    "crlfuzz",
+                    scan_data,
+                    progress,
+                    lambda: run_crlfuzz(copy.deepcopy(alive_hosts), callback=progress),
+                    "Running CRLF checks",
+                )
+                if crlf_results is not None:
+                    _merge_hosts(alive_hosts, crlf_results)
 
         if tools["vulns"]:
-            nuclei_results = await _run_module_safely(
-                "vulns",
-                scan_data,
-                progress,
-                lambda: run_nuclei(copy.deepcopy(alive_hosts), profile=profile, scan_config=runtime_scan_config, callback=progress),
-                "Running Nuclei with configured safe profile",
-            )
-            if nuclei_results is not None:
-                _merge_hosts(alive_hosts, nuclei_results)
+            if get_available_tool("vulns") != "nuclei":
+                _record_module_state(scan_data, "vulns", "not_run", "missing_tool:nuclei")
+                await progress("vulns", "skipped", "Nuclei not installed; safe profile checks not run.")
+            else:
+                nuclei_results = await _run_module_safely(
+                    "vulns",
+                    scan_data,
+                    progress,
+                    lambda: run_nuclei(copy.deepcopy(alive_hosts), profile=profile, scan_config=runtime_scan_config, callback=progress),
+                    "Running Nuclei with configured safe profile",
+                )
+                if nuclei_results is not None:
+                    _merge_hosts(alive_hosts, nuclei_results)
         else:
             await progress("vulns", "done", "Nuclei skipped by mode/options")
 
@@ -644,7 +897,31 @@ async def _run_scan_async(
                 _merge_hosts(alive_hosts, websocket_results)
 
         if tools["archive_cdx"]:
-            _record_module_state(scan_data, "archive_cdx", "skipped", "Archive CDX collection is not implemented in this package export.")
+            archive_results = await _run_module_safely(
+                "archive_cdx",
+                scan_data,
+                progress,
+                lambda: run_archive_url_collection(copy.deepcopy(alive_hosts), callback=progress),
+                "Collecting archived in-scope URLs",
+            )
+            if archive_results is not None:
+                alive_hosts = archive_results
+                archive_issue = any(
+                    isinstance(host, dict)
+                    and not host.get("archive_urls")
+                    and (
+                        int((host.get("archive_telemetry") or {}).get("errors_count") or 0) > 0
+                        or int((host.get("archive_telemetry") or {}).get("timeout_count") or 0) > 0
+                    )
+                    for host in alive_hosts
+                )
+                if archive_issue:
+                    _record_module_state(
+                        scan_data,
+                        "archive_cdx",
+                        "warning",
+                        "Archive URL collection ran, but CDX/gau returned no URLs due to timeout or upstream error.",
+                    )
 
         scan_data.setdefault("telemetry", {})["nuclei_correlation"] = correlate_nuclei_with_core_findings(alive_hosts)
     else:

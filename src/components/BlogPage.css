@@ -14,7 +14,7 @@
   min-height: 100vh;
   background: var(--page-gradient);
   color: var(--blog-text);
-  font-family: Arial, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
 }
 
 .blog-page button,
@@ -604,6 +604,20 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.blog-inline-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--primary-border-20);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--blog-muted);
+  font-size: 13px;
+  line-height: 1;
 }
 
 .blog-icon-button {

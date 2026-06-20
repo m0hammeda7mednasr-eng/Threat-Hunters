@@ -14,6 +14,7 @@ Threat Hunters is a full-stack cybersecurity platform for website scanning, brea
 - Professional footer routes for help, documentation, FAQs, issue reporting, contact support, privacy, terms, responsible disclosure, and data protection.
 - Shared branded PDF generator for admin reports and security awareness resources.
 - Flask backend with MongoDB Atlas support.
+- Extended backend scanner toolkit under `Back-end/Backend/scanner2`.
 
 ## Tech Stack
 
@@ -64,10 +65,10 @@ python -m unittest discover -s Back-end/tests -p "test_*.py"
 Install Python requirements:
 
 ```bash
-pip install -r Back-end/requirements.txt
+pip install -r Back-end/Backend/requirements.txt
 ```
 
-Create `Back-end/.env` from `Back-end/.env.example` and set these values:
+Create `Back-end/.env` and use `Back-end/Backend/.env.example` as the reference template for the values below:
 
 ```env
 SECRET_KEY=change-me
@@ -79,6 +80,14 @@ HIBP_API_KEY=your-haveibeenpwned-api-key
 ```
 
 Do not commit real secrets. `.env` is ignored by git.
+
+## Repository Layout
+
+- `src/`: React frontend application.
+- `server/`: frontend-side server data and helpers.
+- `Back-end/Backend/`: Flask API, services, routes, and scanner modules.
+- `Back-end/tests/`: backend test suite.
+- `scripts/`: local development utilities such as the combined dev launcher.
 
 ## Important API Areas
 

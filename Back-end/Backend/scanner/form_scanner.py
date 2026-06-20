@@ -192,6 +192,112 @@ def _is_sensitive_form(form: dict) -> bool:
     return bool(re.search(r"(login|admin|account|checkout|payment|transfer|delete|update)", text, re.I))
 
 
+def _record_form_inventory(telemetry: dict, form: dict) -> None:
+    inventory = telemetry.setdefault("form_inventory", [])
+    signature = _form_signature(form)
+    if any(item.get("signature") == signature for item in inventory):
+        return
+    inventory.append({
+        "signature": signature,
+        "page": _safe_url(form.get("page", "")),
+        "action": _safe_url(form.get("action", "")),
+        "method": str(form.get("method") or "get").upper(),
+        "has_csrf_token": bool(form.get("has_csrf_token")),
+        "inputs": [
+            {
+                "name": field.get("name", ""),
+                "type": field.get("type", "text"),
+                "tested": bool(field.get("name") and field.get("type", "text") not in {"hidden", "password"} and not field.get("is_control")),
+            }
+            for field in form.get("inputs", [])
+        ],
+    })
+
+
+def _status_for_form_test(findings: list[dict], action: str, parameter: str, vuln_markers: tuple[str, ...]) -> tuple[str, str]:
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        if str(finding.get("parameter") or "") != str(parameter or ""):
+            continue
+        finding_url = str(finding.get("url") or finding.get("matched_at") or "")
+        if action and finding_url and action.rstrip("/") not in finding_url.rstrip("/") and finding_url.rstrip("/") not in action.rstrip("/"):
+            continue
+        vuln_type = str(finding.get("vuln_type") or finding.get("id") or "").lower()
+        if not any(marker in vuln_type for marker in vuln_markers):
+            continue
+        return str(finding.get("status") or "candidate"), str(
+            (finding.get("raw") or {}).get("classification_reason")
+            if isinstance(finding.get("raw"), dict)
+            else ""
+        ) or finding.get("description", "")
+    return "not_confirmed", "payloads_sent_no_confirming_evidence"
+
+
+def _record_form_validation_results(telemetry: dict, form: dict, findings: list[dict]) -> None:
+    results = telemetry.setdefault("active_validation_results", [])
+    action = form.get("action", "")
+    method = str(form.get("method") or "get").upper()
+    for field in form.get("inputs", []):
+        parameter = field.get("name", "")
+        field_type = str(field.get("type") or "text").lower()
+        if not parameter:
+            continue
+        if field.get("is_control") or field_type in {"hidden", "password", "file"}:
+            results.append({
+                "module": MODULE_NAME,
+                "test_type": "form_field",
+                "method": method,
+                "url": _safe_url(action),
+                "parameter": parameter,
+                "status": "skipped",
+                "reason": f"field_type_not_tested:{field_type}",
+                "payloads_sent": 0,
+                "evidence": "Control, hidden, password, and file inputs are not actively fuzzed.",
+            })
+            continue
+
+        xss_status, xss_reason = _status_for_form_test(findings, action, parameter, ("xss", "reflected_xss"))
+        results.append({
+            "module": MODULE_NAME,
+            "test_type": "form_xss",
+            "method": method,
+            "url": _safe_url(action),
+            "parameter": parameter,
+            "status": xss_status,
+            "reason": xss_reason,
+            "payloads_sent": len(XSS_PAYLOADS),
+            "evidence": "XSS marker payload group executed against form field.",
+        })
+
+        sqli_status, sqli_reason = _status_for_form_test(findings, action, parameter, ("sql", "sqli"))
+        results.append({
+            "module": MODULE_NAME,
+            "test_type": "form_sql_injection",
+            "method": method,
+            "url": _safe_url(action),
+            "parameter": parameter,
+            "status": sqli_status,
+            "reason": sqli_reason,
+            "payloads_sent": len(SQLI_ERROR_PAYLOADS) + len(SQLI_BOOLEAN_TRUE_PAYLOADS) + len(SQLI_TIMING_PAYLOADS),
+            "evidence": "SQL error, boolean, and timing payload groups executed where profile allowed.",
+        })
+
+        if REDIRECT_FIELD_RE.search(parameter):
+            redirect_status, redirect_reason = _status_for_form_test(findings, action, parameter, ("redirect",))
+            results.append({
+                "module": MODULE_NAME,
+                "test_type": "form_open_redirect",
+                "method": method,
+                "url": _safe_url(action),
+                "parameter": parameter,
+                "status": redirect_status,
+                "reason": redirect_reason,
+                "payloads_sent": len(REDIRECT_PAYLOADS),
+                "evidence": "Controlled external redirect payload group executed.",
+            })
+
+
 def _new_telemetry() -> dict:
     return {
         "module_name": MODULE_NAME,
@@ -210,6 +316,8 @@ def _new_telemetry() -> dict:
         "status_distribution": {},
         "module_noise_score": 0.0,
         "module_detection_impact": "not_calibrated",
+        "form_inventory": [],
+        "active_validation_results": [],
     }
 
 
@@ -1188,6 +1296,7 @@ async def run_form_scanner(alive_hosts: list[dict], profile: str = "light", call
                     for form in forms:
                         form["inputs"] = form["inputs"][:max_fields_per_form]
                         form["has_csrf_token"] = any(CSRF_FIELD_RE.search(field["name"]) for field in form["inputs"])
+                        _record_form_inventory(telemetry, form)
                     if not forms:
                         continue
 
@@ -1221,11 +1330,23 @@ async def run_form_scanner(alive_hosts: list[dict], profile: str = "light", call
                         return_exceptions=True,
                     )
 
-                    for result in form_results:
+                    for form, result in zip(forms, form_results):
                         if isinstance(result, list):
                             host_findings.extend(result)
+                            _record_form_validation_results(telemetry, form, result)
                         elif isinstance(result, Exception):
                             telemetry["errors_count"] += 1
+                            telemetry.setdefault("active_validation_results", []).append({
+                                "module": MODULE_NAME,
+                                "test_type": "form_payload_validation",
+                                "method": str(form.get("method") or "get").upper(),
+                                "url": _safe_url(form.get("action", "")),
+                                "parameter": "",
+                                "status": "error",
+                                "reason": type(result).__name__,
+                                "payloads_sent": 0,
+                                "evidence": str(result)[:220],
+                            })
 
                 except httpx.TimeoutException:
                     telemetry["timeout_count"] += 1
@@ -1262,4 +1383,3 @@ async def run_form_scanner(alive_hosts: list[dict], profile: str = "light", call
         )
 
     return alive_hosts
-

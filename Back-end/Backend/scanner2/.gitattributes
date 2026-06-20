@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.dll_ binary
+*.exe_ binary
+*.so_ binary
+*.wav binary

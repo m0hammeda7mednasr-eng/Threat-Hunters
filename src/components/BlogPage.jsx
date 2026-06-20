@@ -68,7 +68,23 @@ const formatReadTime = (content = "") => {
 };
 
 const normalizePosts = (payload) => {
-  const posts = Array.isArray(payload) ? payload : Array.isArray(payload?.posts) ? payload.posts : [];
+  const posts = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.value)
+      ? payload.value
+      : Array.isArray(payload?.posts)
+        ? payload.posts
+        : Array.isArray(payload?.blogs)
+          ? payload.blogs
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : Array.isArray(payload?.data)
+              ? payload.data
+              : payload?.id && payload?.title
+                ? [payload]
+                : payload?.blog && payload.blog.id
+                ? [payload.blog]
+                  : [];
   return posts.map(sanitizePost);
 };
 
@@ -143,7 +159,10 @@ const formatCategoryLabel = (value) => {
 
 const normalizeComments = (payload) => {
   if (Array.isArray(payload)) return payload.map(sanitizeComment);
+  if (Array.isArray(payload?.value)) return payload.value.map(sanitizeComment);
   if (Array.isArray(payload?.comments)) return payload.comments.map(sanitizeComment);
+  if (Array.isArray(payload?.items)) return payload.items.map(sanitizeComment);
+  if (Array.isArray(payload?.data)) return payload.data.map(sanitizeComment);
   return [];
 };
 
@@ -223,6 +242,7 @@ const MetaRow = ({ author, authorInitial, date, readTime, views, compact = false
 
 const BlogPage = ({
   onNavigateToSignUp,
+  onNavigateToSignIn,
   onNavigateToHome,
   onNavigateToAwareness,
   onNavigateToTools,
@@ -288,6 +308,11 @@ const BlogPage = ({
       .slice(0, 4);
   }, [posts]);
 
+  const patchPostState = useCallback((postId, updater) => {
+    setPosts((current) => current.map((post) => (post.id === postId ? updater(post) : post)));
+    setSelectedPost((current) => (current && current.id === postId ? updater(current) : current));
+  }, []);
+
   const loadPostDetail = useCallback(async (postId) => {
     if (!postId) return;
     setDetailLoading(true);
@@ -297,7 +322,17 @@ const BlogPage = ({
         blogAPI.getComments(postId).catch(() => []),
       ]);
 
-      const detail = Array.isArray(postPayload) ? postPayload[0] : postPayload;
+      const detail = Array.isArray(postPayload)
+        ? postPayload[0]
+        : postPayload?.value && !Array.isArray(postPayload.value)
+          ? postPayload.value
+          : postPayload?.blog
+            ? postPayload.blog
+            : postPayload?.data && !Array.isArray(postPayload.data)
+              ? postPayload.data
+              : postPayload?.item
+                ? postPayload.item
+                : postPayload;
       setSelectedPost(detail ? sanitizePost(detail) : null);
       setSelectedComments(normalizeComments(commentsPayload));
     } catch (err) {
@@ -540,10 +575,28 @@ const BlogPage = ({
   };
 
   const handleLike = async (postId) => {
+    if (!isLoggedIn) {
+      setError("Sign in to like posts.");
+      if (onNavigateToSignIn) {
+        onNavigateToSignIn();
+      } else {
+        window.location.hash = "#signin";
+      }
+      return;
+    }
+
     setBusyAction({ type: "like", id: postId });
     try {
-      await blogAPI.toggleLike(postId);
+      const result = await blogAPI.toggleLike(postId);
+      const liked = Boolean(result?.liked);
+
+      patchPostState(postId, (post) => ({
+        ...post,
+        likes: Math.max(0, Number(post.likes || 0) + (liked ? 1 : -1)),
+      }));
+
       await loadPosts(postId);
+      await loadPostDetail(postId);
     } catch (err) {
       setError(err.message || "Unable to update like count.");
     } finally {
@@ -580,14 +633,11 @@ const BlogPage = ({
     try {
       await blogAPI.addComment(selectedPostId, { content: commentDraft.trim() });
       setCommentDraft("");
+      patchPostState(selectedPostId, (post) => ({
+        ...post,
+        comments_count: Number(post.comments_count || 0) + 1,
+      }));
       await loadPostDetail(selectedPostId);
-      setPosts((current) =>
-        current.map((post) =>
-          post.id === selectedPostId
-            ? { ...post, comments_count: Number(post.comments_count || 0) + 1 }
-            : post,
-        ),
-      );
     } catch (err) {
       setError(err.message || "Unable to add comment.");
     }
@@ -604,14 +654,11 @@ const BlogPage = ({
     try {
       await blogAPI.addReply(selectedPostId, commentId, { content: text });
       setReplyDrafts((current) => ({ ...current, [key]: "" }));
+      patchPostState(selectedPostId, (post) => ({
+        ...post,
+        comments_count: Number(post.comments_count || 0) + 1,
+      }));
       await loadPostDetail(selectedPostId);
-      setPosts((current) =>
-        current.map((post) =>
-          post.id === selectedPostId
-            ? { ...post, comments_count: Number(post.comments_count || 0) + 1 }
-            : post,
-        ),
-      );
     } catch (err) {
       setError(err.message || "Unable to add reply.");
     }
@@ -628,7 +675,10 @@ const BlogPage = ({
     setSubscribeEmail("");
   };
 
-  const currentPost = selectedPost || posts.find((post) => post.id === selectedPostId) || null;
+  const currentPostFromList = posts.find((post) => post.id === selectedPostId) || null;
+  const currentPost = currentPostFromList
+    ? { ...(selectedPost || {}), ...currentPostFromList }
+    : (selectedPost || null);
 
   return (
     <div className="blog-page">
@@ -902,6 +952,8 @@ const BlogPage = ({
                     </div>
 
                     <div className="blog-action-row">
+                      <span className="blog-inline-count">{Number(article.likes || 0)} likes</span>
+                      <span className="blog-inline-count">{Number(article.comments_count || 0)} comments</span>
                       {isAdmin && (
                         <>
                           <button

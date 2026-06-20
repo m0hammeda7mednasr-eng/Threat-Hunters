@@ -268,6 +268,144 @@
   color: var(--text-primary) !important;
 }
 
+.db-dragon-modal {
+  width: min(360px, calc(100vw - 1.25rem)) !important;
+  border-radius: 8px !important;
+  background: #151922 !important;
+  border: 1px solid #2c3444 !important;
+  color: #f5f7fb !important;
+}
+
+.db-dragon-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 0.9rem 0.35rem;
+}
+
+.db-dragon-head h2 {
+  margin: 0;
+  font-size: 1.34rem;
+  line-height: 1.15;
+}
+
+.db-dragon-body {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.45rem 0.9rem 0.75rem;
+}
+
+.db-dragon-field {
+  display: grid;
+  gap: 0.34rem;
+  min-width: 0;
+}
+
+.db-dragon-field span,
+.db-dragon-modules-head {
+  color: #a9b5c8;
+  font-size: 0.79rem;
+  font-weight: 700;
+}
+
+.db-dragon-field input,
+.db-dragon-field select {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  border: 1px solid #2f394b;
+  border-radius: 6px;
+  background: #10141c;
+  color: #f5f7fb;
+  padding: 0 0.82rem;
+  font-size: 0.86rem;
+  outline: none;
+}
+
+.db-dragon-field input:focus,
+.db-dragon-field select:focus {
+  border-color: #58b7ff;
+  box-shadow: 0 0 0 3px rgba(88, 183, 255, 0.16);
+}
+
+.db-dragon-field input::placeholder {
+  color: #657286;
+}
+
+.db-dragon-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.62rem;
+}
+
+.db-dragon-permission,
+.db-dragon-module {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.52rem;
+  min-width: 0;
+  color: #f3f6fb;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.db-dragon-permission input,
+.db-dragon-module input {
+  width: 14px;
+  height: 14px;
+  accent-color: #9ec9ff;
+  flex: 0 0 auto;
+}
+
+.db-dragon-modules-head {
+  margin-top: 0.18rem;
+}
+
+.db-dragon-module-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.92rem 1rem;
+  padding: 0.18rem 0 0.1rem;
+}
+
+.db-dragon-module span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-dragon-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+  padding: 0.34rem 0.9rem 0.9rem;
+}
+
+.db-primary-btn.db-dragon-start,
+.db-mini-btn.db-dragon-demo {
+  min-height: 38px;
+  border-radius: 6px;
+  padding: 0 0.92rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.db-primary-btn.db-dragon-start {
+  background: #4eb6ff !important;
+  color: #07111d !important;
+  box-shadow: none !important;
+}
+
+.db-mini-btn.db-dragon-demo {
+  background: #26313d !important;
+  border: 1px solid #344253 !important;
+  color: #f5f7fb !important;
+}
+
+.db-dragon-error {
+  margin: 0 0.9rem 0.9rem;
+}
+
 .db-scan-error {
   display: inline-flex;
   align-items: center;
@@ -1346,10 +1484,72 @@
   color: var(--text-secondary);
 }
 
+.db-analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.72rem;
+  margin-bottom: 0.86rem;
+}
+
+.db-analysis-card {
+  position: relative;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--input-bg);
+  padding: 0.9rem 0.9rem 0.86rem;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.db-analysis-badge {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--state-hover-surface);
+  color: var(--primary-80);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.db-analysis-card h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.db-analysis-card p,
+.db-analysis-card small {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.db-analysis-card p {
+  font-size: 0.78rem;
+}
+
+.db-analysis-card small {
+  font-size: 0.72rem;
+}
+
+.db-insight-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.62rem;
+}
+
 .db-report-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.36rem;
+}
+
+.db-report-btn.ghost {
+  background: transparent;
 }
 
 .db-summary-body {
@@ -2034,8 +2234,42 @@
 }
 
 .db-settings-hero {
-  display: grid;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.db-settings-hero-copy {
+  display: flex;
+  flex-direction: column;
   gap: 0.2rem;
+}
+
+.db-settings-hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.55rem;
+}
+
+.db-settings-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.34rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(109, 124, 255, 0.26);
+  background: rgba(109, 124, 255, 0.1);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+}
+
+.db-settings-notice {
+  margin: 0;
+  text-align: right;
 }
 
 .db-settings-hero h1 {
@@ -2099,6 +2333,20 @@
   color: var(--text-secondary);
   font-size: 0.75rem;
   line-height: 1.45;
+}
+
+.db-settings-panel-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  margin: 0 0 0.95rem;
+  padding: 0.48rem 0.72rem;
+  border-radius: 9px;
+  border: 1px solid rgba(109, 124, 255, 0.18);
+  background: rgba(109, 124, 255, 0.08);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .db-settings-field {
@@ -4376,6 +4624,19 @@
     width: 100%;
   }
 
+  .db-settings-hero {
+    flex-direction: column;
+  }
+
+  .db-settings-hero-actions {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .db-settings-notice {
+    text-align: left;
+  }
+
   .db-user-profile-layout {
     width: 100%;
   }
@@ -4434,6 +4695,7 @@
   }
 
   .db-insight-grid,
+  .db-analysis-grid,
   .db-threat-grid,
   .db-awareness-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4741,15 +5003,21 @@
   }
 
   .db-insight-grid,
+  .db-analysis-grid,
   .db-threat-grid,
   .db-awareness-grid {
     grid-template-columns: 1fr;
   }
 
   :where(.db-dashboard-layout) .db-insight-grid,
+  :where(.db-dashboard-layout) .db-analysis-grid,
   :where(.db-dashboard-layout) .db-threat-grid,
   :where(.db-dashboard-layout) .db-awareness-grid {
     grid-template-columns: 1fr;
+  }
+
+  .db-insight-actions {
+    width: 100%;
   }
 
   .db-donut-wrap {

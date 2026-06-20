@@ -198,6 +198,7 @@ TELEMETRY_FIELD_NAMES = {
     "security_headers_telemetry": "security_headers",
     "security_header_telemetry": "security_headers",
     "subdomain_telemetry": "subdomain",
+    "archive_telemetry": "archive_cdx",
 }
 
 SCAN_TELEMETRY_PATHS = (
@@ -209,6 +210,7 @@ SCAN_TELEMETRY_PATHS = (
     ("js_secrets", "js_telemetry", "js_checks"),
     ("sensitive_files", "telemetry", "sensitive_files"),
     ("security_headers", "telemetry", "security_headers"),
+    ("archive_telemetry", "archive_cdx"),
 )
 
 
@@ -418,6 +420,628 @@ def _top_risk_summaries(*groups: list[dict]) -> list[dict]:
         reverse=True,
     )
     return [_ai_finding_summary(finding) for finding in ordered[:10]]
+
+
+def _calculate_risk_score(
+    *,
+    all_findings: list[dict],
+    confirmed_findings: list[dict],
+    strong_candidate_findings: list[dict],
+    weak_candidate_findings: list[dict],
+    recon_findings: list[dict],
+    blocked_findings: list[dict],
+    inconclusive_findings: list[dict],
+    summary: dict,
+) -> int:
+    if int(summary.get("alive_hosts") or 0) <= 0:
+        return 0
+
+    def confidence_bonus(finding: dict, multiplier: float = 4.0) -> int:
+        try:
+            return int(round(float(finding.get("confidence") or 0) * multiplier))
+        except (TypeError, ValueError):
+            return 0
+
+    app_confirmed = [finding for finding in confirmed_findings if _is_app_vulnerability_finding(finding)]
+    app_strong_candidates = [
+        finding
+        for finding in strong_candidate_findings
+        if _is_app_vulnerability_finding(finding)
+    ]
+    app_weak_candidates = [
+        finding
+        for finding in weak_candidate_findings
+        if _is_app_vulnerability_finding(finding)
+    ]
+    security_header_findings = [finding for finding in all_findings if _is_security_header_finding(finding)]
+    nuclei_app_findings = [
+        finding
+        for finding in all_findings
+        if _is_nuclei_finding(finding) and _is_app_vulnerability_finding({**finding, "scanner_name": ""})
+    ]
+
+    confirmed_weights = {"critical": 40, "high": 30, "medium": 18, "low": 8, "info": 2}
+    candidate_weights = {"critical": 24, "high": 18, "medium": 12, "low": 7, "info": 2}
+    weak_candidate_weights = {"critical": 8, "high": 6, "medium": 4, "low": 2, "info": 1}
+    header_weights = {"critical": 8, "high": 7, "medium": 4, "low": 2, "info": 1, "informational": 1}
+
+    app_score = 0
+    for finding in app_confirmed:
+        severity = str(finding.get("severity") or "info").strip().lower()
+        app_score += confirmed_weights.get(severity, 4) + confidence_bonus(finding)
+    for finding in app_strong_candidates:
+        severity = str(finding.get("severity") or "info").strip().lower()
+        app_score += candidate_weights.get(severity, 4) + confidence_bonus(finding, 3.0)
+    weak_score = 0
+    for finding in app_weak_candidates:
+        severity = str(finding.get("severity") or "info").strip().lower()
+        weak_score += weak_candidate_weights.get(severity, 1)
+    app_score += min(12, weak_score)
+
+    header_score = 0
+    for finding in security_header_findings:
+        severity = str(finding.get("severity") or "info").strip().lower()
+        status = str(finding.get("status") or "").strip().lower()
+        multiplier = 1.0 if status in {"confirmed", "candidate"} else 0.4
+        header_score += int(round(header_weights.get(severity, 1) * multiplier))
+    header_score = min(25, header_score)
+
+    recon_score = min(8, len(recon_findings))
+    uncertainty_score = min(5, len(blocked_findings) + len(inconclusive_findings))
+    nuclei_score = min(18, len(nuclei_app_findings) * 6)
+    discovery_score = min(5, int(summary.get("fuzz_findings") or 0) + int(summary.get("port_findings") or 0))
+
+    weighted_total = app_score + header_score + recon_score + uncertainty_score + nuclei_score + discovery_score
+
+    if not app_confirmed and not app_strong_candidates:
+        weighted_total = min(weighted_total, 40 if security_header_findings else 15)
+    elif not app_confirmed:
+        weighted_total = min(weighted_total, 75)
+
+    return max(0, min(100, int(round(weighted_total))))
+
+
+def _scan_status_from_quality(summary: dict, scan_quality: dict) -> str:
+    if int(summary.get("alive_hosts") or 0) <= 0:
+        return "failed"
+    if int(scan_quality.get("executed_modules") or 0) <= 0:
+        return "failed"
+    if int(scan_quality.get("failed_modules") or 0) > 0:
+        return "partial"
+    return "completed"
+
+
+def _risk_label_from_score(
+    score: int,
+    *,
+    scan_status: str = "completed",
+    has_confirmed_app_evidence: bool = False,
+) -> str:
+    if scan_status == "failed":
+        return "Scan Failed"
+    if score >= 80 and has_confirmed_app_evidence:
+        return "Critical Risk"
+    if score >= 50:
+        return "High Risk"
+    if score >= 20:
+        return "Moderate Risk"
+    if score > 0:
+        return "Low Risk"
+    return "No Risk"
+
+
+def _scan_quality_metrics(scan_data: dict, telemetry: dict, all_findings: list[dict]) -> dict:
+    effective_modules = scan_data.get("effective_modules", {}) if isinstance(scan_data, dict) else {}
+    modules = telemetry.get("modules", {}) if isinstance(telemetry, dict) else {}
+    planned_modules = sum(1 for enabled in effective_modules.values() if enabled) or len(modules) or 1
+    executed_modules = sum(1 for item in modules.values() if isinstance(item, dict) and item.get("status") == "ran")
+    skipped_modules = sum(1 for item in modules.values() if isinstance(item, dict) and item.get("status") == "skipped")
+    not_run_modules = sum(1 for item in modules.values() if isinstance(item, dict) and item.get("status") == "not_run")
+    failed_modules = sum(1 for item in modules.values() if isinstance(item, dict) and item.get("status") in {"failed", "timed_out"})
+    module_coverage = max(0, min(100, int(round((executed_modules / planned_modules) * 100))))
+
+    evidence_density = 0
+    for finding in all_findings:
+        if not isinstance(finding, dict):
+            continue
+        severity = str(finding.get("severity") or finding.get("status") or "").strip().lower()
+        if severity in {"critical", "high"}:
+            evidence_density += 6
+        elif severity == "medium":
+            evidence_density += 4
+        elif severity == "low":
+            evidence_density += 2
+        else:
+            evidence_density += 1
+
+    scan_confidence = max(
+        0,
+        min(100, int(round(module_coverage * 0.65 + min(100, evidence_density) * 0.35 - failed_modules * 4))),
+    )
+
+    return {
+        "planned_modules": planned_modules,
+        "executed_modules": executed_modules,
+        "skipped_modules": skipped_modules,
+        "not_run_modules": not_run_modules,
+        "failed_modules": failed_modules,
+        "scan_coverage": module_coverage,
+        "scan_confidence": scan_confidence,
+    }
+
+
+def _severity_label(value: str) -> str:
+    normalized = str(value or "info").strip().lower()
+    return {
+        "critical": "Critical",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low",
+        "info": "Info",
+        "informational": "Info",
+    }.get(normalized, "Info")
+
+
+def _severity_counts(findings: list[dict]) -> dict:
+    counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Info": 0}
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        label = _severity_label(finding.get("severity") or finding.get("status"))
+        counts[label] = counts.get(label, 0) + 1
+    return counts
+
+
+def _report_finding_key(finding: dict) -> tuple[str, str, str, str]:
+    return (
+        str(finding.get("module_name") or finding.get("scanner_name") or finding.get("scanner") or "").lower(),
+        str(finding.get("id") or finding.get("vuln_type") or finding.get("name") or "").lower(),
+        str(finding.get("url") or finding.get("matched_at") or "").lower().rstrip("/"),
+        str(finding.get("parameter") or "").lower(),
+    )
+
+
+def _prepare_report_findings(findings: list[dict]) -> list[dict]:
+    prepared = []
+    seen = set()
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        key = _report_finding_key(finding)
+        if key in seen:
+            continue
+        seen.add(key)
+        item = dict(finding)
+        item.setdefault("title", item.get("name") or item.get("id") or item.get("vuln_type") or "Finding")
+        item.setdefault("code", item.get("id") or item.get("vuln_type") or "")
+        item.setdefault("recommendation", item.get("remediation") or "Review the evidence and remediate the affected endpoint.")
+        item.setdefault("proof", _short_evidence_summary(item))
+        prepared.append(item)
+    return prepared
+
+
+def _primary_host(alive_hosts: list[dict]) -> dict:
+    if not alive_hosts:
+        return {}
+    first = alive_hosts[0]
+    return first if isinstance(first, dict) else {}
+
+
+def _response_headers_from_host(host: dict) -> dict:
+    response_summary = host.get("response_summary", {}) if isinstance(host, dict) else {}
+    headers = response_summary.get("headers", {}) if isinstance(response_summary, dict) else {}
+    return headers if isinstance(headers, dict) else {}
+
+
+def _status_for_module_check(module_status: str, finding_count: int) -> str:
+    normalized = str(module_status or "").lower()
+    if normalized == "ran":
+        return "Warning" if finding_count else "Passed"
+    if normalized == "warning":
+        return "Warning"
+    if normalized in {"failed", "timed_out"}:
+        return "Failed"
+    if normalized in {"skipped", "not_run"}:
+        return "Not Run"
+    return "Info"
+
+
+def _active_record_counts(records: list[dict], test_types: set[str] | None = None) -> dict:
+    counts = {
+        "tested": 0,
+        "confirmed": 0,
+        "candidate": 0,
+        "not_confirmed": 0,
+        "skipped": 0,
+        "errors": 0,
+        "parameters": 0,
+    }
+    parameters = set()
+    normalized_types = {str(item).lower() for item in test_types or set()}
+    for item in records or []:
+        if not isinstance(item, dict):
+            continue
+        test_type = str(item.get("test_type") or "").lower()
+        if normalized_types and test_type not in normalized_types:
+            continue
+        parameter = str(item.get("parameter") or "")
+        if parameter:
+            parameters.add(parameter)
+        status = str(item.get("status") or "").lower()
+        if status == "confirmed":
+            counts["confirmed"] += 1
+            counts["tested"] += 1
+        elif status == "candidate":
+            counts["candidate"] += 1
+            counts["tested"] += 1
+        elif status in {"not_confirmed", "blocked", "inconclusive"}:
+            counts["not_confirmed"] += 1
+            counts["tested"] += 1
+        elif status == "skipped":
+            counts["skipped"] += 1
+        elif status == "error":
+            counts["errors"] += 1
+        elif status:
+            counts["tested"] += 1
+    counts["parameters"] = len(parameters)
+    return counts
+
+
+def _format_active_counts(label: str, counts: dict) -> str:
+    return (
+        f"{label}: tested={counts.get('tested', 0)}, confirmed={counts.get('confirmed', 0)}, "
+        f"candidate={counts.get('candidate', 0)}, not_confirmed={counts.get('not_confirmed', 0)}, "
+        f"skipped={counts.get('skipped', 0)}, errors={counts.get('errors', 0)}, "
+        f"parameters={counts.get('parameters', 0)}"
+    )
+
+
+def _module_check_detail(module_name: str, module_data: dict, telemetry: dict, finding_count: int) -> tuple[str, str]:
+    message = module_data.get("message") or f"Module status: {module_data.get('status', 'unknown')}"
+    evidence = f"findings={finding_count}; duration={module_data.get('duration_seconds', 'n/a')}"
+    normalized_name = str(module_name or "").lower()
+    if normalized_name == "targeted":
+        targeted = telemetry.get("targeted_vulns", {}) if isinstance(telemetry, dict) else {}
+        if isinstance(targeted, dict):
+            records = targeted.get("active_validation_results", []) or []
+            active_count = len(records)
+            sqli_counts = _active_record_counts(records, {"sql_injection"})
+            sqlmap_counts = _active_record_counts(records, {"sqlmap_sql_injection"})
+            xss_counts = _active_record_counts(records, {"xss_reflection", "dalfox_xss", "stored_xss"})
+            lfi_counts = _active_record_counts(records, {"template_lfi", "lfi"})
+            message = (
+                f"{message} Active validation records={active_count}. "
+                f"{_format_active_counts('SQLi', sqli_counts)}. "
+                f"{_format_active_counts('SQLMap', sqlmap_counts)}. "
+                f"{_format_active_counts('XSS', xss_counts)}. "
+                f"{_format_active_counts('LFI', lfi_counts)}."
+            )
+            if targeted.get("external_tools_skipped"):
+                message = f"{message} External tools not run: {targeted.get('external_tools_skip_reason', 'not requested')}."
+            evidence = (
+                f"urls_tested={targeted.get('urls_tested', targeted.get('total_urls_tested', 'n/a'))}; "
+                f"parameters_tested={targeted.get('parameters_tested', 'n/a')}; "
+                f"safe_validation_results={targeted.get('safe_validation_results_count', 0)}; "
+                f"sqlmap_results={targeted.get('sqlmap_results_count', 0)}"
+            )
+    elif normalized_name == "forms":
+        form_data = telemetry.get("form_scanner", {}) if isinstance(telemetry, dict) else {}
+        if isinstance(form_data, dict):
+            records = form_data.get("active_validation_results", []) or []
+            active_count = len(records)
+            form_xss_counts = _active_record_counts(records, {"form_xss"})
+            form_sqli_counts = _active_record_counts(records, {"form_sql_injection"})
+            message = (
+                f"{message} Forms discovered={form_data.get('forms_discovered', 0)}, "
+                f"inputs={form_data.get('inputs_discovered', 0)}, "
+                f"forms tested={form_data.get('forms_tested', 0)}, "
+                f"active validation records={active_count}. "
+                f"{_format_active_counts('Form XSS', form_xss_counts)}. "
+                f"{_format_active_counts('Form SQLi', form_sqli_counts)}."
+            )
+            evidence = (
+                f"payloads_sent={form_data.get('payloads_sent', 0)}; "
+                f"confirmed={form_data.get('confirmed_count', 0)}; "
+                f"candidates={form_data.get('candidates_count', 0)}; "
+                f"errors={form_data.get('errors_count', 0)}"
+            )
+    elif module_data.get("status") in {"skipped", "not_run"}:
+        evidence = f"not_run_reason={module_data.get('message') or 'disabled_or_unavailable'}"
+    return message, evidence
+
+
+def _build_report_checks(
+    *,
+    alive_hosts: list[dict],
+    telemetry: dict,
+    all_findings: list[dict],
+) -> list[dict]:
+    checks: list[dict] = []
+    host = _primary_host(alive_hosts)
+    if host:
+        checks.append({
+            "name": "Target availability",
+            "status": "Passed",
+            "finding_count": 0,
+            "details": f"Target responded with HTTP {host.get('status_code') or host.get('status') or 'unknown'}.",
+            "evidence": host.get("final_url") or host.get("url") or "",
+        })
+    else:
+        checks.append({
+            "name": "Target availability",
+            "status": "Failed",
+            "finding_count": 0,
+            "details": "No live HTTP response was captured for the target.",
+            "evidence": "alive_hosts=0",
+        })
+
+    module_labels = {
+        "subdomain": "Subdomain enumeration",
+        "security_headers": "Security header audit",
+        "extraction": "Endpoint and form extraction",
+        "js_secrets": "JavaScript secret analysis",
+        "targeted": "Targeted vulnerability validation",
+        "forms": "Form payload validation",
+        "sensitive_files": "Sensitive file checks",
+        "vulns": "Nuclei vulnerability checks",
+        "fuzz": "Content discovery",
+        "ports": "Port checks",
+        "crlfuzz": "CRLF checks",
+        "websocket": "WebSocket checks",
+        "archive_cdx": "Archive URL collection",
+        "osint": "OSINT collection",
+        "screenshot": "Screenshot capture",
+        "s3scanner": "S3 bucket checks",
+        "apk_recon": "APK reconnaissance",
+    }
+    finding_modules = {}
+    for finding in all_findings:
+        if not isinstance(finding, dict):
+            continue
+        module_name = str(finding.get("module_name") or finding.get("scanner_name") or "").lower()
+        if module_name == "targeted_vulns":
+            module_name = "targeted"
+        if module_name == "js_checks":
+            module_name = "js_secrets"
+        finding_modules[module_name] = finding_modules.get(module_name, 0) + 1
+
+    modules = telemetry.get("modules", {}) if isinstance(telemetry, dict) else {}
+    for module_name, module_data in modules.items():
+        if not isinstance(module_data, dict):
+            continue
+        normalized_name = str(module_name or "").lower()
+        finding_count = finding_modules.get(normalized_name, 0)
+        details, evidence = _module_check_detail(normalized_name, module_data, telemetry, finding_count)
+        checks.append({
+            "name": module_labels.get(normalized_name, normalized_name.replace("_", " ").title() or "Scanner module"),
+            "status": _status_for_module_check(module_data.get("status"), finding_count),
+            "finding_count": finding_count,
+            "details": details,
+            "evidence": evidence,
+        })
+    return checks
+
+
+def _recommendations_from_findings(findings: list[dict], *, has_app_evidence: bool) -> list[str]:
+    recommendations = []
+    seen = set()
+    for finding in findings:
+        recommendation = str(
+            finding.get("remediation")
+            or finding.get("recommendation")
+            or ""
+        ).strip()
+        if not recommendation or recommendation in seen:
+            continue
+        seen.add(recommendation)
+        recommendations.append(recommendation)
+        if len(recommendations) >= 8:
+            break
+    if has_app_evidence:
+        recommendations.append("Re-run the same scan profile after fixes to confirm the vulnerable parameters no longer reproduce.")
+    else:
+        recommendations.append("Run a deep authorized scan when you need exploit-level validation beyond header and discovery checks.")
+    return recommendations
+
+
+def _url_path(url: str) -> str:
+    try:
+        parsed = urlparse(url or "")
+        path = parsed.path or "/"
+        return path.rstrip("/") or "/"
+    except Exception:
+        return str(url or "").split("?", 1)[0] or "/"
+
+
+def _collect_discovered_urls(alive_hosts: list[dict]) -> list[str]:
+    urls = set()
+    for host in alive_hosts:
+        if not isinstance(host, dict):
+            continue
+        for field_name in ("url", "final_url"):
+            if host.get(field_name):
+                urls.add(str(host.get(field_name)))
+        for field_name in ("endpoints", "extracted_urls", "expanded_urls", "archive_urls"):
+            for value in host.get(field_name, []) or []:
+                if value:
+                    urls.add(str(value))
+        for form in host.get("forms", []) or []:
+            if isinstance(form, dict) and form.get("action"):
+                urls.add(str(form.get("action")))
+    return sorted(urls)
+
+
+def _candidate_classes_for_parameter(url: str, parameter: str, method: str = "GET") -> list[str]:
+    normalized = str(parameter or "").lower().replace("-", "_")
+    path = _url_path(url).lower()
+    candidates = set()
+    if method.upper() == "GET":
+        candidates.add("XSS")
+    if normalized in {"id", "uid", "user", "userid", "item", "cat", "category", "product", "page"}:
+        candidates.add("SQLi")
+    if normalized in {"file", "path", "template", "include", "inc", "view", "doc", "document", "download", "item"}:
+        candidates.add("Directory Traversal / LFI")
+    if normalized in {"url", "uri", "redirect", "redirect_uri", "next", "return", "returnurl", "returl", "continue", "dest", "destination"}:
+        candidates.add("Open Redirect")
+    if path.endswith(".asp") and normalized in {"id", "item"}:
+        candidates.add("SQLi")
+    return sorted(candidates)
+
+
+def _active_validation_results(telemetry: dict) -> list[dict]:
+    results: list[dict] = []
+    for module_name in ("targeted_vulns", "form_scanner"):
+        module_data = telemetry.get(module_name, {}) if isinstance(telemetry, dict) else {}
+        if not isinstance(module_data, dict):
+            continue
+        for item in module_data.get("active_validation_results", []) or []:
+            if not isinstance(item, dict):
+                continue
+            result = dict(item)
+            result.setdefault("module", module_name)
+            results.append(result)
+    return results
+
+
+def _same_endpoint(left: str, right: str) -> bool:
+    try:
+        left_parsed = urlparse(left or "")
+        right_parsed = urlparse(right or "")
+        return (
+            left_parsed.netloc.lower() == right_parsed.netloc.lower()
+            and (left_parsed.path or "/").rstrip("/").lower() == (right_parsed.path or "/").rstrip("/").lower()
+        )
+    except Exception:
+        return str(left or "").split("?", 1)[0].rstrip("/").lower() == str(right or "").split("?", 1)[0].rstrip("/").lower()
+
+
+def _parameter_status_from_results(url: str, parameter: str, results: list[dict]) -> tuple[str, list[str]]:
+    matches = [
+        item for item in results
+        if str(item.get("parameter") or "") == str(parameter or "")
+        and _same_endpoint(str(item.get("url") or ""), url)
+    ]
+    if not matches:
+        return "not_tested", []
+    statuses = {str(item.get("status") or "").lower() for item in matches}
+    tests = sorted({str(item.get("test_type") or "") for item in matches if item.get("test_type")})
+    if "confirmed" in statuses:
+        return "confirmed", tests
+    if "candidate" in statuses:
+        return "tested_candidate", tests
+    if any(status in statuses for status in {"not_confirmed", "blocked", "inconclusive"}):
+        return "tested_not_confirmed", tests
+    if "skipped" in statuses:
+        return "skipped", tests
+    if "error" in statuses:
+        return "error", tests
+    return "tested", tests
+
+
+def _build_parameter_inventory(alive_hosts: list[dict], active_results: list[dict]) -> list[dict]:
+    inventory = {}
+    for url in _collect_discovered_urls(alive_hosts):
+        try:
+            parsed = urlparse(url)
+            params = parse_qs(parsed.query, keep_blank_values=True)
+        except Exception:
+            params = {}
+        for parameter in params:
+            key = (_normalized_report_route(url), parameter)
+            status, tests = _parameter_status_from_results(url, parameter, active_results)
+            inventory[key] = {
+                "endpoint": _url_path(url),
+                "url": url,
+                "method": "GET",
+                "parameter": parameter,
+                "candidates": _candidate_classes_for_parameter(url, parameter, "GET"),
+                "status": status,
+                "tests": tests,
+            }
+
+    for item in active_results:
+        url = str(item.get("url") or "")
+        parameter = str(item.get("parameter") or "")
+        method = str(item.get("method") or "GET").upper()
+        if not url or not parameter:
+            continue
+        key = (_normalized_report_route(url), parameter)
+        if key not in inventory:
+            status, tests = _parameter_status_from_results(url, parameter, active_results)
+            inventory[key] = {
+                "endpoint": _url_path(url),
+                "url": url,
+                "method": method,
+                "parameter": parameter,
+                "candidates": _candidate_classes_for_parameter(url, parameter, method),
+                "status": status,
+                "tests": tests,
+            }
+    return sorted(inventory.values(), key=lambda item: (item["endpoint"], item["parameter"]))
+
+
+def _form_inventory(telemetry: dict, alive_hosts: list[dict]) -> list[dict]:
+    form_telemetry = telemetry.get("form_scanner", {}) if isinstance(telemetry, dict) else {}
+    if isinstance(form_telemetry, dict) and isinstance(form_telemetry.get("form_inventory"), list):
+        return form_telemetry.get("form_inventory", [])
+    forms = []
+    seen = set()
+    for host in alive_hosts:
+        if not isinstance(host, dict):
+            continue
+        for form in host.get("forms", []) or []:
+            if not isinstance(form, dict):
+                continue
+            signature = f"{form.get('method', 'GET')} {form.get('action', '')}"
+            if signature in seen:
+                continue
+            seen.add(signature)
+            forms.append({
+                "signature": signature,
+                "page": form.get("page_url") or form.get("page") or host.get("url", ""),
+                "action": form.get("action", ""),
+                "method": str(form.get("method") or "GET").upper(),
+                "inputs": form.get("inputs", []),
+            })
+    return forms
+
+
+def _validation_summary(active_results: list[dict]) -> dict:
+    summary: dict[str, dict] = {}
+    for item in active_results:
+        test_type = str(item.get("test_type") or "unknown")
+        bucket = summary.setdefault(test_type, {
+            "tested": 0,
+            "confirmed": 0,
+            "candidate": 0,
+            "not_confirmed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "parameters": set(),
+        })
+        status = str(item.get("status") or "").lower()
+        if status == "confirmed":
+            bucket["confirmed"] += 1
+            bucket["tested"] += 1
+        elif status == "candidate":
+            bucket["candidate"] += 1
+            bucket["tested"] += 1
+        elif status in {"not_confirmed", "blocked", "inconclusive"}:
+            bucket["not_confirmed"] += 1
+            bucket["tested"] += 1
+        elif status == "skipped":
+            bucket["skipped"] += 1
+        elif status == "error":
+            bucket["errors"] += 1
+        elif status:
+            bucket["tested"] += 1
+        parameter = str(item.get("parameter") or "")
+        if parameter:
+            bucket["parameters"].add(parameter)
+    return {
+        key: {**value, "parameters": len(value["parameters"])}
+        for key, value in sorted(summary.items())
+    }
 
 
 def _build_ai_report_context(
@@ -862,11 +1486,17 @@ def build_report(domain: str, subdomains: list, alive_hosts: list, scan_data: di
 
     
     all_secrets = scan_data.get("js_secrets", {}).get("secrets", [])
-    all_targeted = (
-        scan_data.get("targeted_vulns", {}).get("dalfox", []) +
-        scan_data.get("targeted_vulns", {}).get("sqlmap", []) +
-        scan_data.get("targeted_vulns", {}).get("lfi", [])
-    )
+    targeted_bucket = scan_data.get("targeted_vulns", {}) if isinstance(scan_data.get("targeted_vulns", {}), dict) else {}
+    all_targeted = targeted_bucket.get("findings", [])
+    if not isinstance(all_targeted, list):
+        all_targeted = []
+    if not all_targeted:
+        all_targeted = (
+            targeted_bucket.get("dalfox", []) +
+            targeted_bucket.get("sqlmap", []) +
+            targeted_bucket.get("lfi", []) +
+            targeted_bucket.get("safe_validation", [])
+        )
     all_findings = _collect_report_findings(alive_hosts, scan_data)
     confirmed_findings = [f for f in all_findings if f.get("status") == "confirmed"]
     candidate_findings = [f for f in all_findings if f.get("status") == "candidate"]
@@ -899,6 +1529,9 @@ def build_report(domain: str, subdomains: list, alive_hosts: list, scan_data: di
     if execution_modules:
         telemetry["modules"] = execution_modules
     scan_data["telemetry"] = telemetry
+    tool_availability = scan_data.get("tool_availability", []) if isinstance(scan_data, dict) else []
+    if not isinstance(tool_availability, list):
+        tool_availability = []
     nuclei_correlation = telemetry.get("nuclei_correlation", {}) if isinstance(telemetry, dict) else {}
     if not isinstance(nuclei_correlation, dict):
         nuclei_correlation = {}
@@ -954,6 +1587,76 @@ def build_report(domain: str, subdomains: list, alive_hosts: list, scan_data: di
             "waf_detected": sum(1 for h in alive_hosts if h.get("is_waf")),
             "interesting_subdomains": len(interesting_subdomains),
         }
+    scan_quality = _scan_quality_metrics(scan_data, telemetry, all_findings)
+    active_results = _active_validation_results(telemetry)
+    parameter_inventory = _build_parameter_inventory(alive_hosts, active_results)
+    form_inventory = _form_inventory(telemetry, alive_hosts)
+    validation_summary = _validation_summary(active_results)
+    security_header_recon_findings = [finding for finding in recon_findings if _is_security_header_finding(finding)]
+    report_candidate_findings = [
+        finding for finding in candidate_findings
+        if _report_candidate_strength(finding) == "strong" or _is_security_header_finding(finding)
+    ]
+    report_findings = _prepare_report_findings([*confirmed_findings, *report_candidate_findings, *security_header_recon_findings])
+    app_report_findings = _prepare_report_findings([*confirmed_app_findings, *strong_app_candidate_findings])
+    checks = _build_report_checks(alive_hosts=alive_hosts, telemetry=telemetry, all_findings=report_findings)
+    primary_host = _primary_host(alive_hosts)
+    headers_snapshot = _response_headers_from_host(primary_host)
+    scan_status = _scan_status_from_quality(summary, scan_quality)
+    module_duration_seconds = 0.0
+    for module_data in (telemetry.get("modules", {}) if isinstance(telemetry, dict) else {}).values():
+        if not isinstance(module_data, dict):
+            continue
+        try:
+            module_duration_seconds += float(module_data.get("duration_seconds") or 0)
+        except (TypeError, ValueError):
+            pass
+    risk_score = _calculate_risk_score(
+        all_findings=all_findings,
+        confirmed_findings=confirmed_findings,
+        strong_candidate_findings=strong_candidate_findings,
+        weak_candidate_findings=weak_candidate_findings,
+        recon_findings=recon_findings,
+        blocked_findings=blocked_findings,
+        inconclusive_findings=inconclusive_findings,
+        summary=summary,
+    )
+    risk_label = _risk_label_from_score(
+        risk_score,
+        scan_status=scan_status,
+        has_confirmed_app_evidence=bool(confirmed_app_findings),
+    )
+    recommendations = _recommendations_from_findings(
+        report_findings,
+        has_app_evidence=bool(app_report_findings),
+    )
+    summary.update({
+        "risk_score": risk_score,
+        "risk_label": risk_label,
+        "scan_status": scan_status,
+        "scan_coverage": scan_quality["scan_coverage"],
+        "scan_confidence": scan_quality["scan_confidence"],
+        "modules_planned": scan_quality["planned_modules"],
+        "modules_executed": scan_quality["executed_modules"],
+        "modules_skipped": scan_quality["skipped_modules"],
+        "modules_not_run": scan_quality["not_run_modules"],
+        "modules_failed": scan_quality["failed_modules"],
+        "tools_available": sum(1 for tool in tool_availability if isinstance(tool, dict) and tool.get("available")),
+        "tools_missing": sum(1 for tool in tool_availability if isinstance(tool, dict) and not tool.get("available")),
+        "checks_run": sum(1 for check in checks if str(check.get("status") or "").lower() not in {"skipped", "not run"}),
+        "severity_counts": _severity_counts(report_findings),
+        "all_severity_counts": _severity_counts(all_findings),
+        "actionable_findings": len(report_findings),
+        "app_evidence_findings": len(app_report_findings),
+        "discovered_urls_count": len(_collect_discovered_urls(alive_hosts)),
+        "parameter_count": len(parameter_inventory),
+        "form_count": len(form_inventory),
+        "tested_parameters_count": len({
+            (item.get("url"), item.get("parameter"))
+            for item in active_results
+            if item.get("parameter") and str(item.get("status") or "").lower() not in {"skipped", "error"}
+        }),
+    })
     ai_report_context = _build_ai_report_context(
         domain=domain,
         scan_data=scan_data,
@@ -973,6 +1676,30 @@ def build_report(domain: str, subdomains: list, alive_hosts: list, scan_data: di
         "domain": domain,
         "scan_time": datetime.now(timezone.utc).isoformat(),
         "profile": scan_data.get("profile", "unknown"),
+        "scan_mode": scan_data.get("profile", "unknown"),
+        "scan_status": scan_status,
+        "risk_score": risk_score,
+        "risk_label": risk_label,
+        "score": f"{risk_score}/100",
+        "scan_coverage": scan_quality["scan_coverage"],
+        "scan_confidence": scan_quality["scan_confidence"],
+        "target": domain,
+        "url": primary_host.get("url") or scan_config.get("target") or domain,
+        "final_url": primary_host.get("final_url") or primary_host.get("url") or "",
+        "http_status": primary_host.get("status_code") or primary_host.get("status") or "",
+        "server": primary_host.get("server") or headers_snapshot.get("Server") or headers_snapshot.get("server") or "",
+        "content_type": primary_host.get("content_type") or headers_snapshot.get("Content-Type") or headers_snapshot.get("content-type") or "",
+        "content_length": primary_host.get("content_length") or "",
+        "duration": f"{module_duration_seconds:.1f}s",
+        "headers": headers_snapshot,
+        "tool_availability": tool_availability,
+        "checks": checks,
+        "recommendations": recommendations,
+        "discovered_urls": _collect_discovered_urls(alive_hosts),
+        "parameter_inventory": parameter_inventory,
+        "form_inventory": form_inventory,
+        "active_validation_results": active_results,
+        "active_validation_summary": validation_summary,
         "scan_config": scan_config,
         "summary": summary,
 
@@ -1057,9 +1784,12 @@ def build_report(domain: str, subdomains: list, alive_hosts: list, scan_data: di
         
         "subdomains": sorted(set(subdomains)),
         "alive_hosts": processed_hosts,
-        "findings": confirmed_findings,
+        "findings": report_findings,
+        "confirmed_findings": _prepare_report_findings(confirmed_findings),
+        "actionable_findings": report_findings,
         "confirmed_app_vulns": confirmed_app_findings,
         "candidates": candidate_findings,
+        "candidate_findings": _prepare_report_findings(candidate_findings),
         "strong_candidates": strong_candidate_findings,
         "strong_app_candidates": strong_app_candidate_findings,
         "weak_candidates": weak_candidate_findings,
@@ -1129,4 +1859,3 @@ def save_report(report: dict, output_dir: str = None) -> str:
 
     log.info(f"Report saved -> {filepath}")
     return filepath
-

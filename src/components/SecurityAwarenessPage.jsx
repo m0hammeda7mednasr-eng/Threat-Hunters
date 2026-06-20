@@ -5,7 +5,6 @@ import {
   Bug,
   Clock3,
   Download,
-  ExternalLink,
   FileText,
   Fingerprint,
   KeyRound,
@@ -140,54 +139,132 @@ const learningResources = [
     icon: FileText,
     type: 'Article',
     topic: 'Basics',
+    audience: 'Individuals',
+    priority: 'Foundation',
     title: 'Password Security Guide',
     description: 'Best practices for creating, storing, and rotating high-value credentials.',
     duration: '8 min read',
+    takeaways: [
+      'Build long passphrases that are easy to remember and hard to guess.',
+      'Use a password manager instead of reusing credentials across services.',
+      'Rotate only when risk changes or credentials are exposed.',
+    ],
+    bestFor: 'New users, admins, and anyone managing multiple accounts.',
+    nextSteps: [
+      'Audit reused passwords',
+      'Turn on MFA for sensitive accounts',
+      'Move credentials into a password manager',
+    ],
   },
   {
     id: 'phishing-video',
     icon: Video,
     type: 'Video',
     topic: 'Threats',
+    audience: 'Teams',
+    priority: 'High leverage',
     title: 'Phishing Detection Guide',
     description: 'Recognize common lures and respond safely to suspicious messages.',
     duration: '12 min',
+    takeaways: [
+      'Spot urgency, impersonation, and mismatched links fast.',
+      'Pause before opening attachments or approving logins.',
+      'Report suspicious messages early so others do not get hit.',
+    ],
+    bestFor: 'Front-line staff, support teams, and phishing drills.',
+    nextSteps: [
+      'Run a mock phishing exercise',
+      'Review sender domains before clicking',
+      'Create a reporting shortcut for the team',
+    ],
   },
   {
     id: 'two-factor-guide',
     icon: BookOpen,
     type: 'Guide',
     topic: 'Basics',
+    audience: 'All users',
+    priority: 'Essential',
     title: 'MFA Setup Guide',
     description: 'Enable multi-factor authentication across the services you rely on most.',
     duration: '5 min read',
+    takeaways: [
+      'Pick app-based or hardware-based factors over SMS when possible.',
+      'Protect the account that secures your recovery options first.',
+      'Store backup codes somewhere secure and reachable.',
+    ],
+    bestFor: 'Account owners, IT admins, and onboarding sessions.',
+    nextSteps: [
+      'Enable MFA on email first',
+      'Save recovery codes offline',
+      'Test a backup login method',
+    ],
   },
   {
     id: 'ransomware-article',
     icon: FileText,
     type: 'Article',
     topic: 'Threats',
+    audience: 'Operations',
+    priority: 'Critical',
     title: 'Ransomware Response Guide',
     description: 'Reduce ransomware risk and prepare a practical recovery path.',
     duration: '10 min read',
+    takeaways: [
+      'Keep offline or immutable backups for the data that matters most.',
+      'Know who can isolate devices and preserve evidence quickly.',
+      'Practice recovery before an incident turns into panic.',
+    ],
+    bestFor: 'Incident response plans and business continuity reviews.',
+    nextSteps: [
+      'Validate backup restoration',
+      'Document escalation contacts',
+      'Review device isolation steps',
+    ],
   },
   {
     id: 'network-video',
     icon: Video,
     type: 'Video',
     topic: 'Network',
+    audience: 'Home offices',
+    priority: 'Practical',
     title: 'Network Hardening Guide',
     description: 'Practical steps for securing Wi-Fi and connected devices.',
     duration: '15 min',
+    takeaways: [
+      'Use WPA3 or the strongest mode your router supports.',
+      'Separate guest and work devices from sensitive systems.',
+      'Patch routers and IoT devices instead of leaving them stale.',
+    ],
+    bestFor: 'Remote work setups and shared home networks.',
+    nextSteps: [
+      'Change the default router password',
+      'Update firmware',
+      'Remove unused connected devices',
+    ],
   },
   {
     id: 'social-guide',
     icon: BookOpen,
     type: 'Guide',
     topic: 'Threats',
+    audience: 'Business users',
+    priority: 'High leverage',
     title: 'Social Engineering Guide',
     description: 'How to identify manipulation and protect sensitive processes.',
     duration: '7 min read',
+    takeaways: [
+      'Validate unusual requests through a separate trusted channel.',
+      'Slow down when someone pushes urgency or secrecy.',
+      'Protect payment, credential, and approval workflows carefully.',
+    ],
+    bestFor: 'Finance, HR, support, and executive assistants.',
+    nextSteps: [
+      'Add call-back verification',
+      'Review payment approval steps',
+      'Teach escalation paths for suspicious requests',
+    ],
   },
 ];
 
@@ -299,6 +376,7 @@ const SecurityAwarenessPage = ({
   onNavigateToHome,
   onNavigateToBlog,
   onNavigateToTools,
+  onOpenAwarenessDetail,
   isLoggedIn,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -354,6 +432,29 @@ const SecurityAwarenessPage = ({
         itemMatchesSearch([resource.title, resource.description, resource.fileMeta || 'PDF']),
       ),
     [awarenessContent.downloads, itemMatchesSearch],
+  );
+
+  const openAwarenessDetail = useCallback(
+    (kind, item) => {
+      if (!kind || !item) {
+        return;
+      }
+
+      try {
+        window.sessionStorage.setItem(
+          'awareness-detail-cache',
+          JSON.stringify({ kind, item, savedAt: new Date().toISOString() }),
+        );
+      } catch {
+        // Ignore storage errors and continue with the route only.
+      }
+
+      onOpenAwarenessDetail?.({
+        kind,
+        id: item.id || item.cve || item.cve_id || item.cveID || item.title || item.headline || '',
+      });
+    },
+    [onOpenAwarenessDetail],
   );
 
   const loadLiveFeed = useCallback(async () => {
@@ -483,12 +584,22 @@ const SecurityAwarenessPage = ({
               <ul className="awareness-live-card__list">
                 {liveLoading && !liveFeed.latestCves.length ? (
                   <li className="awareness-live-card__placeholder">Loading latest CVEs...</li>
+                ) : !liveFeed.latestCves.length ? (
+                  <li className="awareness-live-card__placeholder">
+                    No recent CVEs loaded yet. Refresh the feed after the backend is available.
+                  </li>
                 ) : (
                   liveFeed.latestCves.slice(0, 4).map((item, index) => (
                     <li key={`${item.id || item.cve || index}`} className="awareness-live-card__item">
-                      <strong>{item.id || item.cve || item.cve_id || 'Unknown CVE'}</strong>
-                      <span>{item.severity || item.score ? `${item.severity || 'Unknown'}${item.score ? ` | ${item.score}` : ''}` : 'Unrated'}</span>
-                      <p>{item.description || item.short_description || 'No description provided.'}</p>
+                      <button
+                        type="button"
+                        className="awareness-live-card__item-button"
+                        onClick={() => openAwarenessDetail('latest-cves', item)}
+                      >
+                        <strong>{item.id || item.cve || item.cve_id || 'Unknown CVE'}</strong>
+                        <span>{item.severity || item.score ? `${item.severity || 'Unknown'}${item.score ? ` | ${item.score}` : ''}` : 'Unrated'}</span>
+                        <p>{item.description || item.short_description || 'No description provided.'}</p>
+                      </button>
                     </li>
                   ))
                 )}
@@ -503,12 +614,22 @@ const SecurityAwarenessPage = ({
               <ul className="awareness-live-card__list">
                 {liveLoading && !liveFeed.criticalCves.length ? (
                   <li className="awareness-live-card__placeholder">Loading critical CVEs...</li>
+                ) : !liveFeed.criticalCves.length ? (
+                  <li className="awareness-live-card__placeholder">
+                    No critical CVEs loaded yet. This card will surface the highest-priority issues.
+                  </li>
                 ) : (
                   liveFeed.criticalCves.slice(0, 4).map((item, index) => (
                     <li key={`${item.id || item.cve || item.cve_id || index}`} className="awareness-live-card__item">
-                      <strong>{item.id || item.cve || item.cve_id || 'Unknown CVE'}</strong>
-                      <span>{item.component || item.category || item.score ? `${item.component || item.category || 'High priority'}${item.score ? ` | ${item.score}` : ''}` : 'Critical priority'}</span>
-                      <p>{item.description || item.short_description || 'Immediate review recommended.'}</p>
+                      <button
+                        type="button"
+                        className="awareness-live-card__item-button"
+                        onClick={() => openAwarenessDetail('critical-cves', item)}
+                      >
+                        <strong>{item.id || item.cve || item.cve_id || 'Unknown CVE'}</strong>
+                        <span>{item.component || item.category || item.score ? `${item.component || item.category || 'High priority'}${item.score ? ` | ${item.score}` : ''}` : 'Critical priority'}</span>
+                        <p>{item.description || item.short_description || 'Immediate review recommended.'}</p>
+                      </button>
                     </li>
                   ))
                 )}
@@ -523,12 +644,22 @@ const SecurityAwarenessPage = ({
               <ul className="awareness-live-card__list">
                 {liveLoading && !liveFeed.kev.length ? (
                   <li className="awareness-live-card__placeholder">Loading KEV list...</li>
+                ) : !liveFeed.kev.length ? (
+                  <li className="awareness-live-card__placeholder">
+                    No KEV items loaded yet. When connected, this card shows exploited vulnerabilities and due dates.
+                  </li>
                 ) : (
                   liveFeed.kev.slice(0, 4).map((item, index) => (
                     <li key={`${item.id || item.cveID || item.cve_id || index}`} className="awareness-live-card__item">
-                      <strong>{item.id || item.cveID || item.cve_id || 'Unknown CVE'}</strong>
-                      <span>{item.dueDate || item.due_date || 'No due date'}</span>
-                      <p>{item.status || item.required_action || item.short_description || 'Exploited vulnerability tracked by CISA.'}</p>
+                      <button
+                        type="button"
+                        className="awareness-live-card__item-button"
+                        onClick={() => openAwarenessDetail('kev', item)}
+                      >
+                        <strong>{item.id || item.cveID || item.cve_id || 'Unknown CVE'}</strong>
+                        <span>{item.dueDate || item.due_date || 'No due date'}</span>
+                        <p>{item.status || item.required_action || item.short_description || 'Exploited vulnerability tracked by CISA.'}</p>
+                      </button>
                     </li>
                   ))
                 )}
@@ -543,12 +674,22 @@ const SecurityAwarenessPage = ({
               <ul className="awareness-live-card__list">
                 {liveLoading && !liveFeed.news.length ? (
                   <li className="awareness-live-card__placeholder">Loading security news...</li>
+                ) : !liveFeed.news.length ? (
+                  <li className="awareness-live-card__placeholder">
+                    No security news loaded yet. This feed will summarize fresh advisories and reports.
+                  </li>
                 ) : (
                   liveFeed.news.slice(0, 4).map((item, index) => (
                     <li key={`${item.id || item.title || index}`} className="awareness-live-card__item">
-                      <strong>{item.title || item.headline || 'Untitled update'}</strong>
-                      <span>{item.source || item.publisher || 'Security feed'}</span>
-                      <p>{item.summary || item.description || item.short_description || 'Fresh threat intelligence update.'}</p>
+                      <button
+                        type="button"
+                        className="awareness-live-card__item-button"
+                        onClick={() => openAwarenessDetail('news', item)}
+                      >
+                        <strong>{item.title || item.headline || 'Untitled update'}</strong>
+                        <span>{item.source || item.publisher || 'Security feed'}</span>
+                        <p>{item.summary || item.description || item.short_description || 'Fresh threat intelligence update.'}</p>
+                      </button>
                     </li>
                   ))
                 )}
@@ -686,12 +827,27 @@ const SecurityAwarenessPage = ({
               const Icon = resolveIcon(resource.icon);
 
               return (
-                <article key={resource.id} className="resource-card">
+                <article
+                  key={resource.id}
+                  className="resource-card"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openAwarenessDetail('resource', resource)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openAwarenessDetail('resource', resource);
+                    }
+                  }}
+                >
                   <div className="resource-card__meta">
                     <div className="resource-card__pill-group">
                       <span className="resource-card__pill resource-card__pill--type">
                         <Icon strokeWidth={1.8} />
                         <span>{resource.type}</span>
+                      </span>
+                      <span className="resource-card__pill resource-card__pill--tone">
+                        {resource.priority}
                       </span>
                     </div>
                     <span className="resource-card__pill resource-card__pill--topic">
@@ -702,6 +858,12 @@ const SecurityAwarenessPage = ({
                   <h3 className="resource-card__title">{resource.title}</h3>
                   <p className="resource-card__description">{resource.description}</p>
 
+                  <ul className="resource-card__preview">
+                    {(Array.isArray(resource.takeaways) ? resource.takeaways : []).slice(0, 2).map((takeaway) => (
+                      <li key={takeaway}>{takeaway}</li>
+                    ))}
+                  </ul>
+
                   <div className="resource-card__footer">
                     <span className="resource-card__duration">
                       <Clock3 strokeWidth={1.8} />
@@ -711,11 +873,13 @@ const SecurityAwarenessPage = ({
                     <button
                       type="button"
                       className="resource-card__action"
-                      aria-label={`Open ${resource.title}`}
-                      onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
-                      disabled={!resource.url}
+                      aria-label={`View details for ${resource.title}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openAwarenessDetail('resource', resource);
+                      }}
                     >
-                      <ExternalLink strokeWidth={1.8} />
+                      <FileText strokeWidth={1.8} />
                     </button>
                   </div>
                 </article>

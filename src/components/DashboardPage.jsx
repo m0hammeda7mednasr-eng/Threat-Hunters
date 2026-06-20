@@ -77,65 +77,25 @@ const DASHBOARD_SCAN_TYPES = [
   { key: 'deep', label: 'Deep Scan' },
 ];
 
-const ADVANCED_SCAN_MODE_CARDS = [
-  {
-    key: 'quick',
-    title: 'Quick Scan Settings',
-    description: 'Fast overview scanning. Lightweight and safe. Ideal for quick checks.',
-    icon: Zap,
-  },
-  {
-    key: 'deep',
-    title: 'Deep Scan Settings',
-    description: 'Full vulnerability scanning with advanced tools. Slower but more accurate.',
-    icon: Shield,
-  },
+const ADVANCED_SCAN_MODULES = [
+  { key: 'subdomain', label: 'subdomain' },
+  { key: 'ports', label: 'ports' },
+  { key: 'fuzz', label: 'fuzz' },
+  { key: 'extraction', label: 'extraction' },
+  { key: 'js_secrets', label: 'js_secrets' },
+  { key: 'targeted', label: 'targeted' },
+  { key: 'vulns', label: 'vulns' },
+  { key: 'osint', label: 'osint' },
+  { key: 'screenshot', label: 'screenshot' },
+  { key: 's3scanner', label: 's3scanner' },
+  { key: 'crlfuzz', label: 'crlfuzz' },
+  { key: 'apk_recon', label: 'apk_recon' },
 ];
 
-const ADVANCED_QUICK_BASIC_OPTIONS = [
-  { key: 'qBasicPort', label: 'Basic Port Scan (Top 100 ports)', icon: Wifi },
-  { key: 'qFingerprint', label: 'Technology Fingerprinting (WhatWeb basic)', icon: Sparkles },
-  { key: 'qServerInfo', label: 'Detect Web Server Information', icon: Globe },
-  { key: 'qHeaders', label: 'Check Security Headers', icon: Shield },
-  { key: 'qLightDirectory', label: 'Light Directory Scan (Common paths only)', icon: FileText },
-];
-
-const ADVANCED_DEEP_PORT_OPTIONS = [
-  { key: 'dFullPort', label: 'Full Port Scan (1-65535)', icon: Wifi },
-  { key: 'dAggressiveNmap', label: 'Aggressive Nmap Scan (Version detection + OS detect)', icon: Activity },
-  { key: 'dNseScripts', label: 'Run NSE Vulnerability Scripts', icon: Settings },
-];
-
-const ADVANCED_DEEP_WEB_OPTIONS = [
-  { key: 'dNikto', label: 'Nikto Full Scan', icon: Globe },
-  { key: 'dSqlMap', label: 'SQL Injection Testing (SQLmap)', icon: AlertTriangle },
-  { key: 'dXsstrike', label: 'XSS Testing (XSStrike)', icon: Zap },
-  { key: 'dDirsearch', label: 'Full Directory Enumeration (Dirsearch full wordlist)', icon: FileText },
-  { key: 'dOutdated', label: 'Detect Outdated Components (CVE Lookup)', icon: Bell },
-];
-
-const ADVANCED_DEEP_RISK_OPTIONS = [
-  { key: 'dBruteforce', label: 'Login Brute-force (Hydra)', icon: User },
-  { key: 'dSslTls', label: 'Full SSL/TLS Inspection', icon: Shield },
-];
-
-const ADVANCED_SCAN_DEFAULTS = {
-  qBasicPort: true,
-  qFingerprint: true,
-  qServerInfo: true,
-  qHeaders: true,
-  qLightDirectory: false,
-  dFullPort: true,
-  dAggressiveNmap: true,
-  dNseScripts: true,
-  dNikto: true,
-  dSqlMap: true,
-  dXsstrike: true,
-  dDirsearch: false,
-  dOutdated: true,
-  dBruteforce: false,
-  dSslTls: true,
-};
+const ADVANCED_SCAN_DEFAULTS = ADVANCED_SCAN_MODULES.reduce(
+  (defaults, moduleItem) => ({ ...defaults, [moduleItem.key]: true }),
+  {},
+);
 
 const SECURITY_AWARENESS_ITEMS = [
   {
@@ -185,31 +145,270 @@ const isValidWebsiteHostname = (hostname) => {
 
 const severityTone = (value) => String(value || 'low').toLowerCase();
 
-const countFindingsBySeverity = (report, severity) => (
-  report?.summary?.severity_counts?.[severity]
-  ?? report?.findings?.filter((finding) => finding.severity === severity).length
-  ?? 0
-);
+const severityKey = (value) => String(value || '').trim().toLowerCase();
 
-const reportToCard = (report) => ({
-  id: report.id || 'RPT-LIVE',
-  riskLabel: report.risk_label || `${report.risk || 'Low'} Risk`,
-  riskTone: severityTone(report.risk),
-  url: report.url || report.target,
-  reference: report.reference || report.id || 'LIVE',
-  date: report.date || new Date().toISOString().slice(0, 10),
-  time: report.time || new Date().toTimeString().slice(0, 5),
-  duration: report.duration || '0.0s',
-  score: report.score || `${report.risk_score || 0}/100`,
-  scoreTone: severityTone(report.risk),
-  breakdown: [
-    { label: 'Critical', value: countFindingsBySeverity(report, 'Critical'), tone: 'critical' },
-    { label: 'High', value: countFindingsBySeverity(report, 'High'), tone: 'high' },
-    { label: 'Medium', value: countFindingsBySeverity(report, 'Medium'), tone: 'medium' },
-    { label: 'Low', value: countFindingsBySeverity(report, 'Low'), tone: 'low' },
-  ],
-  raw: report,
-});
+const countFindingsBySeverity = (report, severity) => {
+  const summaryCounts = report?.summary?.severity_counts || {};
+  const wanted = severityKey(severity);
+  const summaryMatch = Object.entries(summaryCounts).find(([key]) => severityKey(key) === wanted);
+  if (summaryMatch) {
+    return Number(summaryMatch[1] || 0);
+  }
+
+  return report?.findings?.filter((finding) => severityKey(finding.severity || finding.status) === wanted).length ?? 0;
+};
+
+const normalizeScanMode = (mode) => {
+  const value = String(mode || '').trim().toLowerCase();
+  if (value === 'deep') return 'deep';
+  if (value === 'quick' || value === 'light' || value === 'fast') return 'light';
+  return 'light';
+};
+
+const deriveRiskScore = (report) => {
+  if (!report || typeof report !== 'object') {
+    return 0;
+  }
+
+  const explicitScore = Number(report.risk_score);
+  if (Number.isFinite(explicitScore)) {
+    return Math.max(0, Math.min(100, Math.round(explicitScore)));
+  }
+
+  const legacyScore = Number(report.score);
+  if (Number.isFinite(legacyScore)) {
+    return Math.max(0, Math.min(100, Math.round(legacyScore)));
+  }
+
+  const severityWeights = {
+    critical: 30,
+    high: 18,
+    medium: 10,
+    low: 4,
+    info: 1,
+    informational: 1,
+    recon: 1,
+    candidate: 6,
+    blocked: 0,
+    inconclusive: 2,
+  };
+
+  const findings = Array.isArray(report.findings) ? report.findings : [];
+  const summary = report.summary && typeof report.summary === 'object' ? report.summary : {};
+  let score = findings.reduce((total, finding) => {
+    if (!finding || typeof finding !== 'object') {
+      return total;
+    }
+    const severity = String(finding.severity || finding.status || '').trim().toLowerCase();
+    return total + (severityWeights[severity] || 2);
+  }, 0);
+
+  score += Number(summary.confirmed_findings || summary.confirmed_vulns || 0) * 25;
+  score += Number(summary.candidate_findings || summary.candidate_issues || 0) * 6;
+  score += Number(summary.blocked_tests || 0) * 1;
+  score += Number(summary.inconclusive_tests || 0) * 1;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+};
+
+const deriveRiskLabel = (report) => {
+  if (report?.risk_label) {
+    return report.risk_label;
+  }
+
+  const score = deriveRiskScore(report);
+  if (score >= 80) return 'Critical Risk';
+  if (score >= 50) return 'High Risk';
+  if (score >= 20) return 'Moderate Risk';
+  if (score > 0) return 'Low Risk';
+  return 'No Risk';
+};
+
+const deriveScanCoverage = (report) => {
+  const summary = report?.summary && typeof report.summary === 'object' ? report.summary : {};
+  const explicitCoverage = Number(report?.scan_coverage ?? summary.scan_coverage);
+  if (Number.isFinite(explicitCoverage)) {
+    return Math.max(0, Math.min(100, Math.round(explicitCoverage)));
+  }
+
+  const executed = Number(summary.modules_executed);
+  const planned = Number(summary.modules_planned);
+  if (Number.isFinite(executed) && Number.isFinite(planned) && planned > 0) {
+    return Math.max(0, Math.min(100, Math.round((executed / planned) * 100)));
+  }
+
+  return 0;
+};
+
+const deriveScanConfidence = (report) => {
+  const summary = report?.summary && typeof report.summary === 'object' ? report.summary : {};
+  const explicitConfidence = Number(report?.scan_confidence ?? summary.scan_confidence);
+  if (Number.isFinite(explicitConfidence)) {
+    return Math.max(0, Math.min(100, Math.round(explicitConfidence)));
+  }
+
+  const coverage = deriveScanCoverage(report);
+  return Math.max(0, Math.min(100, Math.round(coverage * 0.85)));
+};
+
+const riskToneFromReport = (report) => {
+  const score = deriveRiskScore(report);
+  if (score >= 80) return 'critical';
+  if (score >= 50) return 'high';
+  if (score >= 20) return 'medium';
+  return 'low';
+};
+
+const normalizeScanReport = (report) => {
+  if (!report || typeof report !== 'object') {
+    return report;
+  }
+
+  const nestedReport = report.report && typeof report.report === 'object' ? report.report : {};
+  const firstHost = Array.isArray(nestedReport.alive_hosts) && nestedReport.alive_hosts.length
+    ? nestedReport.alive_hosts[0]
+    : {};
+  const firstHostResponse = firstHost?.response_summary && typeof firstHost.response_summary === 'object'
+    ? firstHost.response_summary
+    : {};
+  const mergedReport = {
+    ...nestedReport,
+    ...report,
+    summary: {
+      ...(nestedReport.summary || {}),
+      ...(report.summary || {}),
+    },
+  };
+  const findings = Array.isArray(mergedReport.findings) && mergedReport.findings.length
+    ? mergedReport.findings
+    : Array.isArray(nestedReport.actionable_findings) && nestedReport.actionable_findings.length
+      ? nestedReport.actionable_findings
+      : Array.isArray(nestedReport.confirmed_findings)
+        ? nestedReport.confirmed_findings
+        : [];
+  const checks = Array.isArray(mergedReport.checks) ? mergedReport.checks : [];
+  const parameterInventory = Array.isArray(mergedReport.parameter_inventory) ? mergedReport.parameter_inventory : [];
+  const formInventory = Array.isArray(mergedReport.form_inventory) ? mergedReport.form_inventory : [];
+  const activeValidationResults = Array.isArray(mergedReport.active_validation_results) ? mergedReport.active_validation_results : [];
+  const toolAvailability = Array.isArray(mergedReport.tool_availability) ? mergedReport.tool_availability : [];
+  const headers = mergedReport.headers && typeof mergedReport.headers === 'object'
+    ? mergedReport.headers
+    : firstHostResponse.headers && typeof firstHostResponse.headers === 'object'
+      ? firstHostResponse.headers
+      : {};
+  const scanTime = mergedReport.scan_time || report.created_at || '';
+  const riskScore = deriveRiskScore(mergedReport);
+  const riskLabel = deriveRiskLabel(mergedReport);
+  const normalizedMode = normalizeScanMode(mergedReport.scan_mode || mergedReport.profile || mergedReport.mode);
+  const scoreText = mergedReport.score || `${riskScore}/100`;
+
+  return {
+    ...mergedReport,
+    id: mergedReport.id || mergedReport.report_id || mergedReport.scan_id || 'RPT-LIVE',
+    reference: mergedReport.reference || mergedReport.scan_id || mergedReport.report_id || 'LIVE',
+    date: mergedReport.date || String(scanTime).slice(0, 10) || new Date().toISOString().slice(0, 10),
+    time: mergedReport.time || (String(scanTime).includes('T') ? String(scanTime).split('T')[1].slice(0, 5) : new Date().toTimeString().slice(0, 5)),
+    target: mergedReport.target || mergedReport.domain || report.target,
+    url: mergedReport.url || firstHost.url || report.target,
+    final_url: mergedReport.final_url || firstHost.final_url || mergedReport.url || report.target,
+    http_status: mergedReport.http_status || firstHost.status_code || firstHost.status || firstHostResponse.status_code,
+    server: mergedReport.server || firstHost.server || headers.Server || headers.server,
+    content_type: mergedReport.content_type || firstHost.content_type || headers['Content-Type'] || headers['content-type'],
+    content_length: mergedReport.content_length || firstHost.content_length,
+    scan_mode: normalizedMode,
+    profile: normalizedMode,
+    scan_status: mergedReport.scan_status || mergedReport.summary?.scan_status || 'completed',
+    risk_score: riskScore,
+    risk_label: riskLabel,
+    score: scoreText,
+    scan_coverage: deriveScanCoverage(mergedReport),
+    scan_confidence: deriveScanConfidence(mergedReport),
+    findings,
+    checks,
+    parameter_inventory: parameterInventory,
+    form_inventory: formInventory,
+    active_validation_results: activeValidationResults,
+    active_validation_summary: mergedReport.active_validation_summary || {},
+    tool_availability: toolAvailability,
+    discovered_urls: Array.isArray(mergedReport.discovered_urls) ? mergedReport.discovered_urls : [],
+    headers,
+    recommendations: Array.isArray(mergedReport.recommendations) ? mergedReport.recommendations : [],
+    report: nestedReport,
+  };
+};
+
+const reportToCard = (report) => {
+  const normalizedReport = normalizeScanReport(report);
+
+  return {
+    id: normalizedReport.id || 'RPT-LIVE',
+    riskLabel: normalizedReport.risk_label || deriveRiskLabel(normalizedReport),
+    riskTone: riskToneFromReport(normalizedReport),
+    url: normalizedReport.url || normalizedReport.target,
+    reference: normalizedReport.reference || normalizedReport.id || 'LIVE',
+    date: normalizedReport.date || new Date().toISOString().slice(0, 10),
+    time: normalizedReport.time || new Date().toTimeString().slice(0, 5),
+    duration: normalizedReport.duration || '0.0s',
+    score: normalizedReport.score || `${normalizedReport.risk_score || 0}/100`,
+    scoreTone: riskToneFromReport(normalizedReport),
+    breakdown: [
+      { label: 'Critical', value: countFindingsBySeverity(normalizedReport, 'Critical'), tone: 'critical' },
+      { label: 'High', value: countFindingsBySeverity(normalizedReport, 'High'), tone: 'high' },
+      { label: 'Medium', value: countFindingsBySeverity(normalizedReport, 'Medium'), tone: 'medium' },
+      { label: 'Low', value: countFindingsBySeverity(normalizedReport, 'Low'), tone: 'low' },
+    ],
+    raw: normalizedReport,
+  };
+};
+
+const buildFindingSnapshot = (finding, index = 0) => {
+  if (!finding || typeof finding !== 'object') {
+    return null;
+  }
+
+  const locationBits = [
+    finding.parameter ? `parameter ${finding.parameter}` : null,
+    finding.endpoint || finding.url ? `${finding.endpoint || finding.url}` : null,
+    finding.location ? `location ${finding.location}` : null,
+    finding.path ? `path ${finding.path}` : null,
+    finding.method ? `${finding.method} request` : null,
+  ].filter(Boolean);
+  const where = locationBits.length
+    ? locationBits.join(' | ')
+    : finding.target || finding.host || 'not explicitly stated';
+  const whyItMatters = finding.impact || finding.description || finding.evidence || finding.proof || 'The report did not include a full impact statement, so manual review is recommended.';
+  const avoidance = finding.recommendation || finding.remediation || finding.fix || 'Re-test after remediation and keep the issue tied to an owner and deadline.';
+
+  return {
+    title: finding.title || finding.name || finding.code || finding.id || `Finding ${index + 1}`,
+    severity: String(finding.severity || finding.status || 'info').trim() || 'info',
+    cause: finding.description || finding.proof || finding.evidence || 'No evidence details were supplied.',
+    fix: finding.recommendation || finding.remediation || 'Review manually and document a remediation path.',
+    where,
+    whyItMatters,
+    avoidance,
+  };
+};
+
+const buildLatestAnalysisSnapshot = (report) => {
+  const normalizedReport = normalizeScanReport(report);
+  const findings = Array.isArray(normalizedReport.findings) ? normalizedReport.findings : [];
+  const recommendations = Array.isArray(normalizedReport.recommendations) ? normalizedReport.recommendations : [];
+  const issueCards = findings.slice(0, 3).map((finding, index) => {
+    const snapshot = buildFindingSnapshot(finding, index);
+    return snapshot
+      ? {
+          id: `${normalizedReport.id || 'report'}-${index}`,
+          ...snapshot,
+        }
+      : null;
+  }).filter(Boolean);
+
+  return {
+    issueCards,
+    fallbackFix: recommendations[0] || 'Run a deeper scan or enable additional modules for broader coverage.',
+  };
+};
 
 const formatHeaderValue = (value) => {
   const normalizedValue = String(value || 'Missing');
@@ -217,24 +416,55 @@ const formatHeaderValue = (value) => {
 };
 
 const buildScanReportPdf = (report) => {
-  const severityCounts = report.summary?.severity_counts || {};
-  const findings = Array.isArray(report.findings) ? report.findings : [];
-  const checks = Array.isArray(report.checks) ? report.checks : [];
-  const headers = report.headers && typeof report.headers === 'object' ? report.headers : {};
-  const recommendations = Array.isArray(report.recommendations) && report.recommendations.length
-    ? report.recommendations
+  const normalizedReport = normalizeScanReport(report);
+  const findings = Array.isArray(normalizedReport.findings) ? normalizedReport.findings : [];
+  const checks = Array.isArray(normalizedReport.checks) ? normalizedReport.checks : [];
+  const parameterInventory = Array.isArray(normalizedReport.parameter_inventory) ? normalizedReport.parameter_inventory : [];
+  const formInventory = Array.isArray(normalizedReport.form_inventory) ? normalizedReport.form_inventory : [];
+  const activeValidationResults = Array.isArray(normalizedReport.active_validation_results) ? normalizedReport.active_validation_results : [];
+  const toolAvailability = Array.isArray(normalizedReport.tool_availability) ? normalizedReport.tool_availability : [];
+  const headers = normalizedReport.headers && typeof normalizedReport.headers === 'object' ? normalizedReport.headers : {};
+  const severityCounts = normalizedReport.summary?.severity_counts || findings.reduce((acc, finding) => {
+    if (!finding || typeof finding !== 'object') {
+      return acc;
+    }
+    const severity = String(finding.severity || finding.status || '').trim().toLowerCase();
+    if (!severity) {
+      return acc;
+    }
+    acc[severity] = (acc[severity] || 0) + 1;
+    return acc;
+  }, {});
+  const recommendations = Array.isArray(normalizedReport.recommendations) && normalizedReport.recommendations.length
+    ? normalizedReport.recommendations
     : [
       'Re-run the scan after remediation to confirm risk reduction.',
       'Prioritize exploitable issues before routine hardening tasks.',
       'Keep a dated copy of this report with the remediation owner and next review date.',
     ];
-  const score = report.score || `${report.risk_score || 0}/100`;
-  const risk = report.risk_label || report.risk || 'Unknown Risk';
-  const generatedDate = `${report.date || ''} ${report.time || ''}`.trim() || new Date().toLocaleString('en-US');
+  const findingSnapshots = findings.slice(0, 3).map((finding, index) => buildFindingSnapshot(finding, index)).filter(Boolean);
+  const score = normalizedReport.score || `${normalizedReport.risk_score || 0}/100`;
+  const risk = normalizedReport.risk_label || normalizedReport.risk || 'Unknown Risk';
+  const coverage = deriveScanCoverage(normalizedReport);
+  const confidence = deriveScanConfidence(normalizedReport);
+  const generatedDate = `${normalizedReport.date || ''} ${normalizedReport.time || ''}`.trim() || new Date().toLocaleString('en-US');
+  const whereIssueIs = findingSnapshots.length
+    ? findingSnapshots.map((snapshot) => snapshot.where).filter(Boolean).join(' | ')
+    : 'No exact hotspot was listed in the findings data.';
+  const whatItMeans = findingSnapshots.length
+    ? `The scan produced ${findingSnapshots.length} highlighted issue(s). That means the target has at least one actionable weakness that should be triaged before the next release or re-scan.`
+    : 'The scan did not return active findings, but the report still documents coverage and evidence so the absence of issues can be trusted with context.';
+  const howToAvoidIt = findingSnapshots.length
+    ? findingSnapshots.map((snapshot) => snapshot.avoidance).filter(Boolean)
+    : [
+        'Keep scanning with the deeper profile when you want broader assurance.',
+        'Re-test after any code or infrastructure change.',
+        'Maintain the same scan owner and remediation deadline for follow-up.',
+      ];
 
   return buildBrandedPdfBlob({
     title: 'Vulnerability Scan Report',
-    subtitle: `Target intelligence pack for ${report.target || report.url || 'selected website'} with evidence, risk lanes, and remediation guidance.`,
+    subtitle: `Target intelligence pack for ${normalizedReport.target || normalizedReport.url || 'selected website'} with evidence, risk lanes, and remediation guidance.`,
     eyebrow: 'Live Web Exposure Report',
     generatedAt: generatedDate,
     classification: 'CLIENT-READY SECURITY REPORT',
@@ -242,21 +472,37 @@ const buildScanReportPdf = (report) => {
       { label: 'Risk', value: risk, fill: '#fff5f6', valueColor: '#d8324a', hint: 'Priority lane' },
       { label: 'Score', value: score, fill: '#f3f0ff', valueColor: '#6c5ce7', hint: 'Security posture' },
       { label: 'Findings', value: String(findings.length), fill: '#eef6ff', valueColor: '#0b66c3', hint: 'Detected issues' },
-      { label: 'Checks', value: String(report.summary?.checks_run || checks.length || 0), fill: '#eefbf7', valueColor: '#11855d', hint: 'Signals tested' },
-      { label: 'HTTP', value: String(report.http_status || 'N/A'), fill: '#fff8e8', valueColor: '#b35d00', hint: report.server || 'Server check' },
-      { label: 'Duration', value: report.duration || '0.0s', fill: '#f7f9ff', valueColor: '#151a32', hint: report.scan_mode || 'scan mode' },
+      { label: 'Params', value: String(parameterInventory.length), fill: '#f8f5ff', valueColor: '#6c5ce7', hint: 'Discovered inputs' },
+      { label: 'Forms', value: String(formInventory.length), fill: '#fff7ed', valueColor: '#b45309', hint: 'Form inventory' },
+      { label: 'Coverage', value: `${coverage}%`, fill: '#eefbf7', valueColor: '#11855d', hint: 'Executed checks' },
+      { label: 'Confidence', value: `${confidence}%`, fill: '#fff1f8', valueColor: '#c0266f', hint: 'Scan quality' },
+      { label: 'Checks', value: String(normalizedReport.summary?.checks_run || checks.length || 0), fill: '#eefbf7', valueColor: '#11855d', hint: 'Signals tested' },
+      { label: 'HTTP', value: String(normalizedReport.http_status || 'N/A'), fill: '#fff8e8', valueColor: '#b35d00', hint: normalizedReport.server || 'Server check' },
+      { label: 'Duration', value: normalizedReport.duration || '0.0s', fill: '#f7f9ff', valueColor: '#151a32', hint: normalizedReport.scan_mode || 'scan mode' },
     ],
     sections: [
       {
         title: 'Executive Summary',
         kicker: 'Overview',
-        body: `Threat Hunters reviewed ${report.target || report.url || 'the target'} and produced a ${risk} assessment with score ${score}. This report is structured for fast decision-making: severity, evidence, technical checks, and recommended next moves.`,
+        body: `Threat Hunters reviewed ${normalizedReport.target || normalizedReport.url || 'the target'} and produced a ${risk} assessment with score ${score}. This report is structured for fast decision-making: severity, evidence, technical checks, and recommended next moves.`,
         accent: '#7c6cff',
         rows: [
-          { label: 'Report ID', value: report.id || 'Live scan', detail: `Reference: ${report.reference || 'Not available'}` },
-          { label: 'Target', value: report.target || report.url || 'Not available', detail: `Final URL: ${report.url || report.target || 'Not available'}` },
-          { label: 'Response', value: report.http_status || 'Unknown', detail: `Server: ${report.server || 'Not disclosed'} | Content: ${report.content_type || 'Unknown'} | Length: ${report.content_length || 'Unknown'}` },
+          { label: 'Report ID', value: normalizedReport.id || 'Live scan', detail: `Reference: ${normalizedReport.reference || 'Not available'}` },
+          { label: 'Target', value: normalizedReport.target || normalizedReport.url || 'Not available', detail: `Final URL: ${normalizedReport.url || normalizedReport.target || 'Not available'}` },
+          { label: 'Response', value: normalizedReport.http_status || 'Unknown', detail: `Server: ${normalizedReport.server || 'Not disclosed'} | Content: ${normalizedReport.content_type || 'Unknown'} | Length: ${normalizedReport.content_length || 'Unknown'}` },
         ],
+      },
+      {
+        title: 'What This Means',
+        kicker: 'Plain English',
+        body: whatItMeans,
+        accent: '#6c5ce7',
+      },
+      {
+        title: 'Where The Issue Is',
+        kicker: 'Location Clues',
+        body: whereIssueIs,
+        accent: '#ff8b3d',
       },
       {
         title: 'Severity Lanes',
@@ -266,6 +512,20 @@ const buildScanReportPdf = (report) => {
         severityCounts,
       },
       {
+        title: 'Tool Availability',
+        kicker: 'Scanner Runtime',
+        body: 'External tools are reported here so missing dependencies reduce coverage and never look like successful checks.',
+        accent: '#4eb6ff',
+        rows: toolAvailability.length
+          ? toolAvailability.slice(0, 18).map((tool) => ({
+            label: tool.tool || 'tool',
+            value: tool.available ? 'Available' : 'Missing',
+            tone: tool.available ? 'Success' : 'Info',
+            detail: `Path: ${tool.path || 'n/a'} | Version: ${tool.version || 'n/a'} | Used: ${tool.used ? 'yes' : 'no'} | Reason: ${tool.reason || 'ready'}`,
+          }))
+          : [{ label: 'Tools', value: 'Not attached', detail: 'No tool inventory was attached to this report.' }],
+      },
+      {
         title: 'TLS & Transport Posture',
         kicker: 'Encrypted Channel',
         body: 'Transport security is reviewed separately because expired certificates, weak TLS posture, or missing issuer data can turn a clean app into an operational risk.',
@@ -273,20 +533,20 @@ const buildScanReportPdf = (report) => {
         rows: [
           {
             label: 'TLS Validation',
-            value: report.tls?.valid === false ? 'Needs review' : report.tls ? 'Valid' : 'Not scanned',
-            tone: report.tls?.valid === false ? 'High' : report.tls ? 'Success' : 'Info',
-            detail: report.tls?.valid === false
+            value: normalizedReport.tls?.valid === false ? 'Needs review' : normalizedReport.tls ? 'Valid' : 'Not scanned',
+            tone: normalizedReport.tls?.valid === false ? 'High' : normalizedReport.tls ? 'Success' : 'Info',
+            detail: normalizedReport.tls?.valid === false
               ? 'Certificate validation returned a failing signal.'
               : 'Certificate validation did not surface a blocking issue in the available data.',
           },
           {
             label: 'Issuer',
-            value: report.tls?.issuer || 'Not available',
+            value: normalizedReport.tls?.issuer || 'Not available',
             detail: 'Use this to confirm the certificate chain matches the expected provider.',
           },
           {
             label: 'Expiry',
-            value: report.tls?.expires || 'Not available',
+            value: normalizedReport.tls?.expires || 'Not available',
             detail: 'Schedule renewal before expiry and keep monitoring alerts active.',
           },
         ],
@@ -295,15 +555,18 @@ const buildScanReportPdf = (report) => {
         title: 'Finding Evidence',
         kicker: 'What Changed',
         body: findings.length
-          ? 'Each finding includes the business impact and a clear remediation path so the report can move directly into action.'
+          ? 'Each finding includes the business impact, where the issue lives, and a clear remediation path so the report can move directly into action.'
           : 'No findings were returned by the selected checks. Keep monitoring and run a deeper scan for stronger assurance.',
         accent: '#00c2ff',
         items: findings.length
-          ? findings.map((finding, index) => ({
-            tone: finding.severity || 'Info',
-            title: `${index + 1}. [${finding.severity || 'Info'}] ${finding.title || finding.code || 'Finding'}`,
-            detail: `${finding.description || 'No impact description supplied.'} Fix: ${finding.recommendation || 'Review manually and document remediation.'}`,
-          }))
+          ? findings.map((finding, index) => {
+            const snapshot = buildFindingSnapshot(finding, index);
+            return {
+              tone: snapshot?.severity || 'Info',
+              title: `${index + 1}. [${snapshot?.severity || 'Info'}] ${snapshot?.title || 'Finding'}`,
+              detail: `Why it matters: ${snapshot?.whyItMatters || snapshot?.cause || 'No evidence supplied.'} Where: ${snapshot?.where || 'not stated'} Fix: ${snapshot?.avoidance || snapshot?.fix || 'Review manually and document remediation.'}`,
+            };
+          })
           : ['No findings detected by the selected checks.'],
       },
       {
@@ -312,13 +575,58 @@ const buildScanReportPdf = (report) => {
         body: 'These checks show the evidence trail behind the final score. Failed or warning checks deserve follow-up even when the headline risk is low.',
         accent: '#25c799',
         rows: checks.length
-          ? checks.slice(0, 18).map((check) => ({
-            label: check.name || 'Security check',
-            value: check.status || 'Info',
-            tone: check.status === 'Failed' ? 'High' : check.status === 'Passed' ? 'Success' : 'Info',
-            detail: `${check.details || 'No details supplied.'}${check.evidence ? ` Evidence: ${check.evidence}` : ''}`,
-          }))
+          ? checks.slice(0, 18).map((check) => {
+            const findingCount = Number.isFinite(Number(check.finding_count)) ? Number(check.finding_count) : null;
+            return {
+              label: check.name || 'Security check',
+              value: check.status || 'Info',
+              tone: check.status === 'Failed' ? 'High' : check.status === 'Passed' ? 'Success' : 'Info',
+              detail: `${check.details || 'No details supplied.'}${findingCount !== null ? ` Findings: ${findingCount}.` : ''}${check.evidence ? ` Evidence: ${check.evidence}` : ''}`,
+            };
+          })
           : [{ label: 'Checks', value: 'Not attached', detail: 'No detailed checks were attached to this report.' }],
+      },
+      {
+        title: 'Parameter Inventory',
+        kicker: 'Attack Surface',
+        body: 'Discovered URL parameters are listed with candidate vulnerability classes and whether active validation touched them.',
+        accent: '#0b66c3',
+        rows: parameterInventory.length
+          ? parameterInventory.slice(0, 18).map((item) => ({
+            label: `${item.method || 'GET'} ${item.endpoint || item.url || 'Endpoint'} :: ${item.parameter || 'parameter'}`,
+            value: item.status || 'not_tested',
+            tone: item.status === 'confirmed' ? 'Critical' : item.status === 'tested_candidate' ? 'Medium' : item.status === 'tested_not_confirmed' ? 'Success' : 'Info',
+            detail: `Candidates: ${(item.candidates || []).join(', ') || 'None'} | Tests: ${(item.tests || []).join(', ') || 'not run'}`,
+          }))
+          : [{ label: 'Parameters', value: 'None', detail: 'No URL parameters were discovered in the captured crawl.' }],
+      },
+      {
+        title: 'Active Validation Results',
+        kicker: 'Test Evidence',
+        body: 'These records show tested and skipped validation groups, including the reason when no proof was produced.',
+        accent: '#25c799',
+        rows: activeValidationResults.length
+          ? activeValidationResults.slice(0, 24).map((item) => ({
+            label: `${item.test_type || 'validation'}${item.parameter ? ` :: ${item.parameter}` : ''}`,
+            value: item.status || 'unknown',
+            tone: item.status === 'confirmed' ? 'Critical' : item.status === 'candidate' ? 'Medium' : item.status === 'not_confirmed' ? 'Success' : item.status === 'skipped' ? 'Info' : 'Info',
+            detail: `${item.method || 'GET'} ${item.url || 'n/a'} | ${item.reason || 'no reason'} | payloads=${item.payloads_sent ?? 0}`,
+          }))
+          : [{ label: 'Validation', value: 'No records', detail: 'No active validation telemetry was attached to this report.' }],
+      },
+      {
+        title: 'Form Inventory',
+        kicker: 'Submitted Surfaces',
+        body: 'Forms discovered during crawling are listed with inputs and CSRF-token visibility so validation gaps are explicit.',
+        accent: '#ffb347',
+        rows: formInventory.length
+          ? formInventory.slice(0, 12).map((form) => ({
+            label: `${form.method || 'GET'} ${form.action || 'Form action'}`,
+            value: `${Array.isArray(form.inputs) ? form.inputs.length : 0} inputs`,
+            tone: form.has_csrf_token ? 'Success' : 'Info',
+            detail: `Page: ${form.page || 'unknown'} | Inputs: ${Array.isArray(form.inputs) ? form.inputs.map((input) => input.name || input).filter(Boolean).slice(0, 8).join(', ') : 'n/a'}`,
+          }))
+          : [{ label: 'Forms', value: 'None', detail: 'No HTML forms were captured by the selected scan profile.' }],
       },
       {
         title: 'Security Header Snapshot',
@@ -334,11 +642,14 @@ const buildScanReportPdf = (report) => {
           : [{ label: 'Headers', value: 'No snapshot', detail: 'No header snapshot was attached to this report.' }],
       },
       {
-        title: 'Prioritized Recommendations',
+        title: 'How To Avoid It',
         kicker: 'Next Moves',
-        body: 'Use this section as the remediation checklist for the next sprint or handoff conversation.',
+        body: 'Use this section as the remediation checklist for the next sprint or handoff conversation. It translates the findings into prevention steps instead of only listing issues.',
         accent: '#7c6cff',
-        items: recommendations.map((recommendation, index) => `${index + 1}. ${recommendation}`),
+        items: [
+          ...howToAvoidIt.map((item, index) => `${index + 1}. ${item}`),
+          ...recommendations.map((recommendation, index) => `${index + 1}. ${recommendation}`),
+        ].filter(Boolean).slice(0, 10),
       },
     ],
   });
@@ -367,7 +678,7 @@ const loadStoredScanReports = () => {
   try {
     const storedReports = window.localStorage.getItem(SCAN_REPORTS_STORAGE_KEY);
     const parsedReports = JSON.parse(storedReports || '[]');
-    return Array.isArray(parsedReports) ? parsedReports : [];
+    return Array.isArray(parsedReports) ? parsedReports.map(normalizeScanReport) : [];
   } catch {
     return [];
   }
@@ -397,12 +708,13 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   const [scanError, setScanError] = useState('');
   const [scanReports, setScanReports] = useState(loadStoredScanReports);
   const [isAdvancedScanOpen, setIsAdvancedScanOpen] = useState(false);
-  const [advancedScanMode, setAdvancedScanMode] = useState('quick');
-  const [advancedFastMode, setAdvancedFastMode] = useState(true);
+  const [advancedScanMode, setAdvancedScanMode] = useState('deep');
+  const [advancedCookieHeader, setAdvancedCookieHeader] = useState('');
+  const [advancedPermissionConfirmed, setAdvancedPermissionConfirmed] = useState(true);
   const [advancedScanChecks, setAdvancedScanChecks] = useState(() => ({ ...ADVANCED_SCAN_DEFAULTS }));
   const [dashboardScanTypes, setDashboardScanTypes] = useState({
-    quick: true,
-    deep: false,
+    quick: false,
+    deep: true,
   });
   const [reportSearchQuery, setReportSearchQuery] = useState('');
   const [profileTwoFactorEnabled, setProfileTwoFactorEnabled] = useState(false);
@@ -420,6 +732,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   });
   const [profileNotice, setProfileNotice] = useState('');
   const [settingsNotice, setSettingsNotice] = useState('');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsForm, setSettingsForm] = useState({
     language: 'English (US)',
     timezone: 'UTC+02:00 (Cairo)',
@@ -482,7 +795,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
         language: result.data.language || 'English (US)',
         timezone: result.data.timezone || 'UTC+02:00 (Cairo)',
       });
-      setScanMode(result.data.scanMode || 'quick');
+      setScanMode(result.data.scanMode === 'deep' ? 'deep' : 'quick');
       setProfileTwoFactorEnabled(Boolean(result.data.twoFactorEnabled));
       setNotificationPrefs((current) => ({
         ...current,
@@ -515,6 +828,29 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
     };
   }, [activeSection, isAdvancedScanOpen]);
 
+  useEffect(() => {
+    let ignore = false;
+
+    const loadServerReports = async () => {
+      try {
+        const payload = await scannerAPI.getReports(12);
+        const items = Array.isArray(payload?.items) ? payload.items.map(normalizeScanReport) : [];
+        if (!ignore && items.length) {
+          setScanReports(items);
+          storeScanReports(items);
+        }
+      } catch {
+        // Local reports remain available when the authenticated report endpoint is unavailable.
+      }
+    };
+
+    loadServerReports();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const navigateToSection = (section) => {
     setActiveSection(section);
     if (!onNavigate) return;
@@ -533,20 +869,24 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
       const enabledScanTypes = Object.entries(dashboardScanTypes)
         .filter(([, enabled]) => enabled)
         .map(([key]) => key);
+      const scanModeForBackend = enabledScanTypes.includes('deep') ? 'deep' : 'light';
 
       setScanError('');
       setIsScanning(true);
 
       const result = await scannerAPI.scanWebsite({
         target,
-        scan_mode: enabledScanTypes.includes('deep') ? 'deep' : 'quick',
+        scan_mode: scanModeForBackend,
+        cookie_header: advancedCookieHeader.trim() || undefined,
+        confirm_permission: advancedPermissionConfirmed,
         modules: {
           dashboard: enabledScanTypes,
           advanced: advancedScanChecks,
         },
       });
 
-      const nextReports = [result, ...scanReports].slice(0, 12);
+      const normalizedResult = normalizeScanReport(result);
+      const nextReports = [normalizedResult, ...scanReports].slice(0, 12);
       storeScanReports(nextReports);
       setScanReports(nextReports);
       navigateToSection('reports');
@@ -558,20 +898,47 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   };
 
   const toggleDashboardScanType = (key) => {
-    setDashboardScanTypes((prev) => ({ ...prev, [key]: !prev[key] }));
+    setDashboardScanTypes({
+      quick: key === 'quick',
+      deep: key === 'deep',
+    });
+    setAdvancedScanMode(key === 'deep' ? 'deep' : 'quick');
+  };
+
+  const changeAdvancedScanMode = (mode) => {
+    const normalizedMode = mode === 'deep' ? 'deep' : 'quick';
+    setAdvancedScanMode(normalizedMode);
+    setDashboardScanTypes({
+      quick: normalizedMode === 'quick',
+      deep: normalizedMode === 'deep',
+    });
   };
 
   const toggleAdvancedScanCheck = (key) => {
     setAdvancedScanChecks((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const applyAdvancedDemoPreset = () => {
+    setScanUrl('https://www.crmpixels.app/');
+    setAdvancedCookieHeader('security=low; PHPSESSID=demo');
+    setAdvancedPermissionConfirmed(true);
+    setAdvancedScanMode('deep');
+    setDashboardScanTypes({ quick: false, deep: true });
+    setAdvancedScanChecks({ ...ADVANCED_SCAN_DEFAULTS });
+    setScanError('');
+  };
+
   const toggleNotification = (key) => {
-    setNotificationPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+    const nextPrefs = { ...notificationPrefs, [key]: !notificationPrefs[key] };
+    setNotificationPrefs(nextPrefs);
+    void saveSettings({ notifications: nextPrefs });
     setSettingsNotice('');
   };
 
   const toggleReportPref = (key) => {
-    setReportPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+    const nextPrefs = { ...reportPrefs, [key]: !reportPrefs[key] };
+    setReportPrefs(nextPrefs);
+    void saveSettings({ reports: nextPrefs });
     setSettingsNotice('');
   };
 
@@ -641,16 +1008,21 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
       ...overrides,
     };
 
-    const result = await updateSettings?.(payload);
-    if (!result?.success) {
-      setSettingsNotice(result?.error || 'Settings could not be saved.');
-      setProfileNotice(result?.error || 'Security setting could not be saved.');
-      return false;
-    }
+    setIsSavingSettings(true);
+    try {
+      const result = await updateSettings?.(payload);
+      if (!result?.success) {
+        setSettingsNotice(result?.error || 'Settings could not be saved.');
+        setProfileNotice(result?.error || 'Security setting could not be saved.');
+        return false;
+      }
 
-    setSettingsNotice('Settings saved successfully.');
-    setProfileNotice('Security settings saved successfully.');
-    return true;
+      setSettingsNotice('Settings saved successfully.');
+      setProfileNotice('Security settings saved successfully.');
+      return true;
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   const toggleTwoFactor = async () => {
@@ -675,6 +1047,11 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
 
   const reportCards = scanReports.map(reportToCard);
   const latestReport = scanReports[0] || null;
+  const latestRiskScore = latestReport ? deriveRiskScore(latestReport) : 0;
+  const latestRiskLabel = latestReport ? deriveRiskLabel(latestReport) : 'No scan completed yet';
+  const latestScanCoverage = latestReport ? deriveScanCoverage(latestReport) : 0;
+  const latestScanConfidence = latestReport ? deriveScanConfidence(latestReport) : 0;
+  const latestAnalysis = latestReport ? buildLatestAnalysisSnapshot(latestReport) : null;
   const profileDisplayName = profileForm.username || (user?.email ? user.email.split('@')[0] : '') || 'Threat Hunters User';
   const profileEmail = profileForm.email || user?.email || 'No email available';
   const profileInitial = profileDisplayName.trim().charAt(0).toUpperCase() || 'U';
@@ -736,12 +1113,9 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
         }
       }}
     >
-      <section className="db-advanced-modal" role="dialog" aria-modal="true" aria-labelledby="advanced-scan-title">
-        <div className="db-advanced-head">
-          <div>
-            <h2 id="advanced-scan-title">Advanced Scan Settings</h2>
-            <p>Customize your scanning behavior based on depth and performance.</p>
-          </div>
+      <section className="db-advanced-modal db-dragon-modal" role="dialog" aria-modal="true" aria-labelledby="advanced-scan-title">
+        <div className="db-dragon-head">
+          <h2 id="advanced-scan-title">ReconTool Dragon</h2>
           <button
             type="button"
             className="db-advanced-close"
@@ -752,170 +1126,79 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           </button>
         </div>
 
-        <div className={`db-advanced-body ${advancedScanMode === 'quick' ? 'is-quick' : 'is-deep'}`}>
-          <div className="db-advanced-mode-grid">
-            {ADVANCED_SCAN_MODE_CARDS.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={`db-advanced-mode-card ${advancedScanMode === item.key ? 'active' : ''}`}
-                onClick={() => setAdvancedScanMode(item.key)}
-              >
-                <span className="db-advanced-mode-icon">
-                  <item.icon size={13} />
-                </span>
-                <span className="db-advanced-mode-copy">
-                  <strong>{item.title}</strong>
-                  <small>{item.description}</small>
-                </span>
-              </button>
-            ))}
+        <div className="db-dragon-body">
+          <label className="db-dragon-field db-dragon-field-full">
+            <span>Target</span>
+            <input
+              type="url"
+              value={scanUrl}
+              placeholder="https://www.crmpixels.app/"
+              onChange={(event) => {
+                setScanUrl(event.target.value);
+                setScanError('');
+              }}
+            />
+          </label>
+
+          <div className="db-dragon-field-grid">
+            <label className="db-dragon-field">
+              <span>Profile</span>
+              <select value={advancedScanMode} onChange={(event) => changeAdvancedScanMode(event.target.value)}>
+                <option value="quick">Quick</option>
+                <option value="deep">Deep</option>
+              </select>
+            </label>
+
+            <label className="db-dragon-field">
+              <span>Cookie Header</span>
+              <input
+                type="text"
+                value={advancedCookieHeader}
+                placeholder="security=low; PHPSESSID=..."
+                onChange={(event) => setAdvancedCookieHeader(event.target.value)}
+              />
+            </label>
           </div>
 
-          {advancedScanMode === 'quick' ? (
-            <>
-              <article className="db-advanced-card">
-                <div className="db-advanced-card-head">
-                  <Globe size={13} />
-                  <h3>Basic Scan Options</h3>
-                </div>
-                <div className="db-advanced-check-list">
-                  {ADVANCED_QUICK_BASIC_OPTIONS.map((option) => (
-                    <label key={option.key} className="db-advanced-check">
-                      <input
-                        type="checkbox"
-                        checked={advancedScanChecks[option.key]}
-                        onChange={() => toggleAdvancedScanCheck(option.key)}
-                      />
-                      <span className="db-advanced-checkmark" />
-                      <span className="db-advanced-check-label">
-                        <option.icon size={11} />
-                        <span>{option.label}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </article>
+          <label className="db-dragon-permission">
+            <input
+              type="checkbox"
+              checked={advancedPermissionConfirmed}
+              onChange={() => setAdvancedPermissionConfirmed((current) => !current)}
+            />
+            <span>I have permission to scan this public target</span>
+          </label>
 
-              <article className="db-advanced-card">
-                <div className="db-advanced-card-head">
-                  <Zap size={13} />
-                  <h3>Performance</h3>
-                </div>
-                <div className="db-advanced-switch-row">
-                  <div>
-                    <strong>Enable Fast Mode</strong>
-                    <p>Skip delays and heavy scripts</p>
-                  </div>
-                  <label className="db-advanced-switch">
-                    <input
-                      type="checkbox"
-                      checked={advancedFastMode}
-                      onChange={() => setAdvancedFastMode((prev) => !prev)}
-                    />
-                    <span className="db-advanced-switch-track" />
-                  </label>
-                </div>
-              </article>
-
-              <div className="db-advanced-note db-advanced-note-warning">
-                <AlertTriangle size={16} />
-                <div>
-                  <strong>Note:</strong>
-                  <p>Quick Scan provides basic insights only and may miss deeper vulnerabilities.</p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <article className="db-advanced-card db-advanced-card-port">
-                <div className="db-advanced-card-head">
-                  <Wifi size={13} />
-                  <h3>Port &amp; Network Scanning</h3>
-                </div>
-                <div className="db-advanced-check-list">
-                  {ADVANCED_DEEP_PORT_OPTIONS.map((option) => (
-                    <label key={option.key} className="db-advanced-check">
-                      <input
-                        type="checkbox"
-                        checked={advancedScanChecks[option.key]}
-                        onChange={() => toggleAdvancedScanCheck(option.key)}
-                      />
-                      <span className="db-advanced-checkmark" />
-                      <span className="db-advanced-check-label">
-                        <option.icon size={11} />
-                        <span>{option.label}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </article>
-
-              <article className="db-advanced-card db-advanced-card-web">
-                <div className="db-advanced-card-head">
-                  <Globe size={13} />
-                  <h3>Web Vulnerability Testing</h3>
-                </div>
-                <div className="db-advanced-check-list">
-                  {ADVANCED_DEEP_WEB_OPTIONS.map((option) => (
-                    <label key={option.key} className="db-advanced-check">
-                      <input
-                        type="checkbox"
-                        checked={advancedScanChecks[option.key]}
-                        onChange={() => toggleAdvancedScanCheck(option.key)}
-                      />
-                      <span className="db-advanced-checkmark" />
-                      <span className="db-advanced-check-label">
-                        <option.icon size={11} />
-                        <span>{option.label}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </article>
-
-              <article className="db-advanced-card danger">
-                <div className="db-advanced-card-head danger">
-                  <AlertTriangle size={13} />
-                  <h3>Optional Risky Tests</h3>
-                </div>
-                <div className="db-advanced-check-list">
-                  {ADVANCED_DEEP_RISK_OPTIONS.map((option) => (
-                    <label key={option.key} className="db-advanced-check danger">
-                      <input
-                        type="checkbox"
-                        checked={advancedScanChecks[option.key]}
-                        onChange={() => toggleAdvancedScanCheck(option.key)}
-                      />
-                      <span className="db-advanced-checkmark" />
-                      <span className="db-advanced-check-label">
-                        <option.icon size={11} />
-                        <span>{option.label}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-
-                <div className="db-advanced-note db-advanced-note-danger">
-                  <AlertTriangle size={16} />
-                  <div>
-                    <strong>Warning:</strong>
-                    <p>These checks may generate significant traffic. Use with permission.</p>
-                  </div>
-                </div>
-              </article>
-            </>
-          )}
+          <div className="db-dragon-modules-head">MODULES</div>
+          <div className="db-dragon-module-grid">
+            {ADVANCED_SCAN_MODULES.map((moduleItem) => (
+              <label key={moduleItem.key} className="db-dragon-module">
+                <input
+                  type="checkbox"
+                  checked={Boolean(advancedScanChecks[moduleItem.key])}
+                  onChange={() => toggleAdvancedScanCheck(moduleItem.key)}
+                />
+                <span>{moduleItem.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
-        <div className="db-advanced-actions">
-          <button type="button" className="db-mini-btn db-advanced-cancel" onClick={() => setIsAdvancedScanOpen(false)}>
-            Cancel
+        <div className="db-dragon-actions">
+          <button type="button" className="db-primary-btn db-dragon-start" onClick={startScan} disabled={isScanning}>
+            {isScanning ? 'Scanning...' : 'Start Scan'}
           </button>
-          <button type="button" className="db-primary-btn db-advanced-apply" onClick={() => setIsAdvancedScanOpen(false)}>
-            Apply Settings
+          <button type="button" className="db-mini-btn db-dragon-demo" onClick={applyAdvancedDemoPreset}>
+            Demo Preset
           </button>
         </div>
+
+        {scanError && (
+          <div className="db-scan-error db-dragon-error" role="alert">
+            <AlertTriangle size={14} />
+            <span>{scanError}</span>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -1015,15 +1298,17 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
                   r="34"
                   className="db-risk-progress"
                   strokeDasharray={2 * Math.PI * 34}
-                  strokeDashoffset={toDashOffset(latestReport?.risk_score || 0)}
+                  strokeDashoffset={toDashOffset(latestRiskScore)}
                 />
               </svg>
-              <strong>{latestReport ? `${latestReport.risk_score}%` : '0%'}</strong>
+              <strong>{latestReport ? `${latestRiskScore}%` : '0%'}</strong>
             </div>
             <p className="db-risk-copy">
-              {latestReport ? latestReport.risk_label : 'No scan completed yet'}
+              {latestReport ? latestRiskLabel : 'No scan completed yet'}
               <br />
               {latestReport ? latestReport.target : 'Start a scan to calculate risk'}
+              <br />
+              {latestReport ? `Coverage ${latestScanCoverage}% · Confidence ${latestScanConfidence}%` : ''}
             </p>
           </article>
         </section>
@@ -1165,10 +1450,31 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
               : 'Run a website scan to generate live security insights, risk scoring, recommendations, and a downloadable report.'}
           </p>
 
-          <button type="button" className="db-secondary-btn db-report-btn" onClick={() => setActiveSection('reports')}>
-            View Report
-            <ChevronRight size={14} />
-          </button>
+          {latestAnalysis && latestAnalysis.issueCards.length > 0 && (
+            <div className="db-analysis-grid">
+              {latestAnalysis.issueCards.map((issue, index) => (
+                <article className="db-analysis-card" key={issue.id}>
+                  <span className="db-analysis-badge">{index + 1}</span>
+                  <h3>{issue.title}</h3>
+                  <p>{issue.cause}</p>
+                  <small>Fix: {issue.fix}</small>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <div className="db-insight-actions">
+            <button type="button" className="db-secondary-btn db-report-btn" onClick={() => setActiveSection('reports')}>
+              View Report
+              <ChevronRight size={14} />
+            </button>
+            {latestReport && (
+              <button type="button" className="db-secondary-btn db-report-btn ghost" onClick={() => downloadScanReport(latestReport)}>
+                Export PDF
+                <Download size={14} />
+              </button>
+            )}
+          </div>
         </section>
 
         <section className="db-panel db-ai-summary-panel">
@@ -1530,7 +1836,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
                 </div>
 
                 <div className="db-report-breakdown-grid">
-                  {card.breakdown.map((item) => (
+                  {card.breakdown.map((item, index) => (
                     <article key={`${card.id}-${card.reference}-${item.label}-${index}`} className="db-report-breakdown-item">
                       <strong className={item.tone}>{item.value}</strong>
                       <span>{item.label}</span>
@@ -1610,8 +1916,21 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   const renderSettingsSection = () => (
     <div className="db-settings-layout">
       <header className="db-settings-hero">
-        <h1>Settings</h1>
-        <p>Configure your application preferences</p>
+        <div className="db-settings-hero-copy">
+          <h1>Settings</h1>
+          <p>Configure the controls that actually affect your console behavior.</p>
+        </div>
+
+        <div className="db-settings-hero-actions">
+          <span className="db-settings-live-badge">
+            <Wifi size={14} />
+            Live sync enabled
+          </span>
+          {settingsNotice && <p className="db-user-profile-form-note db-settings-notice">{settingsNotice}</p>}
+          <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()} disabled={isSavingSettings}>
+            {isSavingSettings ? 'Saving...' : 'Save All Settings'}
+          </button>
+        </div>
       </header>
 
       <section className="db-settings-panel db-settings-panel-general">
@@ -1684,9 +2003,6 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           </div>
         </div>
 
-        <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()}>
-          Save General Settings
-        </button>
       </section>
 
       <section className="db-settings-panel">
@@ -1696,8 +2012,13 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           </span>
           <div className="db-settings-panel-copy">
             <h2>Notification Settings</h2>
-            <p>Manage your notification preferences</p>
+            <p>Manage notification delivery and keep each change synced instantly.</p>
           </div>
+        </div>
+
+        <div className="db-settings-panel-note">
+          <Wifi size={14} />
+          <span>Every toggle is saved automatically to your account.</span>
         </div>
 
         <div className="db-settings-toggle-list">
@@ -1719,9 +2040,6 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           ))}
         </div>
 
-        <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()}>
-          Save Notification Settings
-        </button>
       </section>
 
       <section className="db-settings-panel db-settings-panel-report">
@@ -1752,10 +2070,6 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           ))}
         </div>
 
-        <button type="button" className="db-user-profile-action-btn primary" onClick={() => saveSettings()}>
-          Save Report Settings
-        </button>
-        {settingsNotice && <p className="db-user-profile-form-note">{settingsNotice}</p>}
       </section>
     </div>
   );

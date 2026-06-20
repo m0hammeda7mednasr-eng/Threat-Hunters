@@ -36,7 +36,18 @@ Core Python dependencies:
 
 - httpx
 - beautifulsoup4
+- lxml
+- playwright
+- dnspython
+- tldextract
+- yarl
+- pydantic
+- tenacity
+- loguru
+- rich
 - jinja2
+- markdown
+- weasyprint
 
 Optional external tools
 -----------------------
