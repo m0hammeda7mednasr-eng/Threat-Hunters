@@ -3,7 +3,7 @@ github:
 virustotal:
   - "${c3a292bfdebe8a9166e3a1f6a275a825cfe297d04e33cf18abc443e77639aacf}"
 censys:
-  - "${CENSYS_API_ID}:${CENSYS_API_SECRET}"
+  - "${censys_6M4oUqRc_B9PZWLD3vhrskhxhuqHuH5gQ}"
 shodan:
   - "${SHODAN_API_KEY}"
 securitytrails:
