@@ -68,7 +68,23 @@ const formatReadTime = (content = "") => {
 };
 
 const normalizePosts = (payload) => {
-  const posts = Array.isArray(payload) ? payload : Array.isArray(payload?.posts) ? payload.posts : [];
+  const posts = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.value)
+      ? payload.value
+      : Array.isArray(payload?.posts)
+        ? payload.posts
+        : Array.isArray(payload?.blogs)
+          ? payload.blogs
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : Array.isArray(payload?.data)
+              ? payload.data
+              : payload?.id && payload?.title
+                ? [payload]
+                : payload?.blog && payload.blog.id
+                ? [payload.blog]
+                  : [];
   return posts.map(sanitizePost);
 };
 
@@ -143,7 +159,10 @@ const formatCategoryLabel = (value) => {
 
 const normalizeComments = (payload) => {
   if (Array.isArray(payload)) return payload.map(sanitizeComment);
+  if (Array.isArray(payload?.value)) return payload.value.map(sanitizeComment);
   if (Array.isArray(payload?.comments)) return payload.comments.map(sanitizeComment);
+  if (Array.isArray(payload?.items)) return payload.items.map(sanitizeComment);
+  if (Array.isArray(payload?.data)) return payload.data.map(sanitizeComment);
   return [];
 };
 
@@ -303,7 +322,17 @@ const BlogPage = ({
         blogAPI.getComments(postId).catch(() => []),
       ]);
 
-      const detail = Array.isArray(postPayload) ? postPayload[0] : postPayload;
+      const detail = Array.isArray(postPayload)
+        ? postPayload[0]
+        : postPayload?.value && !Array.isArray(postPayload.value)
+          ? postPayload.value
+          : postPayload?.blog
+            ? postPayload.blog
+            : postPayload?.data && !Array.isArray(postPayload.data)
+              ? postPayload.data
+              : postPayload?.item
+                ? postPayload.item
+                : postPayload;
       setSelectedPost(detail ? sanitizePost(detail) : null);
       setSelectedComments(normalizeComments(commentsPayload));
     } catch (err) {
