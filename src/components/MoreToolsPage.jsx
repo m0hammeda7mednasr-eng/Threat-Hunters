@@ -262,7 +262,6 @@ const validateToolInput = (activeTab, value) => {
 const buildPasswordResultView = (result) => {
   const count = Number(result?.count || result?.breach_count || 0);
   const breached = Boolean(result?.breached);
-  const riskLevel = result?.risk_level || (breached ? 'Critical' : 'Safe');
   const score = Number(result?.score || 0);
   const strength = result?.strength || 'Unknown';
   const entropyBits = Number(result?.entropy_bits || 0);
@@ -510,28 +509,6 @@ const buildEmailResultView = (result) => {
     ].filter(Boolean).join(' | ') || 'No breach metadata was returned.',
     fix: 'Treat the exposed account as compromised and rotate related credentials.',
   })) : [];
-  const whereIssueIs = breached
-    ? [
-        latestBreach?.title ? `Latest match: ${latestBreach.title}` : null,
-        latestBreach?.domain ? `Source domain: ${latestBreach.domain}` : null,
-        latestBreach?.breach_date ? `Breach date: ${latestBreach.breach_date}` : null,
-        exposedData.length ? `Exposed data classes: ${exposedData.slice(0, 6).join(', ')}` : null,
-      ].filter(Boolean).join(' | ')
-    : 'No breach source was returned, so there is no confirmed exposure location in the current lookup.';
-  const whatItMeans = breached
-    ? `This address appears in ${formatCount(breachCount)} breach record(s), with ${formatCount(verifiedCount)} verified and ${formatCount(stealerCount)} stealer-log hit(s). That means the account should be treated as exposed until credentials and recovery paths are refreshed.`
-    : 'No live breach hit was returned, which lowers immediate exposure risk, but it does not remove the need for unique passwords and periodic rechecks.';
-  const howToAvoidIt = breached
-    ? [
-        'Change the password for this inbox and any account that reused it.',
-        'Turn on MFA and review recovery email/phone settings.',
-        'Watch sign-ins and connected app access for the next few days.',
-      ]
-    : [
-        'Keep a unique password per inbox and avoid reuse across services.',
-        'Use a password manager so the account stays easy to maintain.',
-        'Recheck exposure periodically and rotate secrets if the risk profile changes.',
-      ];
   const recommendations = breached
     ? [
         'Rotate this password immediately.',
@@ -642,6 +619,28 @@ const buildEmailAnalysisPdf = (emailValue, resultView, rawResult) => {
     : ['Keep the address unique.', 'Use a manager for stored credentials.', 'Review exposure again later.'];
   const exposedData = Array.isArray(rawResult?.exposed_data) ? rawResult.exposed_data : [];
   const latestBreach = rawResult?.latest_breach || null;
+  const whereIssueIs = breached
+    ? [
+        latestBreach?.title ? `Latest match: ${latestBreach.title}` : null,
+        latestBreach?.domain ? `Source domain: ${latestBreach.domain}` : null,
+        latestBreach?.breach_date ? `Breach date: ${latestBreach.breach_date}` : null,
+        exposedData.length ? `Exposed data classes: ${exposedData.slice(0, 6).join(', ')}` : null,
+      ].filter(Boolean).join(' | ')
+    : 'No breach source was returned, so there is no confirmed exposure location in the current lookup.';
+  const whatItMeans = breached
+    ? `This address appears in ${formatCount(breachCount)} breach record(s), with ${formatCount(verifiedCount)} verified and ${formatCount(stealerCount)} stealer-log hit(s). Treat the inbox as exposed until the password, recovery paths, and active sessions are reviewed.`
+    : 'No live breach hit was returned, which lowers immediate exposure risk, but it does not replace unique passwords, MFA, and regular monitoring.';
+  const howToAvoidIt = breached
+    ? [
+        'Change the inbox password and any account that reused the same secret.',
+        'Enable MFA and review recovery email, phone, and active session settings.',
+        'Monitor sign-ins and connected app access for suspicious activity.',
+      ]
+    : [
+        'Keep a unique password for every inbox and avoid reuse across services.',
+        'Use a password manager so updates stay easy and consistent.',
+        'Recheck exposure periodically and rotate credentials if the risk profile changes.',
+      ];
 
   return buildBrandedPdfBlob({
     eyebrow: 'Email Exposure Report',

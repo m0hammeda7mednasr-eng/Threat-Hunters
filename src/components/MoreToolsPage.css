@@ -15,6 +15,7 @@
   --more-tools-warning-border: var(--risk-medium-border-strong);
   min-height: 100vh;
   background: var(--page-gradient);
+  overflow-x: clip;
 }
 
 .more-tools-hero {
@@ -391,8 +392,13 @@
 
 .more-tools-action-cluster {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
   align-items: stretch;
+}
+
+.more-tools-action-cluster > * {
+  flex: 1 1 180px;
 }
 
 .more-tools-scan-button,
@@ -483,6 +489,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.8rem;
+}
+
+.more-tools-tab-copy,
+.more-tools-live-note p,
+.more-tools-helper-row p,
+.more-tools-output-state span,
+.more-tools-output-tag,
+.more-tools-example-chip,
+.more-tools-summary-card,
+.more-tools-insight-card,
+.more-tools-progress-item {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .more-tools-output-status {
@@ -874,6 +893,13 @@
     flex-direction: column;
   }
 
+  .more-tools-scan-button,
+  .more-tools-download-button,
+  .more-tools-reset-button,
+  .more-tools-output-status {
+    width: 100%;
+  }
+
   .more-tools-helper-row,
   .more-tools-output-head {
     flex-direction: column;
@@ -906,10 +932,16 @@
   .more-tools-output-tag,
   .more-tools-example-chip {
     width: 100%;
+    justify-content: center;
   }
 
   .more-tools-tab-copy span {
     display: none;
+  }
+
+  .more-tools-tab {
+    min-height: 58px;
+    padding: 0.85rem;
   }
 }
 

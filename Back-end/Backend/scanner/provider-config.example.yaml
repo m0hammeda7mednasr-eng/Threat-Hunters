@@ -1,10 +1,6 @@
 github:
-  - "${GITHUB_TOKEN}"
+  - "${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}"
 virustotal:
-  - "${VIRUSTOTAL_API_KEY}"
+  - "${c3a292bfdebe8a9166e3a1f6a275a825cfe297d04e33cf18abc443e77639aacf}"
 censys:
-  - "${CENSYS_API_ID}:${CENSYS_API_SECRET}"
-shodan:
-  - "${SHODAN_API_KEY}"
-securitytrails:
-  - "${SECURITYTRAILS_API_KEY}"
+  - "${censys_6M4oUqRc_B9PZWLD3vhrskhxhuqHuH5gQ}"

@@ -91,7 +91,7 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
         console.error("Registration error:", err);
       }
     },
-    [formData, register, onSwitchToSignIn],
+    [formData, register],
   );
 
   const handleVerify = useCallback(
