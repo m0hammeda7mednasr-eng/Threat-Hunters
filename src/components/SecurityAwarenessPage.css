@@ -1588,3 +1588,207 @@
     justify-content: flex-start;
   }
 }
+
+/* Cohesive responsive polish */
+.security-awareness-page {
+  --awareness-shell-width: 1280px;
+}
+
+.awareness-shell {
+  width: min(var(--awareness-shell-width), calc(100% - max(32px, 5vw)));
+}
+
+.awareness-hero {
+  border-bottom: 0;
+}
+
+.awareness-hero__shell {
+  padding: 56px 0 40px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.awareness-hero__title,
+.awareness-hero__subtitle {
+  max-width: 760px;
+}
+
+.awareness-hero__subtitle {
+  margin: 14px 0 24px;
+}
+
+.awareness-hero__search {
+  width: min(760px, 100%);
+  min-height: 60px;
+  border-radius: 18px;
+}
+
+.awareness-section {
+  padding-bottom: 48px;
+}
+
+.awareness-section--live,
+.awareness-section--tips,
+.awareness-section--threats,
+.awareness-section--resources {
+  padding-top: 40px;
+}
+
+.awareness-section__header,
+.awareness-live__header {
+  margin-bottom: 24px;
+}
+
+.awareness-section__header {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.tips-grid,
+.resources-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.threats-grid,
+.downloads-grid,
+.awareness-live-grid {
+  align-items: stretch;
+}
+
+.tip-card,
+.threat-card,
+.resource-card,
+.awareness-live-card,
+.downloads-panel,
+.download-card {
+  border-radius: 22px;
+  box-shadow: 0 18px 44px rgba(7, 12, 28, 0.12);
+}
+
+.tip-card,
+.threat-card,
+.resource-card,
+.awareness-live-card,
+.downloads-panel {
+  padding: 24px;
+}
+
+.download-card {
+  padding: 18px;
+}
+
+.tip-card__description,
+.threat-card__heading p,
+.threat-card__list li,
+.resource-card__description,
+.downloads-panel__title-wrap p,
+.awareness-live-card__item p,
+.awareness-live-card__placeholder {
+  color: var(--text-secondary);
+}
+
+.resource-card__description,
+.threat-card__heading p {
+  max-width: none;
+}
+
+.resource-card__preview li,
+.download-card__content p {
+  color: var(--text-secondary);
+}
+
+.awareness-live__header {
+  align-items: end;
+}
+
+.awareness-live-card__header {
+  margin-bottom: 16px;
+}
+
+.awareness-live-card__item,
+.awareness-live-card__placeholder,
+.download-card,
+.resource-detail-card__panel {
+  border-radius: 16px;
+}
+
+.downloads-panel {
+  margin-top: 24px;
+}
+
+.downloads-panel__title-wrap {
+  gap: 12px;
+}
+
+.download-card__heading-row {
+  align-items: center;
+}
+
+.awareness-empty-state {
+  border-radius: 16px;
+}
+
+@media (max-width: 1120px) {
+  .tips-grid,
+  .resources-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .awareness-shell {
+    width: calc(100% - 32px);
+  }
+
+  .awareness-hero__shell,
+  .awareness-section__header {
+    align-items: center;
+    text-align: center;
+  }
+
+  .awareness-live__header {
+    align-items: flex-start;
+  }
+
+  .awareness-live__actions {
+    justify-content: flex-start;
+  }
+
+  .tips-grid,
+  .resources-grid,
+  .downloads-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .awareness-shell {
+    width: calc(100% - 24px);
+  }
+
+  .awareness-hero__shell {
+    padding: 36px 0 24px;
+  }
+
+  .awareness-hero__search {
+    min-height: 54px;
+  }
+
+  .tip-card,
+  .threat-card,
+  .resource-card,
+  .awareness-live-card,
+  .downloads-panel {
+    padding: 18px;
+  }
+
+  .download-card {
+    padding: 16px;
+  }
+
+  .awareness-live-card__header,
+  .download-card__heading-row {
+    align-items: flex-start;
+  }
+}

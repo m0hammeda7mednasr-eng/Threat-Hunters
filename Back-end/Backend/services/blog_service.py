@@ -56,6 +56,7 @@ def _serialize_blog(blog, include_content=False, include_media=False):
         "title": blog.get("title", ""),
         "slug": blog.get("slug", ""),
         "description": blog.get("description", ""),
+        "badge": blog.get("badge", ""),
         "category": blog.get("category", "General"),
         "author": blog.get("author_name", ""),
         "authorInitial": _initial_from_name(blog.get("author_name", "")),
@@ -95,6 +96,7 @@ def create_blog(data, user_id, username):
     category = _clean_text(data.get("category"), "General") or "General"
     description = _clean_text(data.get("description"))
     tags = _clean_tags(data.get("tags"))
+    badge = _clean_text(data.get("badge"))
     image_url = _clean_text(data.get("imageUrl"))
     image_name = _clean_text(data.get("imageName"))
 
@@ -119,6 +121,7 @@ def create_blog(data, user_id, username):
         "slug": slug,
         "content": content,
         "description": description or content[:180],
+        "badge": badge,
         "category": category,
         "author_id": str(user_id),
         "author_name": username,
@@ -286,7 +289,7 @@ def get_blogs(current_user=None, include_hidden=False):
     cursor = mongo.db.blogs.find(query).sort("createdAt", -1)
 
     for blog in cursor:
-        blogs.append(_serialize_blog(blog))
+        blogs.append(_serialize_blog(blog, include_content=True, include_media=True))
 
     return jsonify(blogs), 200
 

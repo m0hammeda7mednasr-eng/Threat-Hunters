@@ -104,6 +104,13 @@ const cleanText = (value, fallback = "") => {
   return text;
 };
 
+const trimPreviewText = (value, maxLength = 180) => {
+  const text = cleanText(value, "");
+  if (!text) return "";
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength).trimEnd()}...`;
+};
+
 const cleanSlug = (value, fallback = "web-security") => {
   const text = cleanText(value, fallback).toLowerCase().trim();
   const slug = text.replace(/[^a-z0-9-]+/g, "-").replace(/(^-|-$)/g, "");
@@ -129,22 +136,29 @@ const sanitizeComment = (comment) => ({
 
 const sanitizePost = (post) => {
   const category = cleanSlug(post.category, "web-security");
+  const cleanedDescription = cleanText(post.description, "");
+  const cleanedContent = cleanText(
+    post.content,
+    "This article was imported from draft content and needs an editorial pass before publication. Admins can update the post details from the blog editor.",
+  );
+  const cleanedBadge = cleanText(post.badge, "");
+  const excerpt = trimPreviewText(cleanedDescription || cleanedContent, 220);
 
   return {
     ...post,
     title: cleanText(post.title, "Community Security Update"),
-    description: cleanText(post.description, "Security insight awaiting an editorial pass from the Threat Hunters team."),
-    content: cleanText(
-      post.content,
-      "This article was imported from draft content and needs an editorial pass before publication. Admins can update the post details from the blog editor.",
-    ),
+    description: cleanedDescription || excerpt || "Security insight awaiting an editorial pass from the Threat Hunters team.",
+    content: cleanedContent,
+    excerpt: excerpt || "Security insight awaiting an editorial pass from the Threat Hunters team.",
     category,
     tags: cleanTagList(post.tags),
-    badge: cleanText(post.badge, "New"),
+    badge: cleanedBadge,
     author: cleanText(post.author, "Threat Hunters Team"),
     comments: Array.isArray(post.comments) ? post.comments.map(sanitizeComment) : [],
   };
 };
+
+const getDisplayBadge = (post, fallback = "") => cleanText(post?.badge, fallback);
 
 const formatCategoryLabel = (value) => {
   const slug = cleanSlug(value, "web-security");
@@ -819,7 +833,7 @@ const BlogPage = ({
                   role="button"
                   tabIndex={0}
                 >
-                  <PostImage badge={article.badge} tone={article.imageTone || "blue"} imageUrl={article.imageUrl || ""} compact />
+                  <PostImage badge={getDisplayBadge(article, "Trending")} tone={article.imageTone || "blue"} imageUrl={article.imageUrl || ""} compact />
                   <div className="blog-trending-card__content">
                     <MetaRow
                       author={article.author}
@@ -830,6 +844,7 @@ const BlogPage = ({
                       compact
                     />
                     <h3>{article.title}</h3>
+                    <p className="blog-trending-card__excerpt">{article.excerpt || article.description}</p>
 
                     <footer className="blog-trending-card__footer">
                       <span className="blog-trending-card__views">
@@ -885,7 +900,7 @@ const BlogPage = ({
                 tabIndex={0}
               >
                 <div className="blog-list-card__media">
-                  <PostImage badge={article.badge} tone={article.imageTone || "blue"} imageUrl={article.imageUrl || ""} compact />
+                  <PostImage badge={getDisplayBadge(article)} tone={article.imageTone || "blue"} imageUrl={article.imageUrl || ""} compact />
                 </div>
 
                 <div className="blog-list-card__content">
@@ -904,7 +919,7 @@ const BlogPage = ({
                         {(article.status || "published") === "hidden" ? "Hidden" : "Published"}
                       </span>
                     )}
-                    <p>{article.description || article.content}</p>
+                    <p>{article.excerpt || article.description || article.content}</p>
 
                     <div className="blog-tag-row">
                       {(article.tags || []).map((tag) => (
@@ -1033,7 +1048,7 @@ const BlogPage = ({
 
             <div className="blog-post-modal__body">
               <article className="blog-detail-card blog-detail-card--modal">
-                <PostImage badge={currentPost.badge} tone={currentPost.imageTone || "blue"} imageUrl={currentPost.imageUrl || ""} />
+                <PostImage badge={getDisplayBadge(currentPost)} tone={currentPost.imageTone || "blue"} imageUrl={currentPost.imageUrl || ""} />
 
                 <div className="blog-detail-card__content">
                   <MetaRow
@@ -1246,7 +1261,7 @@ const BlogPage = ({
 
             <div className="blog-editor-grid">
               <div className="blog-editor-visual">
-                <PostImage badge={composer.badge || "Preview"} tone="blue" compact imageUrl={composer.imageUrl} alt="Selected post image preview" />
+                <PostImage badge={cleanText(composer.badge, "Preview")} tone="blue" compact imageUrl={composer.imageUrl} alt="Selected post image preview" />
 
                 <label className="blog-editor-field blog-editor-field--full">
                   <span>Upload Image</span>
