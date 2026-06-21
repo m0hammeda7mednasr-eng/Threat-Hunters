@@ -40,6 +40,7 @@ function loadEnvFile(filePath) {
 }
 
 [
+  path.join(root, 'Back-end', 'Backend', '.env'),
   path.join(root, 'Back-end', '.env'),
   path.join(root, 'Back-end', '.env.local'),
   path.join(root, '.env'),
@@ -72,7 +73,6 @@ function canRunPythonBackend() {
 
   return pythonCheck.status === 0 && Boolean(process.env.MONGO_URI) && Boolean(process.env.SECRET_KEY);
 }
-
 if (!canRunPythonBackend()) {
   throw new Error('Python backend requires MONGO_URI and SECRET_KEY to be set.');
 }
