@@ -350,6 +350,11 @@
   font-weight: 700;
 }
 
+.db-dragon-ai-search {
+  align-items: flex-start;
+  line-height: 1.35;
+}
+
 .db-dragon-permission input,
 .db-dragon-module input {
   width: 14px;
@@ -372,6 +377,14 @@
 .db-dragon-module span {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.db-dragon-module-disabled {
+  color: #78849a;
+}
+
+.db-dragon-module-disabled input {
+  opacity: 0.55;
 }
 
 .db-dragon-actions {
@@ -850,6 +863,84 @@
 .db-advanced-btn:hover {
   background: var(--state-hover-surface);
   color: var(--text-primary);
+}
+
+.db-scan-log-box {
+  margin-top: 0.88rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: rgba(5, 11, 30, 0.52);
+  overflow: hidden;
+}
+
+.db-scan-log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.62rem 0.78rem;
+  border-bottom: 1px solid var(--card-border);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.db-scan-log-head small {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.db-scan-log-lines {
+  display: grid;
+  gap: 0.34rem;
+  max-height: 168px;
+  overflow: auto;
+  padding: 0.66rem 0.78rem;
+}
+
+.db-scan-log-line {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.db-scan-log-line span {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.db-scan-log-line p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.db-scan-log-line.running p {
+  color: var(--secondary-100);
+}
+
+.db-scan-log-line.success p {
+  color: var(--accent-green);
+}
+
+.db-scan-log-line.warning p {
+  color: var(--accent-yellow);
+}
+
+.db-scan-log-line.error p {
+  color: var(--accent-coral);
+}
+
+.db-scan-log-empty {
+  color: var(--text-muted);
+  font-size: 0.77rem;
+  line-height: 1.45;
 }
 
 .db-advanced-overlay {

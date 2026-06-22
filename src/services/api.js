@@ -50,6 +50,34 @@ const apiRequest = async (endpoint, options = {}) => {
   return handleResponse(response);
 };
 
+const apiBlobRequest = async (endpoint, options = {}) => {
+  const token = localStorage.getItem("token");
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `HTTP error! status: ${response.status}`;
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch {
+        // Keep the default status message when the response body is not readable JSON.
+      }
+    }
+    throw new Error(errorMessage);
+  }
+
+  return await response.blob();
+};
+
 // Authentication API calls
 export const authAPI = {
   // Register new user
@@ -307,6 +335,9 @@ export const scannerAPI = {
   },
   getReports: async (limit = 12) => {
     return apiRequest(`/scanner/reports?limit=${limit}`);
+  },
+  downloadReport: async (reportId, format = "html") => {
+    return apiBlobRequest(`/scanner/reports/${encodeURIComponent(reportId)}/download/${encodeURIComponent(format)}`);
   },
 };
 

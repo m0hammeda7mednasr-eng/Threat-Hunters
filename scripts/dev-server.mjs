@@ -64,20 +64,51 @@ function start(command, args, label) {
   return child;
 }
 
-function canRunPythonBackend() {
-  const pythonCheck = spawnSync('python', ['--version'], {
+function commandWorks(command, args = ['--version']) {
+  const check = spawnSync(command, args, {
     cwd: root,
     stdio: 'ignore',
     shell: false,
   });
-
-  return pythonCheck.status === 0 && Boolean(process.env.MONGO_URI) && Boolean(process.env.SECRET_KEY);
+  return check.status === 0;
 }
+
+function resolvePython() {
+  const candidates = [
+    process.env.PYTHON,
+    path.join(root, '.venv', 'Scripts', 'python.exe'),
+    path.join(root, '.venv', 'bin', 'python'),
+    path.join(root, 'Back-end', 'Backend', '.venv', 'Scripts', 'python.exe'),
+    path.join(root, 'Back-end', 'Backend', '.venv', 'bin', 'python'),
+    'python',
+  ].filter(Boolean);
+
+  for (const command of candidates) {
+    if ((command.includes(path.sep) || command.endsWith('.exe')) && !existsSync(command)) {
+      continue;
+    }
+    if (commandWorks(command)) {
+      return { command, argsPrefix: [] };
+    }
+  }
+
+  if (commandWorks('py', ['-3', '--version'])) {
+    return { command: 'py', argsPrefix: ['-3'] };
+  }
+
+  return null;
+}
+
+const python = resolvePython();
+function canRunPythonBackend() {
+  return Boolean(python) && Boolean(process.env.MONGO_URI) && Boolean(process.env.SECRET_KEY);
+}
+
 if (!canRunPythonBackend()) {
-  throw new Error('Python backend requires MONGO_URI and SECRET_KEY to be set.');
+  throw new Error('Python backend requires a working Python interpreter plus MONGO_URI and SECRET_KEY.');
 }
 
-const backend = start('python', ['Back-end/Backend/app.py'], 'backend');
+const backend = start(python.command, [...python.argsPrefix, 'Back-end/Backend/app.py'], 'backend');
 const frontend = start(process.execPath, ['node_modules/vite/bin/vite.js'], 'vite');
 
 const shutdown = () => {

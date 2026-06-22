@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import importlib.metadata
+import json
 import os
 import subprocess
 import time
@@ -12,6 +13,11 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse, urlunparse
 
 from .archive_urls import run_archive_url_collection
+from .ai_enrichment import (
+    call_deepseek_auto,
+    fetch_recent_known_vulnerabilities,
+    fetch_targeted_known_vulnerabilities,
+)
 from .alive import check_alive
 from .crlfuzz import run_crlfuzz
 from .extraction import run_extraction
@@ -21,7 +27,7 @@ from .fuzz import fuzz_endpoints
 from .js_checks import run_js_checks
 from .param_discovery import run_param_discovery
 from .ports import scan_ports
-from .reporter import generate_html_report, generate_markdown_report
+from .reporter import generate_html_report, generate_markdown_report, generate_pdf_report
 from .scan_config import (
     ScanConfigError,
     inject_seed_urls_into_hosts,
@@ -39,13 +45,13 @@ from .websocket_scanner import run_websocket_scan
 PACKAGE_DIR = Path(__file__).resolve().parent
 REPORTS_DIR = Path(os.getenv("SCANNER_REPORTS_DIR", str(PACKAGE_DIR / "reports"))).expanduser()
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-ALLOWED_REPORT_SUFFIXES = {".json", ".md", ".html"}
+ALLOWED_REPORT_SUFFIXES = {".json", ".md", ".html", ".pdf"}
 DEFAULT_LIMITS_BY_PROFILE = {
     "light": {
-        "max_requests": 1000,
-        "concurrency": 3,
+        "max_requests": 1800,
+        "concurrency": 4,
         "delay_ms": 500,
-        "timeout_seconds": 10,
+        "timeout_seconds": 12,
     },
     "deep": {
         "max_requests": 5000,
@@ -205,6 +211,8 @@ TOOL_KEYS = {
     "sensitive_files",
     "targeted",
     "forms",
+    "js_checks",
+    "param_discovery",
     "crlfuzz",
     "websocket",
     "vulns",
@@ -212,7 +220,6 @@ TOOL_KEYS = {
     "fuzz",
     "archive_cdx",
     "subdomain",
-    "js_secrets",
     "osint",
     "screenshot",
     "s3scanner",
@@ -235,8 +242,11 @@ TOOL_OVERRIDE_ALIASES = {
     "doutdated": "vulns",
     "dbruteforce": "targeted",
     "dssltls": "security_headers",
-    "jssecrets": "js_secrets",
-    "js-secrets": "js_secrets",
+    "jssecrets": "js_checks",
+    "js-secrets": "js_checks",
+    "js_secrets": "js_checks",
+    "jschecks": "js_checks",
+    "js-checks": "js_checks",
     "apk": "apk_recon",
     "apk-recon": "apk_recon",
 }
@@ -465,14 +475,13 @@ def _default_tools(scan_mode: str, enable_nuclei: bool) -> dict:
         "targeted": True,
         "forms": True,
         "js_checks": True,
-        "param_discovery": deep,
+        "param_discovery": True,
         "crlfuzz": deep,
         "websocket": True,
         "vulns": bool(deep and enable_nuclei),
         "ports": deep,
-        "fuzz": deep,
+        "fuzz": True,
         "archive_cdx": False,
-        "js_secrets": deep,
         "osint": False,
         "screenshot": False,
         "s3scanner": False,
@@ -535,7 +544,8 @@ def _record_disabled_modules(scan_data: dict, tools: dict) -> None:
         "fuzz": "Content discovery disabled by scan mode or options.",
         "vulns": "Nuclei checks disabled by scan mode or options.",
         "archive_cdx": "Archive URL collection disabled by scan mode or options.",
-        "js_secrets": "JavaScript secret analysis disabled by scan mode or options.",
+        "js_checks": "JavaScript route and secret analysis disabled by scan options.",
+        "param_discovery": "Parameter discovery disabled by scan options.",
         "osint": "OSINT collection disabled by scan mode or options.",
         "screenshot": "Screenshot capture disabled by scan mode or options.",
         "s3scanner": "S3 bucket checks disabled by scan mode or options.",
@@ -664,8 +674,10 @@ async def _run_scan_async(
     enable_nuclei: bool = False,
     confirm_permission: bool = False,
     nuclei_profile: str = "public-safe-v1",
+    ai_search: bool = True,
     modules: dict | None = None,
     limits: dict | None = None,
+    report_owner: dict | None = None,
 ) -> dict:
     target_info = normalize_target(target)
     domain = target_info["domain"]
@@ -675,6 +687,7 @@ async def _run_scan_async(
     authorization_confirmed = True if target_is_local else _as_bool(confirm_permission)
     if not authorization_confirmed:
         raise ScanConfigError("Public/non-local scans require explicit permission confirmation.")
+    ai_search_enabled = _as_bool(ai_search)
 
     headers = {}
     if cookie_header:
@@ -691,6 +704,7 @@ async def _run_scan_async(
             "target_is_local": target_is_local,
             "headers": headers,
             "nuclei_profile": nuclei_profile,
+            "ai_search_enabled": ai_search_enabled,
             "external_tool_auth_allowed": False,
             "limits": _profile_limits(profile, limits),
         },
@@ -720,12 +734,28 @@ async def _run_scan_async(
         "scan_config": stored_scan_config,
         "requested_modules": {name: _as_bool(enabled) for name, enabled in normalized_modules.items() if name in tools},
         "effective_modules": dict(tools),
+        "ai_search_enabled": ai_search_enabled,
         "tool_availability": _collect_tool_availability(tools),
         "telemetry": {"modules": {}},
     }
     _record_disabled_modules(scan_data, tools)
     _record_unimplemented_or_missing_modules(scan_data, tools)
     subdomains = [normalized_target if target_is_local else (normalized_target or domain)]
+
+    start_known_vulns = {"items": [], "errors": [], "enabled": ai_search_enabled}
+    if ai_search_enabled:
+        await progress("known_vulns", "starting", "AI_search enabled: searching NVD and CISA KEV for current known vulnerabilities")
+        start_known_vulns = await fetch_recent_known_vulnerabilities()
+        start_known_vulns["enabled"] = True
+    else:
+        await progress("known_vulns", "skipped", "AI_search disabled: online known-vulnerability lookup was skipped")
+    scan_data.setdefault("known_vulnerabilities", {})["startup"] = start_known_vulns
+    if not ai_search_enabled:
+        pass
+    elif start_known_vulns.get("errors"):
+        await progress("known_vulns", "warning", "; ".join(start_known_vulns["errors"][:2]))
+    else:
+        await progress("known_vulns", "done", f"Loaded {len(start_known_vulns.get('items', []))} current known-vulnerability records")
 
     await progress("alive", "starting", "Checking target availability")
     alive_hosts = await check_alive(domain, subdomains, callback=progress)
@@ -782,19 +812,15 @@ async def _run_scan_async(
                     _merge_hosts(alive_hosts, ports_results)
 
         if tools["fuzz"]:
-            if not get_available_tool("fuzz"):
-                _record_module_state(scan_data, "fuzz", "skipped", "No fuzzing tool found (ffuf or gobuster).")
-                await progress("fuzz", "skipped", "No fuzzing tool found. Skipping.")
-            else:
-                fuzz_results = await _run_module_safely(
-                    "fuzz",
-                    scan_data,
-                    progress,
-                    lambda: fuzz_endpoints(alive_hosts, profile=profile, callback=progress, scan_config=runtime_scan_config),
-                    "Running rate-limited content discovery",
-                )
-                if fuzz_results is not None:
-                    alive_hosts = fuzz_results
+            fuzz_results = await _run_module_safely(
+                "fuzz",
+                scan_data,
+                progress,
+                lambda: fuzz_endpoints(alive_hosts, profile=profile, callback=progress, scan_config=runtime_scan_config),
+                "Running rate-limited content discovery",
+            )
+            if fuzz_results is not None:
+                alive_hosts = fuzz_results
 
         if tools["param_discovery"]:
             param_results = await _run_module_safely(
@@ -930,15 +956,77 @@ async def _run_scan_async(
                 _record_module_state(scan_data, module_name, "skipped", "No live hosts were found.")
 
     report = build_report(domain, subdomains, alive_hosts, scan_data)
+    if isinstance(report_owner, dict) and report_owner:
+        report["report_owner"] = {
+            "display_name": str(report_owner.get("display_name") or report_owner.get("name") or "").strip(),
+            "email": str(report_owner.get("email") or "").strip(),
+            "user_id": str(report_owner.get("user_id") or report_owner.get("_id") or "").strip(),
+        }
+    report.setdefault("known_vulnerabilities", {})["startup"] = start_known_vulns
+
+    targeted_known_vulns = {"items": [], "errors": [], "keywords": [], "enabled": ai_search_enabled}
+    if ai_search_enabled:
+        await progress("known_vulns", "running", "AI_search enabled: searching NVD for CVEs matching detected target technologies")
+        targeted_known_vulns = await fetch_targeted_known_vulnerabilities(report)
+        targeted_known_vulns["enabled"] = True
+    else:
+        await progress("known_vulns", "skipped", "AI_search disabled: targeted CVE matching was skipped")
+    report.setdefault("known_vulnerabilities", {})["targeted"] = targeted_known_vulns
+    report["known_vulnerability_summary"] = {
+        "enabled": ai_search_enabled,
+        "startup_count": len(start_known_vulns.get("items", [])),
+        "targeted_count": len(targeted_known_vulns.get("items", [])),
+        "keywords": targeted_known_vulns.get("keywords", []),
+        "errors": [*start_known_vulns.get("errors", []), *targeted_known_vulns.get("errors", [])],
+    }
+    if not ai_search_enabled:
+        pass
+    elif targeted_known_vulns.get("errors") and not targeted_known_vulns.get("items"):
+        await progress("known_vulns", "warning", "; ".join(targeted_known_vulns["errors"][:2]))
+    else:
+        await progress("known_vulns", "done", f"Matched {len(targeted_known_vulns.get('items', []))} known-vulnerability records to detected technologies")
+    await progress("ai_report", "starting", "Sending sanitized report package to DeepSeek")
+    report["report_sections"], report["deepseek_prompt_package"], deepseek_result = await call_deepseek_auto(report)
+
+    deepseek_error = None
+    deepseek_response = None
+
+    if isinstance(deepseek_result, dict) and "raw_response" in deepseek_result:
+        deepseek_response = deepseek_result["raw_response"]
+        await progress("ai_report", "done", "DeepSeek report sections generated")
+    elif isinstance(deepseek_result, dict):
+        deepseek_error = deepseek_result
+        await progress("ai_report", "warning", deepseek_error.get("message", "DeepSeek failed; local fallback used"))
+    await progress("ai_report", "done", "Report sections are ready for the HTML/PDF template")
+
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     json_path = save_report(report, str(REPORTS_DIR))
+    report_id = Path(json_path).stem
+    report["report_id"] = report_id
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
     md_path = json_path.replace(".json", ".md")
     html_path = json_path.replace(".json", ".html")
+    pdf_path = json_path.replace(".json", ".pdf")
+    sections_path = json_path.replace(".json", ".report_sections.json")
+    deepseek_prompt_path = json_path.replace(".json", ".deepseek_prompt.json")
+    deepseek_error_path = json_path.replace(".json", ".deepseek_error.json")
+    deepseek_response_path = json_path.replace(".json", ".deepseek_response.json")
+    with open(sections_path, "w", encoding="utf-8") as f:
+        json.dump(report.get("report_sections", {}), f, indent=2, ensure_ascii=False)
+    with open(deepseek_prompt_path, "w", encoding="utf-8") as f:
+        json.dump(report.get("deepseek_prompt_package", {}), f, indent=2, ensure_ascii=False)
+    if deepseek_error:
+        with open(deepseek_error_path, "w", encoding="utf-8") as f:
+            json.dump(deepseek_error, f, indent=2, ensure_ascii=False)
+    if deepseek_response:
+        with open(deepseek_response_path, "w", encoding="utf-8") as f:
+            json.dump(deepseek_response, f, indent=2, ensure_ascii=False)            
     generate_markdown_report(report, md_path)
     generate_html_report(report, html_path)
+    pdf_generated = generate_pdf_report(report, pdf_path)
     await progress("complete", "done", "Scanner core run complete")
 
-    report_id = Path(json_path).stem
     return {
         "scan_id": scan_id,
         "report_id": report_id,
@@ -950,8 +1038,13 @@ async def _run_scan_async(
         "module_telemetry": scan_data.get("telemetry", {}).get("modules", {}),
         "report_files": {
             "json": json_path,
+            "report_sections": sections_path,
+            "deepseek_prompt": deepseek_prompt_path,
+            **({"deepseek_error": deepseek_error_path} if deepseek_error else {}),
+            **({"deepseek_response": deepseek_response_path} if deepseek_response else {}),
             "md": md_path,
             "html": html_path,
+            **({"pdf": pdf_path} if pdf_generated else {}),
         },
         "summary": report.get("summary", {}),
         "progress": progress_events,
@@ -966,8 +1059,10 @@ def run_scan(
     enable_nuclei: bool = False,
     confirm_permission: bool = False,
     nuclei_profile: str = "public-safe-v1",
+    ai_search: bool = True,
     modules: dict | None = None,
     limits: dict | None = None,
+    report_owner: dict | None = None,
 ) -> dict:
     return asyncio.run(_run_scan_async(
         target,
@@ -976,8 +1071,10 @@ def run_scan(
         enable_nuclei=enable_nuclei,
         confirm_permission=confirm_permission,
         nuclei_profile=nuclei_profile,
+        ai_search=ai_search,
         modules=modules,
         limits=limits,
+        report_owner=report_owner,
     ))
 
 

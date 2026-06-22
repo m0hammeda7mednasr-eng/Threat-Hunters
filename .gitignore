@@ -33,3 +33,15 @@ server/data/
 
 # Local QA artifacts
 blog-*.png
+
+# Local DeepSeek report-generation config
+deepseek.config.local.json
+**/deepseek.config.local.json
+
+# Generated scanner reports and AI report artifacts
+Back-end/Backend/scanner/reports/
+**/*.deepseek_prompt.json
+**/*.deepseek_response.json
+**/*.deepseek_error.json
+**/*.report_sections.json
+**/*.print.html

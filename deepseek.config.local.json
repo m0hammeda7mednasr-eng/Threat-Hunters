@@ -1,0 +1,8 @@
+﻿{
+    "enabled":  true,
+    "base_url":  "https://api.deepseek.com",
+    "api_key":  "",
+    "model":  "deepseek-v4-pro",
+    "timeout_seconds":  90,
+    "max_output_tokens":  8000
+}

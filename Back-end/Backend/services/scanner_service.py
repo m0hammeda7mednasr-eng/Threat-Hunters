@@ -59,6 +59,23 @@ def _risk_label_from_score(score: int) -> str:
     return "No Risk"
 
 
+def _report_owner_from_user(current_user: dict | None) -> dict:
+    if not isinstance(current_user, dict):
+        return {}
+    display_name = (
+        current_user.get("name")
+        or current_user.get("full_name")
+        or current_user.get("username")
+        or current_user.get("email")
+        or ""
+    )
+    return {
+        "display_name": str(display_name or "").strip(),
+        "email": str(current_user.get("email") or "").strip(),
+        "user_id": str(current_user.get("_id") or current_user.get("id") or "").strip(),
+    }
+
+
 def _enrich_scan_result(result: dict, requested_mode: str) -> dict:
     if not isinstance(result, dict):
         return result
@@ -123,6 +140,11 @@ def _enrich_scan_result(result: dict, requested_mode: str) -> dict:
         "headers": enriched_report.get("headers", {}),
         "tool_availability": enriched_report.get("tool_availability", []),
         "recommendations": enriched_report.get("recommendations", []),
+        "report_sections": enriched_report.get("report_sections", {}),
+        "deepseek_prompt_package": enriched_report.get("deepseek_prompt_package", {}),
+        "known_vulnerability_summary": enriched_report.get("known_vulnerability_summary", {}),
+        "known_vulnerabilities": enriched_report.get("known_vulnerabilities", {}),
+        "report_owner": enriched_report.get("report_owner", {}),
         "discovered_urls": enriched_report.get("discovered_urls", []),
         "parameter_inventory": enriched_report.get("parameter_inventory", []),
         "form_inventory": enriched_report.get("form_inventory", []),
@@ -177,6 +199,11 @@ def _store_scan_result(result: dict, current_user: dict | None = None) -> None:
         "headers": result.get("headers", {}),
         "tool_availability": result.get("tool_availability", []),
         "recommendations": result.get("recommendations", []),
+        "report_sections": result.get("report_sections", {}),
+        "deepseek_prompt_package": result.get("deepseek_prompt_package", {}),
+        "known_vulnerability_summary": result.get("known_vulnerability_summary", {}),
+        "known_vulnerabilities": result.get("known_vulnerabilities", {}),
+        "report_owner": result.get("report_owner", {}),
         "discovered_urls": result.get("discovered_urls", []),
         "parameter_inventory": result.get("parameter_inventory", []),
         "form_inventory": result.get("form_inventory", []),
@@ -222,6 +249,12 @@ def _serialize_stored_scan(document: dict) -> dict:
         "headers": document.get("headers", {}),
         "tool_availability": document.get("tool_availability", []),
         "recommendations": document.get("recommendations", []),
+        "report_sections": report.get("report_sections", document.get("report_sections", {})),
+        "deepseek_prompt_package": report.get("deepseek_prompt_package", document.get("deepseek_prompt_package", {})),
+        "known_vulnerability_summary": report.get("known_vulnerability_summary", document.get("known_vulnerability_summary", {})),
+        "known_vulnerabilities": report.get("known_vulnerabilities", document.get("known_vulnerabilities", {})),
+        "report_owner": report.get("report_owner", document.get("report_owner", {})),
+        "report_files": document.get("report_files", report.get("report_files", {})),
         "discovered_urls": document.get("discovered_urls", []),
         "parameter_inventory": document.get("parameter_inventory", []),
         "form_inventory": document.get("form_inventory", []),
@@ -270,13 +303,19 @@ def start_scan(data, current_user: dict | None = None):
     )
 
     enable_nuclei = data.get(
-        "enable_nuclei",
-        False
+        "enable_nuclei"
     )
+    if enable_nuclei is None:
+        enable_nuclei = scan_mode == "deep"
 
     nuclei_profile = data.get(
         "nuclei_profile",
         "public-safe-v1"
+    )
+
+    ai_search = data.get(
+        "ai_search",
+        True
     )
 
     modules = data.get(
@@ -302,7 +341,11 @@ def start_scan(data, current_user: dict | None = None):
 
         nuclei_profile=nuclei_profile,
 
-        modules=modules
+        ai_search=ai_search,
+
+        modules=modules,
+
+        report_owner=_report_owner_from_user(current_user)
 
     )
 
