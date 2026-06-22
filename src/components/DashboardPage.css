@@ -1843,17 +1843,17 @@
 }
 
 .db-reports-layout {
-  width: min(1000.75px, 100%);
+  width: min(1080px, 100%);
   display: grid;
-  gap: 1.58rem;
-  padding-top: 0.85rem;
+  gap: 1.75rem;
+  padding-top: 1rem;
 }
 
 .db-reports-hero {
   display: grid;
-  justify-items: center;
-  gap: 0.45rem;
-  text-align: center;
+  justify-items: flex-start;
+  gap: 0.55rem;
+  text-align: left;
 }
 
 .db-reports-hero h1 {
@@ -1866,6 +1866,7 @@
 
 .db-reports-hero p {
   margin: 0;
+  width: min(640px, 100%);
   color: var(--secondary-100);
   font-size: 0.96rem;
   line-height: 1.5;
@@ -1873,8 +1874,8 @@
 
 .db-reports-stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.98rem;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 1rem;
 }
 
 .db-report-stat-card,
@@ -1952,8 +1953,8 @@
 }
 
 .db-reports-search-panel {
-  border-radius: 14px;
-  padding: 1.5rem;
+  border-radius: 18px;
+  padding: 1.1rem 1.2rem;
 }
 
 .db-reports-search-row {
@@ -1964,15 +1965,20 @@
 }
 
 .db-reports-search-field {
-  min-height: 49px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   gap: 0.85rem;
-  border-radius: 10px;
-  border: 1px solid rgba(109, 124, 255, 0.08);
+  border-radius: 14px;
+  border: 1px solid rgba(109, 124, 255, 0.16);
   background: rgba(11, 13, 24, 0.6);
-  padding: 0 1rem;
+  padding: 0 1rem 0 1.1rem;
   color: var(--secondary-100);
+}
+
+.db-reports-search-field:focus-within {
+  border-color: rgba(109, 124, 255, 0.34);
+  box-shadow: 0 0 0 3px rgba(109, 124, 255, 0.12);
 }
 
 .db-reports-search-field input {
@@ -1992,11 +1998,11 @@
 }
 
 .db-reports-filter-btn {
-  width: 38px;
-  height: 38px;
+  width: 46px;
+  height: 46px;
   border: 0;
-  border-radius: 10px;
-  background: transparent;
+  border-radius: 14px;
+  background: rgba(109, 124, 255, 0.08);
   color: var(--secondary-100);
   display: grid;
   place-items: center;
@@ -2011,16 +2017,16 @@
 
 .db-reports-card-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.1rem;
 }
 
 .db-report-card {
-  min-height: 231px;
-  border-radius: 11px;
-  padding: 1.25rem;
+  min-height: 100%;
+  border-radius: 18px;
+  padding: 1.35rem;
   display: grid;
-  gap: 0.88rem;
+  gap: 1rem;
 }
 
 .db-report-card-top {
@@ -2055,9 +2061,10 @@
 .db-report-card-title-row h3 {
   margin: 0;
   color: var(--primary-80);
-  font-size: 1.2rem;
+  font-size: clamp(1.06rem, 1.8vw, 1.2rem);
   font-weight: 500;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .db-report-pill {
@@ -2098,23 +2105,23 @@
   align-items: center;
   gap: 0.45rem;
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   line-height: 1.45;
-  width: fit-content;
+  width: 100%;
+  min-width: 0;
 }
 
 .db-report-card-link-row span,
 .db-report-card-id-row span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .db-report-card-download,
 .db-reports-history-download {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   border: 1px solid rgba(109, 124, 255, 0.2);
   background: var(--primary-tint-05);
   color: var(--secondary-100);
@@ -2136,6 +2143,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .db-report-card-meta-group {
@@ -2189,14 +2197,18 @@
 
 .db-report-breakdown-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.28rem;
+  grid-template-columns: repeat(4, minmax(72px, 1fr));
+  gap: 0.55rem;
 }
 
 .db-report-breakdown-item {
   text-align: center;
   display: grid;
-  gap: 0.18rem;
+  gap: 0.22rem;
+  padding: 0.72rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(109, 124, 255, 0.1);
+  background: rgba(109, 124, 255, 0.04);
 }
 
 .db-report-breakdown-item strong {
@@ -4630,6 +4642,11 @@
     width: 100%;
   }
 
+  .db-reports-hero {
+    justify-items: flex-start;
+    text-align: left;
+  }
+
   .db-settings-layout {
     width: 100%;
   }
@@ -4917,6 +4934,11 @@
   .db-reports-card-grid,
   .db-report-breakdown-grid {
     grid-template-columns: 1fr;
+  }
+
+  .db-reports-hero {
+    justify-items: center;
+    text-align: center;
   }
 
   .db-reports-search-row {

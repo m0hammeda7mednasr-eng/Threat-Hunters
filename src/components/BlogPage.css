@@ -279,20 +279,25 @@
 .blog-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.7rem;
   flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .blog-hero-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 1rem;
   margin-top: 1.25rem;
+  width: 100%;
 }
 
 .blog-search {
-  flex: 1 1 70%;
+  flex: 1 1 620px;
+  min-width: min(100%, 320px);
   height: 72px;
   display: flex;
   align-items: center;
@@ -1785,6 +1790,7 @@
 
   .blog-hero-actions {
     justify-content: flex-start;
+    margin-left: 0;
   }
 
   .blog-search {
@@ -1919,7 +1925,8 @@
 }
 
 .blog-search {
-  width: min(760px, 100%);
+  width: 100%;
+  max-width: 760px;
   min-height: 60px;
   border-radius: 18px;
 }
@@ -2068,6 +2075,10 @@
   .blog-hero-actions,
   .blog-hero-row {
     justify-content: center;
+  }
+
+  .blog-hero-actions {
+    margin-left: 0;
   }
 
   .blog-filter-summary {
