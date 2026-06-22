@@ -45,3 +45,6 @@ Back-end/Backend/scanner/reports/
 **/*.deepseek_error.json
 **/*.report_sections.json
 **/*.print.html
+
+#Deepseek
+*.local.json
