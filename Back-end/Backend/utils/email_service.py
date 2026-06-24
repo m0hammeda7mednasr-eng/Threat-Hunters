@@ -1,8 +1,5 @@
 import os
-import smtplib
-
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 
 from dotenv import load_dotenv
 
@@ -10,43 +7,36 @@ load_dotenv()
 
 
 def send_email(to_email, subject, body):
+    print("SEND_EMAIL CALLED")
+    print("TO:", to_email)
 
-    email_address = os.getenv("EMAIL_ADDRESS")
-    email_password = os.getenv("EMAIL_PASSWORD")
+    api_key = os.getenv("RESEND_API_KEY")
 
-    message = MIMEMultipart()
-
-    message["From"] = email_address
-    message["To"] = to_email
-    message["Subject"] = subject
-
-    message.attach(
-        MIMEText(body, "plain")
-    )
+    if not api_key:
+        print("RESEND_API_KEY not found")
+        return False
 
     try:
 
-        server = smtplib.SMTP(
-            "smtp.gmail.com",
-            587
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": "noreply@threathunterseg.com",
+                "to": [to_email],
+                "subject": subject,
+                "text": body,
+            },
+            timeout=30,
         )
 
-        server.starttls()
+        print("RESEND STATUS:", response.status_code)
+        print("RESEND RESPONSE:", response.text)
 
-        server.login(
-            email_address,
-            email_password
-        )
-
-        server.sendmail(
-            email_address,
-            to_email,
-            message.as_string()
-        )
-
-        server.quit()
-
-        return True
+        return response.status_code in [200, 201]
 
     except Exception as e:
 
