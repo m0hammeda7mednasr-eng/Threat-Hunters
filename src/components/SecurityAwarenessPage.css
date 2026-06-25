@@ -1792,3 +1792,97 @@
     align-items: flex-start;
   }
 }
+
+/* Final live-intel polish */
+.awareness-live__header {
+  padding: 22px 0 6px;
+}
+
+.awareness-live__actions {
+  align-items: center;
+}
+
+.awareness-live__status {
+  padding: 0.55rem 0.8rem;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  border: 1px solid var(--primary-border-20);
+}
+
+.awareness-live__refresh {
+  min-height: 46px;
+  padding: 0 1.25rem;
+  border-radius: 999px;
+  background: var(--surface-panel);
+}
+
+.awareness-live-card {
+  min-height: 0;
+}
+
+.awareness-live-card__list {
+  gap: 0.72rem;
+}
+
+.awareness-live-card__item,
+.awareness-live-card__placeholder {
+  background: var(--surface-base);
+}
+
+.awareness-live-card__item-button {
+  min-height: 92px;
+}
+
+.awareness-live-card__item strong {
+  line-height: 1.35;
+}
+
+.awareness-live-card__item span {
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+}
+
+.tip-card,
+.threat-card,
+.resource-card,
+.download-card {
+  min-height: 0;
+}
+
+.threat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.threat-card__intro,
+.threat-card__details {
+  margin-bottom: 0;
+}
+
+.threat-card__details {
+  margin-top: auto;
+}
+
+.resource-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.resource-card__description {
+  flex: 1;
+}
+
+.resource-card__meta,
+.resource-card__footer {
+  align-items: flex-start;
+}
+
+@media (max-width: 760px) {
+  .awareness-live__status,
+  .awareness-live__refresh {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}

@@ -534,6 +534,12 @@
   border: 1px solid var(--more-tools-success-border);
 }
 
+.more-tools-output-status.tone-watch {
+  color: var(--accent-yellow);
+  background: var(--more-tools-warning-bg);
+  border: 1px solid var(--more-tools-warning-border);
+}
+
 .more-tools-output-state {
   display: grid;
   justify-items: center;
@@ -643,6 +649,76 @@
   gap: 0.75rem;
 }
 
+.more-tools-source-list {
+  margin-top: 1.15rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.more-tools-source-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--text-primary);
+}
+
+.more-tools-source-list-head strong {
+  font-size: 0.92rem;
+}
+
+.more-tools-source-list-head span {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.more-tools-source-card {
+  display: grid;
+  gap: 0.42rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--more-tools-warning-border);
+  background:
+    linear-gradient(180deg, var(--surface-elevated), var(--more-tools-warning-bg));
+  min-width: 0;
+}
+
+.more-tools-source-card div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.more-tools-source-card strong,
+.more-tools-source-card span,
+.more-tools-source-card small,
+.more-tools-source-card p {
+  overflow-wrap: anywhere;
+}
+
+.more-tools-source-card strong {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.more-tools-source-card span {
+  color: var(--primary-80);
+  font-size: 0.78rem;
+}
+
+.more-tools-source-card small,
+.more-tools-source-card p {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.more-tools-source-card p {
+  margin: 0;
+}
+
 .more-tools-insight-card,
 .more-tools-progress-item {
   padding: 0.95rem 1rem;
@@ -657,6 +733,11 @@
 
 .more-tools-insight-card.tone-info {
   border-color: var(--more-tools-info-border);
+}
+
+.more-tools-insight-card.tone-watch {
+  border-color: var(--more-tools-warning-border);
+  background: linear-gradient(180deg, var(--surface-elevated), var(--more-tools-warning-bg));
 }
 
 .more-tools-insight-head {

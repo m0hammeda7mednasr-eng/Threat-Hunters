@@ -141,7 +141,7 @@ const learningResources = [
     topic: 'Basics',
     audience: 'Individuals',
     priority: 'Foundation',
-    title: 'Password Security Guide',
+    title: 'Password Security Essentials',
     description: 'Best practices for creating, storing, and rotating high-value credentials.',
     duration: '8 min read',
     takeaways: [
@@ -163,7 +163,7 @@ const learningResources = [
     topic: 'Threats',
     audience: 'Teams',
     priority: 'High leverage',
-    title: 'Phishing Detection Guide',
+    title: 'Phishing Detection Walkthrough',
     description: 'Recognize common lures and respond safely to suspicious messages.',
     duration: '12 min',
     takeaways: [
@@ -185,7 +185,7 @@ const learningResources = [
     topic: 'Basics',
     audience: 'All users',
     priority: 'Essential',
-    title: 'MFA Setup Guide',
+    title: 'MFA Setup Playbook',
     description: 'Enable multi-factor authentication across the services you rely on most.',
     duration: '5 min read',
     takeaways: [
@@ -207,7 +207,7 @@ const learningResources = [
     topic: 'Threats',
     audience: 'Operations',
     priority: 'Critical',
-    title: 'Ransomware Response Guide',
+    title: 'Ransomware Response Playbook',
     description: 'Reduce ransomware risk and prepare a practical recovery path.',
     duration: '10 min read',
     takeaways: [
@@ -229,7 +229,7 @@ const learningResources = [
     topic: 'Network',
     audience: 'Home offices',
     priority: 'Practical',
-    title: 'Network Hardening Guide',
+    title: 'Network Hardening Walkthrough',
     description: 'Practical steps for securing Wi-Fi and connected devices.',
     duration: '15 min',
     takeaways: [
@@ -251,7 +251,7 @@ const learningResources = [
     topic: 'Threats',
     audience: 'Business users',
     priority: 'High leverage',
-    title: 'Social Engineering Guide',
+    title: 'Social Engineering Defense Guide',
     description: 'How to identify manipulation and protect sensitive processes.',
     duration: '7 min read',
     takeaways: [

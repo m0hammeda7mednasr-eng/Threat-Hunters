@@ -241,6 +241,28 @@ const formatCount = (value) => Number(value || 0).toLocaleString();
 
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(value.trim());
 
+const getEmailBreachSources = (result) => {
+  const breaches = Array.isArray(result?.breaches) ? result.breaches : [];
+
+  return breaches.map((breach, index) => {
+    const title = breach?.title || breach?.name || `Breach source ${index + 1}`;
+    const domain = breach?.domain || breach?.attribution || 'Unknown source';
+    const dataClasses = Array.isArray(breach?.data_classes) ? breach.data_classes : [];
+
+    return {
+      id: `${title}-${domain}-${breach?.breach_date || index}`,
+      title,
+      domain,
+      date: breach?.breach_date || 'Unknown date',
+      pwnCount: Number(breach?.pwn_count || 0),
+      data: dataClasses.slice(0, 6),
+      verified: Boolean(breach?.verified),
+      stealerLog: Boolean(breach?.stealer_log),
+      sensitive: Boolean(breach?.sensitive),
+    };
+  });
+};
+
 const validateToolInput = (activeTab, value) => {
   const trimmedValue = value.trim();
 
@@ -467,6 +489,7 @@ const buildEmailResultView = (result) => {
   const latestBreach = result?.latest_breach || null;
   const riskLevel = result?.risk_level || (breached ? 'Medium' : 'Safe');
   const exposedData = Array.isArray(result?.exposed_data) ? result.exposed_data : [];
+  const breachSources = getEmailBreachSources(result);
   const latestLabel = latestBreach?.title || latestBreach?.name || 'No breach';
   const latestDate = latestBreach?.breach_date || 'Not found';
   const safeTone = breached ? 'watch' : 'safe';
@@ -601,6 +624,7 @@ const buildEmailResultView = (result) => {
     recommendations,
     priorityActions,
     latestBreach,
+    breachSources,
   };
 };
 
@@ -619,6 +643,18 @@ const buildEmailAnalysisPdf = (emailValue, resultView, rawResult) => {
     : ['Keep the address unique.', 'Use a manager for stored credentials.', 'Review exposure again later.'];
   const exposedData = Array.isArray(rawResult?.exposed_data) ? rawResult.exposed_data : [];
   const latestBreach = rawResult?.latest_breach || null;
+  const breachSources = getEmailBreachSources(rawResult);
+  const sourceRows = breachSources.slice(0, 10).map((source) => ({
+    label: source.title,
+    value: source.domain,
+    detail: [
+      `Date: ${source.date}`,
+      source.pwnCount ? `Accounts: ${formatCount(source.pwnCount)}` : null,
+      source.verified ? 'Verified' : null,
+      source.stealerLog ? 'Stealer log' : null,
+      source.data.length ? `Data: ${source.data.join(', ')}` : null,
+    ].filter(Boolean).join(' | '),
+  }));
   const whereIssueIs = breached
     ? [
         latestBreach?.title ? `Latest match: ${latestBreach.title}` : null,
@@ -675,6 +711,7 @@ const buildEmailAnalysisPdf = (emailValue, resultView, rawResult) => {
       {
         title: 'Where The Issue Is',
         body: whereIssueIs,
+        rows: sourceRows.length ? sourceRows.slice(0, 4) : undefined,
         accent: '#ff8b3d',
       },
       {
@@ -699,12 +736,18 @@ const buildEmailAnalysisPdf = (emailValue, resultView, rawResult) => {
         accent: '#00b8d9',
       },
       {
-        title: 'Exposure Detail',
-        items: [
-          latestBreach?.title ? `Latest breach: ${latestBreach.title}` : 'Latest breach: not available',
-          latestBreach?.breach_date ? `Breach date: ${latestBreach.breach_date}` : 'Breach date: not available',
-          exposedData.length ? `Exposed data: ${exposedData.slice(0, 6).join(', ')}` : 'Exposed data: not returned',
-        ],
+        title: 'Breach Sources',
+        body: sourceRows.length
+          ? 'These are the breach sources returned by the backend lookup for this email.'
+          : 'No breach source names were returned by the current lookup.',
+        rows: sourceRows,
+        items: sourceRows.length
+          ? undefined
+          : [
+              latestBreach?.title ? `Latest breach: ${latestBreach.title}` : 'Latest breach: not available',
+              latestBreach?.breach_date ? `Breach date: ${latestBreach.breach_date}` : 'Breach date: not available',
+              exposedData.length ? `Exposed data: ${exposedData.slice(0, 6).join(', ')}` : 'Exposed data: not returned',
+            ],
         accent: '#ffb347',
       },
     ],
@@ -1101,6 +1144,33 @@ const MoreToolsPage = ({
                       </span>
                     ))}
                   </div>
+
+                  {activeTab === 'email' && resultView.breachSources?.length > 0 && (
+                    <div className="more-tools-source-list" aria-label="Email breach sources">
+                      <div className="more-tools-source-list-head">
+                        <strong>Breach sources</strong>
+                        <span>{formatCount(resultView.breachSources.length)} source(s)</span>
+                      </div>
+
+                      {resultView.breachSources.slice(0, 5).map((source) => (
+                        <article className="more-tools-source-card" key={source.id}>
+                          <div>
+                            <strong>{source.title}</strong>
+                            <span>{source.domain}</span>
+                          </div>
+                          <small>
+                            {source.date}
+                            {source.pwnCount ? ` | ${formatCount(source.pwnCount)} accounts` : ''}
+                            {source.verified ? ' | verified' : ''}
+                            {source.stealerLog ? ' | stealer log' : ''}
+                          </small>
+                          {source.data.length > 0 && (
+                            <p>{source.data.join(', ')}</p>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="more-tools-insight-list">
                     {resultView.insights.map((item) => (

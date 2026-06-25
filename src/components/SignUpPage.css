@@ -11,6 +11,7 @@
 .signup-main {
   flex: 1;
   padding: clamp(2.5rem, 5vw, 3.25rem) var(--shell-gutter) clamp(2.6rem, 5vw, 3.5rem);
+  overflow-x: clip;
 }
 
 .signup-shell {
@@ -18,15 +19,16 @@
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(520px, 536px);
-  gap: clamp(2.5rem, 5vw, 7rem);
-  align-items: start;
-  min-height: 790px;
+  gap: clamp(2rem, 4vw, 5rem);
+  align-items: center;
+  min-height: 760px;
 }
 
 .signup-intro {
   position: relative;
   max-width: 590px;
   padding-top: 1.15rem;
+  padding-left: 0.25rem;
 }
 
 .signup-intro-kicker {
@@ -84,6 +86,7 @@
 .signup-form-column {
   display: flex;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 @media (max-width: 1100px) {

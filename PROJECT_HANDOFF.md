@@ -469,16 +469,6 @@ Do not commit:
 
 ## 16. Seeded Validation Accounts
 
-Admin:
-
-```text
-admin@threathunters.com / Admin@12345
-```
-
-Regular user:
-
-```text
-user@threathunters.com / User@12345
-```
-
-These are for seeded validation only.
+Seeded validation passwords are not stored in the repository. Set
+`ADMIN_SEED_PASSWORD`, `USER_SEED_PASSWORD`, and `DEFAULT_SEED_PASSWORD` in your
+local backend environment before running the Atlas seed script.

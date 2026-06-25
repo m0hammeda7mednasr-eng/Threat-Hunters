@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Chrome, Eye, EyeOff, Github, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import "./SignUpForm.css";
 
@@ -10,6 +10,7 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
   const [success, setSuccess] = useState("");
   const [step, setStep] = useState("register");
   const [pendingEmail, setPendingEmail] = useState("");
+  const [activePolicy, setActivePolicy] = useState("");
   const otpInputRef = useRef(null);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -143,6 +144,25 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
       otpInputRef.current?.focus();
     }
   }, [step]);
+
+  const policySections = {
+    terms: {
+      title: "Terms of Service",
+      items: [
+        "Only scan assets you own or have explicit permission to assess.",
+        "Use reports for defensive remediation and validation only.",
+        "Do not use the platform for abuse, harassment, or unauthorized testing.",
+      ],
+    },
+    privacy: {
+      title: "Privacy Policy",
+      items: [
+        "We use account, scan, and support data to provide product features.",
+        "Secrets, tokens, and OTPs should stay server-side and out of client code.",
+        "Downloaded reports and logs should be shared only with authorized users.",
+      ],
+    },
+  };
 
   return (
     <div className="signup-form-container">
@@ -287,10 +307,40 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
             type="checkbox"
           />
           <span>
-            I agree to the <a href="#signup">Terms of Service</a> and{" "}
-            <a href="#signup">Privacy Policy</a>
+            I agree to the{" "}
+            <button
+              type="button"
+              className="signup-inline-link"
+              onClick={() => setActivePolicy((current) => (current === "terms" ? "" : "terms"))}
+            >
+              Terms of Service
+            </button>{" "}
+            and{" "}
+            <button
+              type="button"
+              className="signup-inline-link"
+              onClick={() => setActivePolicy((current) => (current === "privacy" ? "" : "privacy"))}
+            >
+              Privacy Policy
+            </button>
           </span>
         </label>
+
+        {activePolicy && (
+          <div className="signup-policy-panel" role="region" aria-label={policySections[activePolicy].title}>
+            <div className="signup-policy-panel__head">
+              <strong>{policySections[activePolicy].title}</strong>
+              <button type="button" className="signup-policy-close" onClick={() => setActivePolicy("")}>
+                Close
+              </button>
+            </div>
+            <ul className="signup-policy-list">
+              {policySections[activePolicy].items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <button
           className="signup-submit-button"
@@ -375,26 +425,6 @@ const SignUpForm = ({ onSwitchToSignIn }) => {
           </p>
         )}
 
-        <div className="signup-divider">
-          <span>Or sign up with</span>
-        </div>
-
-        <div className="signup-socials">
-          <button
-            aria-label="Sign up with Chrome"
-            className="signup-social-button"
-            type="button"
-          >
-            <Chrome />
-          </button>
-          <button
-            aria-label="Sign up with GitHub"
-            className="signup-social-button"
-            type="button"
-          >
-            <Github />
-          </button>
-        </div>
       </form>
     </div>
   );

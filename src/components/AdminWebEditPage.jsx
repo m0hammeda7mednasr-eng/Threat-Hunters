@@ -4,6 +4,7 @@ import {
   DollarSign,
   Eye,
   EyeOff,
+  Download,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -86,20 +87,63 @@ const initialContent = {
     ],
   },
   awareness: {
-    title: 'Security Awareness Training & Resources',
-    description: '',
+    title: 'Security Awareness Training Hub',
+    description: 'Curated awareness content, practical defenses, and training resources for teams that want security habits to stick.',
     owasp: [
-      { rank: '01', name: 'Broken Access Control', link: '' },
-      { rank: '02', name: 'Cryptographic Failures', link: '' },
-      { rank: '03', name: 'Injection', link: '' },
-      { rank: '04', name: 'Insecure Design', link: '' },
-      { rank: '05', name: 'Security Misconfiguration', link: '' },
+      { rank: '01', name: 'Broken Access Control', link: 'https://owasp.org/Top10/A01_2021-Broken_Access_Control/' },
+      { rank: '02', name: 'Cryptographic Failures', link: 'https://owasp.org/Top10/A02_2021-Cryptographic_Failures/' },
+      { rank: '03', name: 'Injection', link: 'https://owasp.org/Top10/A03_2021-Injection/' },
+      { rank: '04', name: 'Insecure Design', link: 'https://owasp.org/Top10/A04_2021-Insecure_Design/' },
+      { rank: '05', name: 'Security Misconfiguration', link: 'https://owasp.org/Top10/A05_2021-Security_Misconfiguration/' },
     ],
     resources: [
-      'Secure Coding Fundamentals',
-      'Penetration Testing Basics',
-      'Web Application Security',
-      'API Security Best Practices',
+      {
+        title: 'Phishing Response Essentials',
+        type: 'Video',
+        url: 'https://www.youtube.com/results?search_query=cisa+phishing+awareness',
+        description: 'Short video guidance for spotting and reporting suspicious emails.',
+      },
+      {
+        title: 'MFA Rollout Playbook',
+        type: 'Guide',
+        url: 'https://www.cisa.gov/secure-our-world/turn-mfa',
+        description: 'Step-by-step guidance for rolling out multi-factor authentication.',
+      },
+      {
+        title: 'Secure Coding Foundations',
+        type: 'Article',
+        url: 'https://owasp.org/www-project-top-ten/',
+        description: 'Practical coding habits that reduce common web app risk.',
+      },
+      {
+        title: 'Incident Readiness Checklist',
+        type: 'PDF',
+        url: 'https://www.cisa.gov/stopransomware',
+        description: 'A quick checklist for response, evidence, and recovery.',
+      },
+      {
+        title: 'Password Manager Adoption Guide',
+        type: 'Video',
+        url: 'https://www.youtube.com/results?search_query=secure+password+manager+guide',
+        description: 'How to standardize credential storage for teams and individuals.',
+      },
+    ],
+    downloads: [
+      {
+        title: 'Security Awareness Checklist',
+        description: 'Daily security practices checklist',
+        fileMeta: 'PDF | generated instantly',
+      },
+      {
+        title: 'Incident Response Plan Template',
+        description: 'Template for handling security incidents',
+        fileMeta: 'PDF | generated instantly',
+      },
+      {
+        title: 'Password Manager Comparison',
+        description: 'Compare popular password managers',
+        fileMeta: 'PDF | generated instantly',
+      },
     ],
   },
   tools: {
@@ -368,12 +412,38 @@ function AdminWebEditPage({ onNavigate, onLogout, currentPage = 'admin-web-edit'
     });
   };
 
+  const updateAwarenessItem = (listKey, index, field, value) => {
+    setContent((prev) => ({
+      ...prev,
+      awareness: {
+        ...prev.awareness,
+        [listKey]: prev.awareness[listKey].map((item, itemIndex) => (
+          itemIndex === index ? { ...item, [field]: value } : item
+        )),
+      },
+    }));
+  };
+
   const addListItem = (listKey, value) => {
     setContent((prev) => ({
       ...prev,
       [selectedPage]: {
         ...prev[selectedPage],
         [listKey]: [...prev[selectedPage][listKey], value],
+      },
+    }));
+  };
+
+  const addAwarenessItem = (listKey) => {
+    const baseItem = listKey === 'downloads'
+      ? { title: 'New Download', description: 'Update this resource', fileMeta: 'PDF | generated instantly' }
+      : { title: 'New Resource', type: 'Guide', url: 'https://example.com', description: 'Describe this training resource.' };
+
+    setContent((prev) => ({
+      ...prev,
+      awareness: {
+        ...prev.awareness,
+        [listKey]: [...prev.awareness[listKey], baseItem],
       },
     }));
   };
@@ -735,16 +805,71 @@ function AdminWebEditPage({ onNavigate, onLogout, currentPage = 'admin-web-edit'
                     </span>
                     <h2>Training Resources</h2>
                   </div>
-                  <button type="button" className="admin-web-mini-btn" onClick={() => addListItem('resources', 'New Resource')}>
+                  <button type="button" className="admin-web-mini-btn" onClick={() => addAwarenessItem('resources')}>
                     <Plus size={13} />
                     <span>Add Resource</span>
                   </button>
                 </div>
                 <div className="admin-web-stack">
                   {pageContent.resources.map((resource, index) => (
-                    <div key={`${selectedPage}-resource-${resource}`} className="admin-web-removable-row">
-                      <input value={resource} onChange={(event) => updateListItem('resources', index, event.target.value)} />
-                      <button type="button" onClick={() => removeListItem('resources', index)} aria-label={`Remove ${resource}`}>
+                    <div key={`${selectedPage}-resource-${resource.title || index}`} className="admin-web-resource-card">
+                      <div className="admin-web-form-grid">
+                        <label className="admin-web-field">
+                          <span>Title</span>
+                          <input value={resource.title} onChange={(event) => updateAwarenessItem('resources', index, 'title', event.target.value)} />
+                        </label>
+                        <label className="admin-web-field">
+                          <span>Type</span>
+                          <input value={resource.type} onChange={(event) => updateAwarenessItem('resources', index, 'type', event.target.value)} />
+                        </label>
+                        <label className="admin-web-field admin-web-field-full">
+                          <span>Link</span>
+                          <input value={resource.url} onChange={(event) => updateAwarenessItem('resources', index, 'url', event.target.value)} />
+                        </label>
+                        <label className="admin-web-field admin-web-field-full">
+                          <span>Description</span>
+                          <textarea rows={2} value={resource.description} onChange={(event) => updateAwarenessItem('resources', index, 'description', event.target.value)} />
+                        </label>
+                      </div>
+                      <button type="button" onClick={() => removeListItem('resources', index)} aria-label={`Remove ${resource.title}`}>
+                        x
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="admin-web-panel admin-card">
+                <div className="admin-web-panel-head admin-web-panel-head-between">
+                  <div className="admin-web-panel-head-main">
+                    <span className="admin-web-panel-icon">
+                      <Download size={14} />
+                    </span>
+                    <h2>Downloadable PDFs</h2>
+                  </div>
+                  <button type="button" className="admin-web-mini-btn" onClick={() => addAwarenessItem('downloads')}>
+                    <Plus size={13} />
+                    <span>Add PDF</span>
+                  </button>
+                </div>
+                <div className="admin-web-stack">
+                  {pageContent.downloads.map((download, index) => (
+                    <div key={`${selectedPage}-download-${download.title || index}`} className="admin-web-resource-card">
+                      <div className="admin-web-form-grid">
+                        <label className="admin-web-field">
+                          <span>Title</span>
+                          <input value={download.title} onChange={(event) => updateAwarenessItem('downloads', index, 'title', event.target.value)} />
+                        </label>
+                        <label className="admin-web-field">
+                          <span>File Meta</span>
+                          <input value={download.fileMeta} onChange={(event) => updateAwarenessItem('downloads', index, 'fileMeta', event.target.value)} />
+                        </label>
+                        <label className="admin-web-field admin-web-field-full">
+                          <span>Description</span>
+                          <textarea rows={2} value={download.description} onChange={(event) => updateAwarenessItem('downloads', index, 'description', event.target.value)} />
+                        </label>
+                      </div>
+                      <button type="button" onClick={() => removeListItem('downloads', index)} aria-label={`Remove ${download.title}`}>
                         x
                       </button>
                     </div>

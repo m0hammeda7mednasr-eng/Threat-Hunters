@@ -224,6 +224,34 @@
   gap: 0.75rem;
 }
 
+.admin-web-resource-card {
+  position: relative;
+  padding: 0.95rem;
+  border-radius: 12px;
+  border: 1px solid rgba(109, 124, 255, 0.28);
+  background: rgba(14, 17, 32, 0.58);
+  display: grid;
+  gap: 0.8rem;
+}
+
+.admin-web-resource-card > button {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 9px;
+  background: rgba(251, 44, 54, 0.16);
+  color: #ff6570;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.admin-web-resource-card .admin-web-form-grid {
+  gap: 0.75rem;
+}
+
 .admin-web-feature-field textarea {
   min-height: 72px;
 }

@@ -107,11 +107,9 @@ Do not commit real secrets. `.env` is ignored by git.
 
 ## Admin Login
 
-Seeded admin account:
-
-```text
-admin@threathunters.com / Admin@12345
-```
+Seeded admin passwords are not stored in the repository. Set `ADMIN_SEED_PASSWORD`
+before running the Atlas seed script, then sign in with the seeded admin email and
+the password from your local environment.
 
 ## In-App Footer Pages
 

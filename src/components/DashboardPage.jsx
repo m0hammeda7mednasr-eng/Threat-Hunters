@@ -452,6 +452,7 @@ const getLinePoints = (values, width, height, padding = 16) => {
   });
 };
 
+const SCAN_SESSION_STORAGE_KEY = 'threatHuntersScanSession';
 const SCAN_REPORTS_STORAGE_KEY = 'threatHuntersScanReports';
 const SCAN_LOG_STAGES = [
   'Preparing target and permissions',
@@ -463,6 +464,137 @@ const SCAN_LOG_STAGES = [
   'Building report sections and PDF template',
   'Saving generated report files',
 ];
+const SCAN_SESSION_LOG_LIMIT = 90;
+const SCAN_SESSION_LISTENERS = new Set();
+const SCAN_RUNTIME = {
+  controller: null,
+  timerId: null,
+};
+
+let scanSessionCache = {
+  status: 'idle',
+  target: '',
+  scanMode: 'quick',
+  startedAt: null,
+  updatedAt: null,
+  reportId: '',
+  error: '',
+  logs: [],
+};
+
+const createScanLogEntry = (message, tone = 'info') => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  time: new Date().toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }),
+  message,
+  tone,
+});
+
+const normalizeScanLogEntry = (entry, fallbackTone = 'info') => ({
+  id: String(entry?.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+  time: entry?.time || new Date().toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }),
+  message: String(entry?.message || ''),
+  tone: ['info', 'running', 'success', 'warning', 'error'].includes(String(entry?.tone || fallbackTone).toLowerCase())
+    ? String(entry?.tone || fallbackTone).toLowerCase()
+    : fallbackTone,
+});
+
+const normalizeScanSession = (session = {}) => ({
+  status: ['idle', 'running', 'completed', 'stopped', 'error'].includes(String(session.status || '').toLowerCase())
+    ? String(session.status).toLowerCase()
+    : 'idle',
+  target: String(session.target || ''),
+  scanMode: String(session.scanMode || '').toLowerCase() === 'deep' ? 'deep' : 'quick',
+  startedAt: session.startedAt || null,
+  updatedAt: session.updatedAt || null,
+  reportId: String(session.reportId || ''),
+  error: String(session.error || ''),
+  logs: Array.isArray(session.logs)
+    ? session.logs.map((entry) => normalizeScanLogEntry(entry)).slice(-SCAN_SESSION_LOG_LIMIT)
+    : [],
+});
+
+const readStoredScanSession = () => {
+  try {
+    const storedSession = window.localStorage.getItem(SCAN_SESSION_STORAGE_KEY);
+    const parsedSession = JSON.parse(storedSession || 'null');
+    const normalizedSession = normalizeScanSession(parsedSession || {});
+
+    if (normalizedSession.status === 'running' && !SCAN_RUNTIME.controller && !SCAN_RUNTIME.timerId) {
+      return normalizeScanSession({
+        ...normalizedSession,
+        status: 'stopped',
+        updatedAt: new Date().toISOString(),
+        logs: [
+          ...normalizedSession.logs,
+          createScanLogEntry('Scan session restored, but no live scan was available.', 'warning'),
+        ],
+      });
+    }
+
+    return normalizedSession;
+  } catch {
+    return normalizeScanSession();
+  }
+};
+
+const emitScanSession = (session) => {
+  SCAN_SESSION_LISTENERS.forEach((listener) => {
+    try {
+      listener(session);
+    } catch {
+      // Keep broadcasting updates even if one listener fails.
+    }
+  });
+};
+
+const persistScanSession = (session, notify = true) => {
+  scanSessionCache = normalizeScanSession(session);
+
+  try {
+    window.localStorage.setItem(SCAN_SESSION_STORAGE_KEY, JSON.stringify(scanSessionCache));
+  } catch {
+    // Session state still stays in memory if localStorage is unavailable.
+  }
+
+  if (notify) {
+    emitScanSession(scanSessionCache);
+  }
+
+  return scanSessionCache;
+};
+
+const updateScanSession = (updater, notify = true) => persistScanSession(updater(scanSessionCache), notify);
+
+const appendScanSessionLog = (message, tone = 'info', notify = true) =>
+  updateScanSession((session) => ({
+    ...session,
+    logs: [...session.logs, createScanLogEntry(message, tone)].slice(-SCAN_SESSION_LOG_LIMIT),
+    updatedAt: new Date().toISOString(),
+  }), notify);
+
+const clearScanRuntime = () => {
+  if (SCAN_RUNTIME.timerId) {
+    window.clearInterval(SCAN_RUNTIME.timerId);
+    SCAN_RUNTIME.timerId = null;
+  }
+
+  SCAN_RUNTIME.controller = null;
+};
+
+const subscribeScanSession = (listener) => {
+  SCAN_SESSION_LISTENERS.add(listener);
+  return () => {
+    SCAN_SESSION_LISTENERS.delete(listener);
+  };
+};
 
 const loadStoredScanReports = () => {
   try {
@@ -492,11 +624,12 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
     updateSettings,
     deleteAccount,
   } = useAuth();
+  const initialScanSessionRef = useRef(readStoredScanSession());
   const [activeSection, setActiveSection] = useState(initialSection || 'dashboard');
-  const [scanUrl, setScanUrl] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
+  const [scanUrl, setScanUrl] = useState(initialScanSessionRef.current.target || '');
+  const [isScanning, setIsScanning] = useState(initialScanSessionRef.current.status === 'running');
   const [scanError, setScanError] = useState('');
-  const [scanLogs, setScanLogs] = useState([]);
+  const [scanLogs, setScanLogs] = useState(initialScanSessionRef.current.logs);
   const [scanReports, setScanReports] = useState(loadStoredScanReports);
   const [isAdvancedScanOpen, setIsAdvancedScanOpen] = useState(false);
   const [advancedScanMode, setAdvancedScanMode] = useState('deep');
@@ -543,6 +676,9 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   });
   const profileLoadedRef = useRef(false);
   const settingsLoadedRef = useRef(false);
+  const mountedRef = useRef(false);
+  const scanAbortRef = useRef(null);
+  const scanTimerRef = useRef(null);
 
   useEffect(() => {
     if (profileLoadedRef.current) {
@@ -603,6 +739,25 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   }, [getSettings]);
 
   useEffect(() => {
+    mountedRef.current = true;
+
+    const syncScanSession = (session) => {
+      if (!mountedRef.current) return;
+      setScanUrl(session.target || '');
+      setIsScanning(session.status === 'running');
+      setScanLogs(session.logs);
+    };
+
+    syncScanSession(initialScanSessionRef.current);
+    const unsubscribe = subscribeScanSession(syncScanSession);
+
+    return () => {
+      mountedRef.current = false;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isAdvancedScanOpen || activeSection !== 'dashboard') return undefined;
     const previousOverflow = document.body.style.overflow;
     const handleEscape = (event) => {
@@ -654,26 +809,38 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   };
 
   const appendScanLog = (message, tone = 'info') => {
-    const timestamp = new Date().toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
+    appendScanSessionLog(message, tone);
+  };
+
+  const stopScan = () => {
+    if (!isScanning && !SCAN_RUNTIME.controller && !scanAbortRef.current) return;
+
+    const controller = scanAbortRef.current || SCAN_RUNTIME.controller;
+    if (controller && !controller.signal.aborted) {
+      controller.abort();
+    }
+
+    if (scanTimerRef.current) {
+      window.clearInterval(scanTimerRef.current);
+      scanTimerRef.current = null;
+    }
+
+    clearScanRuntime();
+    appendScanLog('Scan stopped by user.', 'warning');
+    persistScanSession({
+      ...scanSessionCache,
+      status: 'stopped',
+      error: '',
+      updatedAt: new Date().toISOString(),
     });
-    setScanLogs((current) => [
-      ...current,
-      {
-        id: `${Date.now()}-${current.length}`,
-        time: timestamp,
-        message,
-        tone,
-      },
-    ].slice(-90));
+    scanAbortRef.current = null;
+    if (mountedRef.current) {
+      setScanError('');
+    }
   };
 
   const startScan = async () => {
-    if (isScanning) return;
-
-    let stageTimer;
+    if (isScanning || SCAN_RUNTIME.controller || scanAbortRef.current) return;
 
     try {
       const target = normalizeWebsiteUrl(scanUrl);
@@ -681,21 +848,45 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
         .filter(([, enabled]) => enabled)
         .map(([key]) => key);
       const scanModeForBackend = enabledScanTypes.includes('deep') ? 'deep' : 'light';
+      const controller = new AbortController();
+      const startedAt = new Date().toISOString();
 
       setScanError('');
-      setIsScanning(true);
-      setScanLogs([]);
+      scanAbortRef.current = controller;
+      SCAN_RUNTIME.controller = controller;
+      persistScanSession({
+        status: 'running',
+        target,
+        scanMode: scanModeForBackend === 'deep' ? 'deep' : 'quick',
+        startedAt,
+        updatedAt: startedAt,
+        reportId: '',
+        error: '',
+        logs: [],
+      });
       appendScanLog(`Queued ${scanModeForBackend} scan for ${target}`, 'running');
       appendScanLog(aiSearchEnabled ? 'AI_search enabled: DeepSeek report will receive online CVE intelligence.' : 'AI_search disabled: report will use scanner evidence only.', 'info');
       let stageIndex = 0;
-      stageTimer = window.setInterval(() => {
+      scanTimerRef.current = window.setInterval(() => {
+        if (controller.signal.aborted) {
+          if (scanTimerRef.current) {
+            window.clearInterval(scanTimerRef.current);
+            scanTimerRef.current = null;
+          }
+          return;
+        }
+
         if (stageIndex >= SCAN_LOG_STAGES.length) {
-          window.clearInterval(stageTimer);
+          if (scanTimerRef.current) {
+            window.clearInterval(scanTimerRef.current);
+            scanTimerRef.current = null;
+          }
           return;
         }
         appendScanLog(SCAN_LOG_STAGES[stageIndex], 'running');
         stageIndex += 1;
       }, 1800);
+      SCAN_RUNTIME.timerId = scanTimerRef.current;
 
       const result = await scannerAPI.scanWebsite({
         target,
@@ -708,38 +899,68 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           dashboard: enabledScanTypes,
           advanced: advancedScanChecks,
         },
-      });
+      }, { signal: controller.signal });
+
+      if (controller.signal.aborted) {
+        return;
+      }
 
       const normalizedResult = normalizeScanReport(result);
       const backendProgress = Array.isArray(result?.progress) ? result.progress : [];
       if (backendProgress.length) {
-        setScanLogs((current) => [
-          ...current,
-          ...backendProgress.slice(-40).map((event, index) => ({
-            id: `backend-${index}-${event.time || Date.now()}`,
-            time: event.time ? new Date(event.time).toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-            }) : new Date().toLocaleTimeString('en-US'),
-            message: `[${event.module || 'scanner'}] ${event.message || event.status || 'event'}`,
-            tone: event.status === 'warning' ? 'warning' : event.status === 'done' ? 'success' : 'info',
-          })),
-        ].slice(-90));
+        backendProgress.slice(-40).forEach((event) => {
+          appendScanLog(
+            `[${event.module || 'scanner'}] ${event.message || event.status || 'event'}`,
+            event.status === 'warning' ? 'warning' : event.status === 'done' ? 'success' : 'info',
+          );
+        });
+      }
+      if (scanTimerRef.current) {
+        window.clearInterval(scanTimerRef.current);
+        scanTimerRef.current = null;
       }
       appendScanLog(`Scan completed. Report ${normalizedResult.id || normalizedResult.report_id || 'generated'} is ready.`, 'success');
+      persistScanSession({
+        ...scanSessionCache,
+        status: 'completed',
+        reportId: normalizedResult.id || normalizedResult.report_id || '',
+        error: '',
+        updatedAt: new Date().toISOString(),
+      });
       const nextReports = [normalizedResult, ...scanReports].slice(0, 12);
       storeScanReports(nextReports);
-      setScanReports(nextReports);
-      navigateToSection('reports');
-    } catch (error) {
-      setScanError(error.message || 'Scan failed. Check the URL and try again.');
-      appendScanLog(error.message || 'Scan failed. Check the URL and try again.', 'error');
-    } finally {
-      if (stageTimer) {
-        window.clearInterval(stageTimer);
+      if (mountedRef.current) {
+        setScanReports(nextReports);
       }
-      setIsScanning(false);
+      if (mountedRef.current && activeSection === 'dashboard') {
+        navigateToSection('reports');
+      }
+    } catch (error) {
+      if (error?.name === 'AbortError' || scanAbortRef.current?.signal?.aborted || SCAN_RUNTIME.controller?.signal?.aborted) {
+        return;
+      }
+
+      const message = error.message || 'Scan failed. Check the URL and try again.';
+      if (mountedRef.current) {
+        setScanError(message);
+      }
+      appendScanLog(message, 'error');
+      persistScanSession({
+        ...scanSessionCache,
+        status: 'error',
+        error: message,
+        updatedAt: new Date().toISOString(),
+      });
+    } finally {
+      if (scanTimerRef.current) {
+        window.clearInterval(scanTimerRef.current);
+        scanTimerRef.current = null;
+      }
+      clearScanRuntime();
+      scanAbortRef.current = null;
+      if (mountedRef.current) {
+        setIsScanning(scanSessionCache.status === 'running');
+      }
     }
   };
 
@@ -1047,12 +1268,21 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
         </div>
 
         <div className="db-dragon-actions">
-          <button type="button" className="db-primary-btn db-dragon-start" onClick={startScan} disabled={isScanning}>
-            {isScanning ? 'Scanning...' : 'Start Scan'}
-          </button>
-          <button type="button" className="db-mini-btn db-dragon-demo" onClick={applyAdvancedDemoPreset}>
-            Demo Preset
-          </button>
+          {isScanning ? (
+            <button type="button" className="db-mini-btn db-stop-scan-btn" onClick={stopScan}>
+              <X size={14} />
+              Stop Scanning
+            </button>
+          ) : (
+            <>
+              <button type="button" className="db-primary-btn db-dragon-start" onClick={startScan}>
+                Start Scan
+              </button>
+              <button type="button" className="db-mini-btn db-dragon-demo" onClick={applyAdvancedDemoPreset}>
+                Demo Preset
+              </button>
+            </>
+          )}
         </div>
 
         {scanError && (
@@ -1212,10 +1442,18 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
               }}
               className="db-input"
             />
-            <button className="db-primary-btn db-start-scan-btn" onClick={startScan} disabled={isScanning}>
-              <Play size={14} />
-              {isScanning ? 'Scanning...' : 'Start Scan'}
-            </button>
+            <div className="db-scan-actions">
+              <button className="db-primary-btn db-start-scan-btn" onClick={startScan} disabled={isScanning}>
+                <Play size={14} />
+                {isScanning ? 'Scanning...' : 'Start Scan'}
+              </button>
+              {isScanning && (
+                <button type="button" className="db-mini-btn db-stop-scan-btn" onClick={stopScan}>
+                  <X size={14} />
+                  Stop Scanning
+                </button>
+              )}
+            </div>
           </div>
 
           <button type="button" className="db-advanced-btn" onClick={() => setIsAdvancedScanOpen(true)}>
@@ -1694,11 +1932,14 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
 
               <div className="db-report-card-meta">
                 <div className="db-report-card-meta-group">
-                  <span>
+                  <span className="db-report-card-meta-item">
                     <CalendarDays size={13} />
                     {card.date}
                   </span>
-                  <span className="db-report-card-time">{card.time}</span>
+                  <span className="db-report-card-meta-item db-report-card-time">
+                    <Clock3 size={13} />
+                    {card.time}
+                  </span>
                 </div>
 
                 <span className="db-report-card-duration">

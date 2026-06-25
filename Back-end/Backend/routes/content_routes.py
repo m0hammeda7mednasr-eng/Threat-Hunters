@@ -6,6 +6,44 @@ from middleware.auth_middleware import get_current_user_optional, token_required
 
 content_bp = Blueprint("content", __name__)
 
+
+def _normalize_awareness_item(item, kind):
+    if isinstance(item, str):
+        if kind == "download":
+            return {
+                "title": item,
+                "description": "Downloadable security resource.",
+                "fileMeta": "PDF | generated instantly",
+            }
+
+        return {
+            "title": item,
+            "type": "Guide",
+            "description": "Security awareness resource.",
+            "url": "",
+        }
+
+    return item
+
+
+def _normalize_awareness_content(content):
+    next_content = dict(content or {})
+    if "resources" in next_content:
+        next_content["resources"] = [_normalize_awareness_item(item, "resource") for item in (next_content.get("resources") or [])]
+    if "downloads" in next_content:
+        next_content["downloads"] = [_normalize_awareness_item(item, "download") for item in (next_content.get("downloads") or [])]
+    return next_content
+
+
+def _is_legacy_awareness_content(content):
+    resources = content.get("resources") or []
+    downloads = content.get("downloads") or []
+    return (
+        content.get("title") == "Security Awareness Training & Resources"
+        or not downloads
+        or any(isinstance(item, str) for item in resources)
+    )
+
 DEFAULT_CONTENT = {
     "home": {
         "title": "Protect Your Digital Assets with Advanced Security Testing",
@@ -44,20 +82,63 @@ DEFAULT_CONTENT = {
         ],
     },
     "awareness": {
-        "title": "Security Awareness Training & Resources",
-        "description": "",
+        "title": "Security Awareness Training Hub",
+        "description": "Curated awareness content, practical defenses, and training resources for teams that want security habits to stick.",
         "owasp": [
-            {"rank": "01", "name": "Broken Access Control", "link": ""},
-            {"rank": "02", "name": "Cryptographic Failures", "link": ""},
-            {"rank": "03", "name": "Injection", "link": ""},
-            {"rank": "04", "name": "Insecure Design", "link": ""},
-            {"rank": "05", "name": "Security Misconfiguration", "link": ""},
+            {"rank": "01", "name": "Broken Access Control", "link": "https://owasp.org/Top10/A01_2021-Broken_Access_Control/"},
+            {"rank": "02", "name": "Cryptographic Failures", "link": "https://owasp.org/Top10/A02_2021-Cryptographic_Failures/"},
+            {"rank": "03", "name": "Injection", "link": "https://owasp.org/Top10/A03_2021-Injection/"},
+            {"rank": "04", "name": "Insecure Design", "link": "https://owasp.org/Top10/A04_2021-Insecure_Design/"},
+            {"rank": "05", "name": "Security Misconfiguration", "link": "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"},
         ],
         "resources": [
-            "Secure Coding Fundamentals",
-            "Penetration Testing Basics",
-            "Web Application Security",
-            "API Security Best Practices",
+            {
+                "title": "Phishing Response Essentials",
+                "type": "Video",
+                "url": "https://www.youtube.com/results?search_query=cisa+phishing+awareness",
+                "description": "Short video guidance for spotting and reporting suspicious emails.",
+            },
+            {
+                "title": "MFA Rollout Playbook",
+                "type": "Guide",
+                "url": "https://www.cisa.gov/secure-our-world/turn-mfa",
+                "description": "Step-by-step guidance for rolling out multi-factor authentication.",
+            },
+            {
+                "title": "Secure Coding Foundations",
+                "type": "Article",
+                "url": "https://owasp.org/www-project-top-ten/",
+                "description": "Practical coding habits that reduce common web app risk.",
+            },
+            {
+                "title": "Incident Readiness Checklist",
+                "type": "PDF",
+                "url": "https://www.cisa.gov/stopransomware",
+                "description": "A quick checklist for response, evidence, and recovery.",
+            },
+            {
+                "title": "Password Manager Adoption Guide",
+                "type": "Video",
+                "url": "https://www.youtube.com/results?search_query=secure+password+manager+guide",
+                "description": "How to standardize credential storage for teams and individuals.",
+            },
+        ],
+        "downloads": [
+            {
+                "title": "Security Awareness Checklist",
+                "description": "Daily security practices checklist",
+                "fileMeta": "PDF | generated instantly",
+            },
+            {
+                "title": "Incident Response Plan Template",
+                "description": "Template for handling security incidents",
+                "fileMeta": "PDF | generated instantly",
+            },
+            {
+                "title": "Password Manager Comparison",
+                "description": "Compare popular password managers",
+                "fileMeta": "PDF | generated instantly",
+            },
         ],
     },
     "tools": {
@@ -91,7 +172,12 @@ def is_admin(user):
 
 def get_page_content(page):
     record = mongo.db.web_content.find_one({"page": page}, {"_id": 0, "page": 0})
-    return record or DEFAULT_CONTENT.get(page, {})
+    content = record or DEFAULT_CONTENT.get(page, {})
+    if page == "awareness":
+        if _is_legacy_awareness_content(content):
+            return _normalize_awareness_content(DEFAULT_CONTENT["awareness"])
+        return _normalize_awareness_content(content)
+    return content
 
 
 @content_bp.route("/web-content", methods=["GET"])

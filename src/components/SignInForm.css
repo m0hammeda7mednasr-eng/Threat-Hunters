@@ -46,26 +46,6 @@
   gap: 1.35rem;
 }
 
-.signin-admin-access {
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--primary-border-20);
-  border-radius: 14px;
-  display: grid;
-  gap: 0.2rem;
-  background: var(--state-hover-surface-soft);
-}
-
-.signin-admin-access strong {
-  color: var(--text-primary);
-  font-size: 0.86rem;
-  font-weight: 700;
-}
-
-.signin-admin-access span {
-  color: var(--primary-80);
-  font-size: 0.84rem;
-}
-
 .signin-field {
   display: flex;
   flex-direction: column;
@@ -261,48 +241,6 @@
   transform: translateY(-50%);
 }
 
-.signin-divider span {
-  position: relative;
-  z-index: 1;
-  padding: 0 17.1px;
-  background: var(--auth-divider-bg);
-  color: var(--text-secondary);
-  font-size: 14.96px;
-  line-height: 21.37px;
-}
-
-.signin-socials {
-  width: min(100%, 348px);
-  margin: 1.35rem auto 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.signin-social-button {
-  min-height: 49px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14.96px;
-  border: 1px solid var(--primary-40);
-  background: var(--surface-soft);
-  color: var(--primary-80);
-  cursor: pointer;
-}
-
-.signin-social-button:hover {
-  transform: translateY(-1px);
-  border-color: var(--primary-60);
-  background: var(--state-hover-surface);
-}
-
-.signin-social-button svg {
-  width: 21.37px;
-  height: 21.37px;
-  stroke-width: 1.9;
-}
-
 .signin-forgot-panel {
   margin-top: 1rem;
   padding: 1rem;
@@ -369,10 +307,6 @@
     align-items: flex-start;
   }
 
-  .signin-socials {
-    width: 100%;
-    gap: 1rem;
-  }
 }
 
 @media (max-width: 480px) {
@@ -405,7 +339,4 @@
     min-height: 50px;
   }
 
-  .signin-socials {
-    grid-template-columns: 1fr;
-  }
 }

@@ -36,13 +36,20 @@ def load_legacy_bootstrap_data():
     return json.loads(LEGACY_BOOTSTRAP_PATH.read_text(encoding="utf-8"))
 
 
+def password_from_env(env_name: str, email: str) -> str:
+    password = os.getenv(env_name, "").strip()
+    if not password:
+        raise RuntimeError(f"{env_name} must be set before seeding {email}.")
+    return password
+
+
 def make_user_password(email: str) -> str:
     email = (email or "").lower()
     if email == "admin@threathunters.com":
-        return "Admin@12345"
+        return password_from_env("ADMIN_SEED_PASSWORD", email)
     if email == "user@threathunters.com":
-        return "User@12345"
-    return "User@12345"
+        return password_from_env("USER_SEED_PASSWORD", email)
+    return password_from_env("DEFAULT_SEED_PASSWORD", email)
 
 
 def build_user(doc: dict) -> dict:

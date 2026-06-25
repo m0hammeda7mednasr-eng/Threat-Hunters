@@ -798,8 +798,19 @@
 }
 
 .db-scan-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 0.88rem;
+}
+
+.db-scan-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  min-width: fit-content;
 }
 
 .db-quick-scan-panel {
@@ -837,11 +848,35 @@
 }
 
 .db-start-scan-btn {
-  min-width: 132px;
+  min-width: 164px;
+  min-height: 46px;
+  border-radius: 14px;
+  padding: 0 1.05rem;
   justify-content: center;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.db-stop-scan-btn {
+  min-width: 164px;
+  min-height: 46px;
+  border-radius: 14px;
+  padding: 0 1rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-color: rgba(255, 96, 96, 0.42);
+  background: rgba(255, 96, 96, 0.1);
+  color: #ff9d9d;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.db-stop-scan-btn:hover {
+  background: rgba(255, 96, 96, 0.18);
+  border-color: rgba(255, 96, 96, 0.58);
+  color: #ffd1d1;
 }
 
 .db-advanced-btn {
@@ -2106,6 +2141,45 @@
   color: var(--text-primary);
 }
 
+:root[data-theme='light'] .db-reports-search-panel,
+:root[data-theme='light'] .db-reports-history-panel,
+:root[data-theme='light'] .db-report-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(246, 249, 255, 0.92)),
+    var(--surface-base, #ffffff) !important;
+  border-color: rgba(109, 124, 255, 0.16) !important;
+  box-shadow: 0 14px 32px rgba(70, 88, 160, 0.08) !important;
+}
+
+:root[data-theme='light'] .db-reports-search-field {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(109, 124, 255, 0.22);
+  color: var(--text-secondary);
+}
+
+:root[data-theme='light'] .db-reports-search-field input {
+  color: var(--text-primary);
+}
+
+:root[data-theme='light'] .db-reports-search-field input::placeholder {
+  color: rgba(72, 86, 138, 0.72);
+}
+
+:root[data-theme='light'] .db-reports-filter-btn {
+  background: rgba(109, 124, 255, 0.1);
+  color: var(--secondary-100);
+}
+
+:root[data-theme='light'] .db-reports-filter-btn:hover {
+  background: rgba(109, 124, 255, 0.18);
+  color: var(--text-primary);
+}
+
+:root[data-theme='light'] .db-reports-search-field:focus-within {
+  border-color: rgba(109, 124, 255, 0.38);
+  box-shadow: 0 0 0 3px rgba(109, 124, 255, 0.12);
+}
+
 .db-reports-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2238,12 +2312,33 @@
 }
 
 .db-report-card-meta-group {
-  gap: 0.7rem;
-  flex-wrap: wrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.95rem;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.db-report-card-meta-item,
+.db-report-card-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.db-report-card-meta-item {
+  color: var(--text-secondary);
 }
 
 .db-report-card-time {
   color: var(--secondary-100);
+}
+
+.db-report-card-meta-group svg,
+.db-report-card-duration svg {
+  flex-shrink: 0;
 }
 
 .db-report-card-breakdown {
@@ -2752,8 +2847,12 @@
 }
 
 .db-reports-history-copy span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   color: var(--secondary-100);
   font-size: 0.61rem;
+  white-space: nowrap;
 }
 
 .db-reports-history-stats {
@@ -4968,7 +5067,18 @@
 
 @media (max-width: 720px) {
   .db-scan-row {
-    flex-direction: column;
+    grid-template-columns: 1fr;
+  }
+
+  .db-scan-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .db-scan-actions .db-start-scan-btn,
+  .db-scan-actions .db-stop-scan-btn {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .db-settings-panel-head {
@@ -5369,4 +5479,127 @@
 :root[data-theme='light'] .db-user-profile-action-btn.is-logout {
   background: rgba(251, 44, 54, 0.08);
   color: #c84255;
+}
+
+/* Professional surface polish */
+.db-quick-scan-panel,
+.db-reports-history-panel,
+.db-report-card,
+.db-activity-item,
+.db-threat-item,
+.db-awareness-item {
+  border-radius: 16px !important;
+  background:
+    linear-gradient(180deg, rgba(132, 151, 255, 0.055), transparent 42%),
+    var(--dashboard-panel-bg, var(--card-bg)) !important;
+  border-color: var(--dashboard-panel-border, var(--card-border)) !important;
+}
+
+.db-quick-scan-panel {
+  padding: 1.25rem !important;
+}
+
+.db-quick-head {
+  align-items: flex-start;
+}
+
+.db-scan-row {
+  align-items: stretch;
+}
+
+.db-scan-log-box {
+  border-radius: 12px !important;
+  background: var(--dashboard-surface-soft, rgba(7, 10, 22, 0.58)) !important;
+}
+
+.db-reports-history-panel {
+  min-height: auto !important;
+  padding: 1.35rem !important;
+}
+
+.db-reports-history-list {
+  margin-top: 1rem;
+  gap: 0.35rem;
+}
+
+.db-reports-history-row {
+  padding: 0.95rem 0;
+}
+
+.db-reports-history-copy p,
+.db-report-card-title-row h3 {
+  color: var(--primary-80);
+  font-weight: 700;
+}
+
+.db-reports-history-copy span,
+.db-report-card-id-row,
+.db-report-card-link-row,
+.db-report-card-duration {
+  color: var(--text-secondary);
+}
+
+.db-reports-history-stats {
+  gap: 1rem;
+}
+
+.db-reports-history-stat {
+  min-width: 72px;
+  padding: 0.46rem 0.6rem;
+  border-radius: 12px;
+  background: var(--dashboard-surface-soft, var(--state-hover-surface-soft));
+  border: 1px solid var(--dashboard-panel-border-soft, var(--card-border));
+}
+
+.db-reports-history-stat span {
+  font-size: 0.68rem;
+}
+
+.db-reports-history-stat strong {
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.db-reports-history-footer {
+  margin-top: 1rem;
+}
+
+.db-report-card {
+  padding: 1.25rem !important;
+}
+
+.db-report-breakdown-grid {
+  gap: 0.7rem;
+}
+
+.db-report-breakdown-item {
+  min-height: 80px;
+  align-content: center;
+  padding: 0.75rem 0.65rem;
+  border-radius: 14px;
+  background: var(--dashboard-surface-soft, var(--state-hover-surface-soft));
+  border: 1px solid var(--dashboard-panel-border-soft, var(--card-border));
+}
+
+.db-report-breakdown-item strong {
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+.db-threat-grid,
+.db-awareness-grid {
+  align-items: stretch;
+}
+
+.db-threat-item,
+.db-awareness-item,
+.db-activity-item {
+  padding: 0.95rem !important;
+}
+
+@media (max-width: 720px) {
+  .db-reports-history-stat {
+    min-width: 0;
+    justify-items: start;
+  }
 }

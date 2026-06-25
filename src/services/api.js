@@ -327,10 +327,11 @@ export const dashboardAPI = {
 
 // Scanner API calls
 export const scannerAPI = {
-  scanWebsite: async (payload) => {
+  scanWebsite: async (payload, options = {}) => {
     return apiRequest("/scanner/scan", {
       method: "POST",
       body: payload,
+      signal: options.signal,
     });
   },
   getReports: async (limit = 12) => {

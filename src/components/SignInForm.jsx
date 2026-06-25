@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from "react";
-import { Chrome, Eye, EyeOff, Github, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import "./SignInForm.css";
 
@@ -168,11 +168,6 @@ const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
       </div>
 
       <form className="signin-form" onSubmit={handleSubmit}>
-        <div className="signin-admin-access" aria-label="Admin test credentials">
-          <strong>Admin access</strong>
-          <span>admin@threathunters.com / Admin@12345</span>
-        </div>
-
         <label className="signin-field">
           <span>Email Address</span>
           <div className="signin-input-shell">
@@ -335,26 +330,6 @@ const SignInForm = ({ onSwitchToSignUp, onLogin }) => {
           </p>
         )}
 
-        <div className="signin-divider">
-          <span>Or continue with</span>
-        </div>
-
-        <div className="signin-socials">
-          <button
-            aria-label="Continue with Chrome"
-            className="signin-social-button"
-            type="button"
-          >
-            <Chrome />
-          </button>
-          <button
-            aria-label="Continue with GitHub"
-            className="signin-social-button"
-            type="button"
-          >
-            <Github />
-          </button>
-        </div>
       </form>
     </div>
   );

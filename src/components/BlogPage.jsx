@@ -197,6 +197,29 @@ const buildTopics = (posts) => {
     }));
 };
 
+const BLOG_POSTS_STORAGE_KEYS = Object.freeze({
+  public: "threatHuntersBlogPostsPublic",
+  admin: "threatHuntersBlogPostsAdmin",
+});
+
+const loadStoredBlogPosts = (storageKey) => {
+  try {
+    const storedPosts = window.localStorage.getItem(storageKey);
+    const parsedPosts = JSON.parse(storedPosts || "[]");
+    return normalizePosts(parsedPosts);
+  } catch {
+    return [];
+  }
+};
+
+const storeBlogPosts = (storageKey, posts) => {
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(posts.slice(0, 24)));
+  } catch {
+    // Keep the current page working even if browser storage is unavailable.
+  }
+};
+
 const ImagePlaceholder = ({ badge, tone = "blue", compact = false }) => (
   <div className={`blog-image-placeholder ${compact ? "blog-image-placeholder--compact" : ""}`}>
     {badge ? <span className={`blog-image-placeholder__badge blog-image-placeholder__badge--${tone}`}>{badge}</span> : null}
@@ -263,13 +286,15 @@ const BlogPage = ({
   isLoggedIn,
   userRole = "user",
 }) => {
-  const [posts, setPosts] = useState([]);
-  const [selectedPostId, setSelectedPostId] = useState("");
-  const [selectedPost, setSelectedPost] = useState(null);
+  const blogStorageKey = userRole === "admin" ? BLOG_POSTS_STORAGE_KEYS.admin : BLOG_POSTS_STORAGE_KEYS.public;
+  const [initialBlogPosts] = useState(() => loadStoredBlogPosts(blogStorageKey));
+  const [posts, setPosts] = useState(initialBlogPosts);
+  const [selectedPostId, setSelectedPostId] = useState(() => initialBlogPosts[0]?.id || "");
+  const [selectedPost, setSelectedPost] = useState(() => initialBlogPosts[0] || null);
   const [selectedComments, setSelectedComments] = useState([]);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isComposerModalOpen, setIsComposerModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => initialBlogPosts.length === 0);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -284,6 +309,8 @@ const BlogPage = ({
   const [commentDraft, setCommentDraft] = useState("");
   const [replyDrafts, setReplyDrafts] = useState({});
   const [busyAction, setBusyAction] = useState({ type: "", id: "" });
+  const hasCachedPostsRef = useRef(initialBlogPosts.length > 0);
+  const postsRef = useRef(initialBlogPosts);
 
   const isAdmin = userRole === "admin";
   const topics = useMemo(() => buildTopics(posts), [posts]);
@@ -329,6 +356,10 @@ const BlogPage = ({
 
   const loadPostDetail = useCallback(async (postId) => {
     if (!postId) return;
+    const currentFromList = postsRef.current.find((post) => post.id === postId);
+    if (currentFromList) {
+      setSelectedPost(currentFromList);
+    }
     setDetailLoading(true);
     try {
       const [postPayload, commentsPayload] = await Promise.all([
@@ -356,29 +387,70 @@ const BlogPage = ({
     }
   }, []);
 
-  const loadPosts = useCallback(async (preferredId = "") => {
-    setLoading(true);
-    setError("");
+  const loadPosts = useCallback(async (preferredId = "", { silent = false } = {}) => {
+    const shouldShowLoading = !hasCachedPostsRef.current && !silent;
+    if (shouldShowLoading) {
+      setLoading(true);
+    }
+    if (!silent) {
+      setError("");
+    }
     try {
       const response = await blogAPI.getPosts({ includeHidden: isAdmin });
       const nextPosts = normalizePosts(response);
       setPosts(nextPosts);
-      const nextSelectedId = preferredId || nextPosts[0]?.id || "";
-      setSelectedPostId(nextSelectedId);
-      if (!nextSelectedId) {
+      hasCachedPostsRef.current = nextPosts.length > 0;
+      storeBlogPosts(blogStorageKey, nextPosts);
+
+      if (!nextPosts.length) {
+        setSelectedPostId("");
         setSelectedPost(null);
         setSelectedComments([]);
+      } else if (preferredId && nextPosts.some((post) => post.id === preferredId)) {
+        setSelectedPostId(preferredId);
+      } else {
+        setSelectedPostId((current) => {
+          if (current && nextPosts.some((post) => post.id === current)) {
+            return current;
+          }
+
+          return nextPosts[0]?.id || "";
+        });
       }
     } catch (err) {
-      setError(err.message || "Failed to load blog posts.");
+      if (!hasCachedPostsRef.current) {
+        setError(err.message || "Failed to load blog posts.");
+      }
     } finally {
-      setLoading(false);
+      if (shouldShowLoading) {
+        setLoading(false);
+      }
     }
-  }, [isAdmin]);
+  }, [blogStorageKey, isAdmin]);
 
   useEffect(() => {
-    loadPosts();
+    loadPosts("", { silent: hasCachedPostsRef.current });
   }, [loadPosts]);
+
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
+
+  useEffect(() => {
+    const nextCachedPosts = loadStoredBlogPosts(blogStorageKey);
+    hasCachedPostsRef.current = nextCachedPosts.length > 0;
+    setPosts(nextCachedPosts);
+    setSelectedPostId(nextCachedPosts[0]?.id || "");
+    setSelectedPost(nextCachedPosts[0] || null);
+    setSelectedComments([]);
+    setLoading(nextCachedPosts.length === 0);
+  }, [blogStorageKey]);
+
+  useEffect(() => {
+    if (posts.length) {
+      storeBlogPosts(blogStorageKey, posts);
+    }
+  }, [blogStorageKey, posts]);
 
   useEffect(() => {
     if (selectedPostId) {
