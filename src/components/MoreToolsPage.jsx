@@ -242,17 +242,23 @@ const formatCount = (value) => Number(value || 0).toLocaleString();
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(value.trim());
 
 const getEmailBreachSources = (result) => {
-  const breaches = Array.isArray(result?.breaches) ? result.breaches : [];
+  const breaches = Array.isArray(result?.breach_sources)
+    ? result.breach_sources
+    : Array.isArray(result?.breaches)
+      ? result.breaches
+      : [];
 
   return breaches.map((breach, index) => {
     const title = breach?.title || breach?.name || `Breach source ${index + 1}`;
     const domain = breach?.domain || breach?.attribution || 'Unknown source';
     const dataClasses = Array.isArray(breach?.data_classes) ? breach.data_classes : [];
+    const location = breach?.location || (domain && domain !== 'Unknown source' ? `${title} (${domain})` : title);
 
     return {
       id: `${title}-${domain}-${breach?.breach_date || index}`,
       title,
       domain,
+      location,
       date: breach?.breach_date || 'Unknown date',
       pwnCount: Number(breach?.pwn_count || 0),
       data: dataClasses.slice(0, 6),
@@ -261,6 +267,27 @@ const getEmailBreachSources = (result) => {
       sensitive: Boolean(breach?.sensitive),
     };
   });
+};
+
+const getBreachLocationSummary = (result, maxItems = 4) => {
+  const explicitSummary = String(result?.breach_locations_summary || '').trim();
+  if (explicitSummary) {
+    return explicitSummary;
+  }
+
+  const sourceNames = Array.isArray(result?.breach_source_names)
+    ? result.breach_source_names.filter(Boolean)
+    : [];
+  if (sourceNames.length) {
+    return sourceNames.slice(0, maxItems).join(', ');
+  }
+
+  const sources = getEmailBreachSources(result);
+  if (!sources.length) {
+    return 'No confirmed leak location was returned.';
+  }
+
+  return sources.slice(0, maxItems).map((source) => source.location || source.title).join(', ');
 };
 
 const validateToolInput = (activeTab, value) => {
@@ -490,6 +517,7 @@ const buildEmailResultView = (result) => {
   const riskLevel = result?.risk_level || (breached ? 'Medium' : 'Safe');
   const exposedData = Array.isArray(result?.exposed_data) ? result.exposed_data : [];
   const breachSources = getEmailBreachSources(result);
+  const breachLocationSummary = getBreachLocationSummary(result);
   const latestLabel = latestBreach?.title || latestBreach?.name || 'No breach';
   const latestDate = latestBreach?.breach_date || 'Not found';
   const safeTone = breached ? 'watch' : 'safe';
@@ -557,7 +585,7 @@ const buildEmailResultView = (result) => {
   return {
     title: breached ? 'Email appears in breach data' : 'No breach match found',
     copy: breached
-      ? `This email appears in ${formatCount(breachCount)} breach record(s). Review the latest match and exposed data classes.`
+      ? `This email appears in ${formatCount(breachCount)} breach record(s). Found in: ${breachLocationSummary}.`
       : 'The live HIBP lookup did not surface breach records for this email address.',
     summary: [
       {
@@ -582,9 +610,14 @@ const buildEmailResultView = (result) => {
     insights: breached
       ? [
           {
+            title: 'Exposed in these services',
+            copy: breachLocationSummary,
+            tone: 'watch',
+          },
+          {
             title: `Latest breach: ${latestLabel}`,
             copy: `Breach date: ${latestDate}. Use the latest incident details to decide the next remediation step.`,
-            tone: 'watch',
+            tone: 'info',
           },
           {
             title: 'Exposed data classes',
@@ -592,11 +625,6 @@ const buildEmailResultView = (result) => {
               ? exposedData.slice(0, 6).join(', ')
               : 'No data class metadata was returned.',
             tone: 'info',
-          },
-          {
-            title: 'Verified and stealer signals',
-            copy: `${formatCount(verifiedCount)} verified breach(s) and ${formatCount(stealerCount)} stealer-log hit(s) were found for this address.`,
-            tone: stealerCount > 0 ? 'watch' : 'safe',
           },
         ]
       : [
@@ -625,6 +653,7 @@ const buildEmailResultView = (result) => {
     priorityActions,
     latestBreach,
     breachSources,
+    breachLocationSummary,
   };
 };
 
@@ -644,10 +673,12 @@ const buildEmailAnalysisPdf = (emailValue, resultView, rawResult) => {
   const exposedData = Array.isArray(rawResult?.exposed_data) ? rawResult.exposed_data : [];
   const latestBreach = rawResult?.latest_breach || null;
   const breachSources = getEmailBreachSources(rawResult);
+  const breachLocationSummary = getBreachLocationSummary(rawResult, 6);
   const sourceRows = breachSources.slice(0, 10).map((source) => ({
     label: source.title,
-    value: source.domain,
+    value: source.domain || 'Unknown source',
     detail: [
+      source.location ? `Location: ${source.location}` : null,
       `Date: ${source.date}`,
       source.pwnCount ? `Accounts: ${formatCount(source.pwnCount)}` : null,
       source.verified ? 'Verified' : null,
@@ -657,6 +688,7 @@ const buildEmailAnalysisPdf = (emailValue, resultView, rawResult) => {
   }));
   const whereIssueIs = breached
     ? [
+        breachLocationSummary ? `Found in: ${breachLocationSummary}` : null,
         latestBreach?.title ? `Latest match: ${latestBreach.title}` : null,
         latestBreach?.domain ? `Source domain: ${latestBreach.domain}` : null,
         latestBreach?.breach_date ? `Breach date: ${latestBreach.breach_date}` : null,
@@ -692,6 +724,7 @@ const buildEmailAnalysisPdf = (emailValue, resultView, rawResult) => {
     metrics: [
       { label: 'Risk', value: riskLevel, fill: '#fff5f6', valueColor: breached ? '#c62828' : '#11855d' },
       { label: 'Breaches', value: String(breachCount), fill: '#eef6ff', valueColor: '#0b66c3' },
+      { label: 'Sources', value: String(breachSources.length), fill: '#f8f4ff', valueColor: '#6d4cff' },
       { label: 'Verified', value: String(verifiedCount), fill: '#f3f0ff', valueColor: '#6d4cff' },
       { label: 'Stealer logs', value: String(stealerCount), fill: '#fff0f0', valueColor: stealerCount > 0 ? '#c62828' : '#0b66c3' },
     ],
@@ -699,7 +732,7 @@ const buildEmailAnalysisPdf = (emailValue, resultView, rawResult) => {
       {
         title: 'Executive Summary',
         body: breached
-          ? `The address appears in ${formatCount(breachCount)} breach record(s) and should be reviewed immediately.`
+          ? `The address appears in ${formatCount(breachCount)} breach record(s) and was found in ${breachLocationSummary}. It should be reviewed immediately.`
           : 'The address was not matched in the live breach corpus, but account hygiene guidance is still included below.',
         accent: '#8b7cff',
       },
@@ -736,9 +769,9 @@ const buildEmailAnalysisPdf = (emailValue, resultView, rawResult) => {
         accent: '#00b8d9',
       },
       {
-        title: 'Breach Sources',
+        title: 'Sites and Leak Locations',
         body: sourceRows.length
-          ? 'These are the breach sources returned by the backend lookup for this email.'
+          ? 'These are the sites and services where this email was returned by the backend breach lookup.'
           : 'No breach source names were returned by the current lookup.',
         rows: sourceRows,
         items: sourceRows.length
@@ -1151,6 +1184,10 @@ const MoreToolsPage = ({
                         <strong>Breach sources</strong>
                         <span>{formatCount(resultView.breachSources.length)} source(s)</span>
                       </div>
+
+                      <p className="more-tools-source-summary">
+                        Found in: {resultView.breachLocationSummary}
+                      </p>
 
                       {resultView.breachSources.slice(0, 5).map((source) => (
                         <article className="more-tools-source-card" key={source.id}>

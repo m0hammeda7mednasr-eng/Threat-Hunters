@@ -655,6 +655,18 @@
   gap: 0.75rem;
 }
 
+.more-tools-source-summary {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--more-tools-warning-border);
+  background: var(--more-tools-warning-bg);
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
 .more-tools-source-list-head {
   display: flex;
   align-items: center;

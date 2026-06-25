@@ -45,6 +45,39 @@ def _risk_level_from_count(count):
     return "Low"
 
 
+def _build_breach_sources(breaches):
+    sources = []
+
+    for index, breach in enumerate(breaches):
+        title = _normalize_text(
+            breach.get("title")
+            or breach.get("name")
+            or f"Breach source {index + 1}"
+        )
+        domain = _normalize_text(
+            breach.get("domain")
+            or breach.get("attribution")
+            or ""
+        )
+        location = f"{title} ({domain})" if domain else title
+
+        sources.append({
+            "name": breach.get("name") or title,
+            "title": title,
+            "domain": domain,
+            "location": location,
+            "breach_date": breach.get("breach_date"),
+            "pwn_count": breach.get("pwn_count", 0),
+            "data_classes": breach.get("data_classes", []),
+            "verified": bool(breach.get("verified")),
+            "stealer_log": bool(breach.get("stealer_log")),
+            "sensitive": bool(breach.get("sensitive")),
+            "attribution": breach.get("attribution"),
+        })
+
+    return sources
+
+
 def _pwned_password_count(password):
     sha1 = hashlib.sha1(password.encode("utf-8")).hexdigest().upper()
     prefix = sha1[:5]
@@ -129,6 +162,9 @@ def check_email_breach(data):
                 "risk_level": domain_risk,
             },
             "breaches": [],
+            "breach_sources": [],
+            "breach_source_names": [],
+            "breach_locations_summary": "No confirmed breach source was returned by the local preview.",
             "lookup_mode": "local-preview",
             "message": "HIBP_API_KEY is not configured. Returning a local email hygiene preview instead.",
         }), 200
@@ -158,6 +194,9 @@ def check_email_breach(data):
                     "risk_level": "Safe",
                 },
                 "breaches": [],
+                "breach_sources": [],
+                "breach_source_names": [],
+                "breach_locations_summary": "No confirmed breach source was returned by the live lookup.",
             }), 200
 
         response.raise_for_status()
@@ -208,6 +247,13 @@ def check_email_breach(data):
 
         latest_breach = results[0] if results else None
         breach_count = len(results)
+        breach_sources = _build_breach_sources(results)
+        breach_source_names = [source["location"] for source in breach_sources if source.get("location")]
+        breach_locations_summary = (
+            ", ".join(breach_source_names[:8])
+            if breach_source_names
+            else "No confirmed breach source was returned by the live lookup."
+        )
         risk_level = "Low"
         if breach_count >= 1:
             risk_level = "Medium"
@@ -232,6 +278,9 @@ def check_email_breach(data):
                 "risk_level": risk_level,
             },
             "breaches": results,
+            "breach_sources": breach_sources,
+            "breach_source_names": breach_source_names,
+            "breach_locations_summary": breach_locations_summary,
         }), 200
 
     except requests.RequestException as exc:
