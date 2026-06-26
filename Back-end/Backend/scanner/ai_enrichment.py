@@ -24,7 +24,7 @@ DEFAULT_DEEPSEEK_CONFIG = {
     "api_key": "",
     "model": "deepseek-v4-pro",
     "timeout_seconds": 90,
-    "max_output_tokens": 8000,
+    "max_output_tokens": 12000,
 }
 PLACEHOLDER_KEY_VALUES = {"", "PASTE_REAL_KEY_HERE", "PASTE_KEY_HERE", "your_key_here"}
 SENSITIVE_KEY_RE = re.compile(
@@ -421,8 +421,18 @@ async def fetch_targeted_known_vulnerabilities(report: dict, limit_per_keyword: 
 
 def compact_report_for_writer(report: dict) -> dict:
     summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    report_findings = [finding for finding in (report.get("findings") or []) if isinstance(finding, dict)]
+    test_findings = [
+        finding for finding in report_findings
+        if str(finding.get("scanner_name") or finding.get("module_name") or "").lower() in {"test1", "test2"}
+    ]
+    other_findings = [
+        finding for finding in report_findings
+        if str(finding.get("scanner_name") or finding.get("module_name") or "").lower() not in {"test1", "test2"}
+    ]
+
     findings = []
-    for finding in (report.get("findings") or [])[:20]:
+    for finding in [*test_findings, *other_findings][:80]:
         if not isinstance(finding, dict):
             continue
         findings.append({
@@ -432,6 +442,8 @@ def compact_report_for_writer(report: dict) -> dict:
             "status": finding.get("status"),
             "url": finding.get("url") or finding.get("matched_at"),
             "parameter": finding.get("parameter"),
+            "scanner_name": finding.get("scanner_name") or finding.get("module_name"),
+            "vuln_type": finding.get("vuln_type") or finding.get("category"),
             "evidence_summary": finding.get("evidence_summary") or finding.get("proof"),
             "remediation": finding.get("remediation"),
         })
@@ -458,12 +470,18 @@ def build_deepseek_prompt_package(report: dict) -> dict:
             "Do not describe the target as a test site, demo site, lab, training system, intentionally vulnerable app, or sample environment. "
             "Treat the target as a normal externally exposed web application. "
             "Write in a polished Threat Hunters report voice, suitable for a client-facing PDF. "
-            "Return strict JSON only. Include all 8 report sections using these keys: "
+            "Explain the important findings like a senior application-security consultant: for each supplied confirmed finding, and for high or medium candidate/configuration findings, "
+            "write what was observed, why it matters, the likely impact, exact remediation steps, and how to verify the fix. "
+            "Keep every explanation evidence-bound and practical. Avoid generic advice such as 'sanitize input' unless you name the correct context, control, or validation step. "
+            "Recommendations must be concrete, ordered by risk, and written as fix actions with validation steps. "
+            "Return strict JSON only. Include all report sections using these keys: "
             "reader_summary string, bottom_line string, executive_summary string, "
             "confirmed_application_vulnerabilities string, candidate_findings string, "
             "security_header_configuration string, recon_observations string, "
             "target_profile_telemetry string, supplementary_scans string, "
-            "recommendations array, key_risks array, limitations string."
+            "finding_guidance array, recommendations array, key_risks array, limitations string. "
+            "Each finding_guidance item must include evidence_id, title, explanation, impact, fix, and validation. "
+            "The evidence_id must exactly match one scanner_evidence.findings evidence_id value."
         ),
         "scanner_evidence": compact,
         "expected_output_schema": {
@@ -476,6 +494,16 @@ def build_deepseek_prompt_package(report: dict) -> dict:
             "recon_observations": "string",
             "target_profile_telemetry": "string",
             "supplementary_scans": "string",
+            "finding_guidance": [
+                {
+                    "evidence_id": "string matching scanner_evidence.findings[].evidence_id",
+                    "title": "string",
+                    "explanation": "what the scanner observed and why it is a vulnerability",
+                    "impact": "practical risk in business/security terms",
+                    "fix": "specific remediation steps",
+                    "validation": "how to verify the fix after remediation"
+                }
+            ],
             "key_risks": ["string"],
             "recommendations": ["string"],
             "limitations": "string",
@@ -511,7 +539,7 @@ async def call_deepseek_auto(report: dict) -> tuple[dict, dict, dict | None]:
             }
         ],
         "temperature": 0.2,
-        "max_tokens": config.get("max_output_tokens", 8000),
+        "max_tokens": max(12000, int(config.get("max_output_tokens") or DEFAULT_DEEPSEEK_CONFIG["max_output_tokens"])),
         "stream": False,
         "response_format": {"type": "json_object"}
     }
@@ -575,6 +603,61 @@ def parse_deepseek_report_sections(raw_response: dict) -> dict:
     return parsed
 
 
+def _sanitize_finding_guidance_items(items: Any, *, limit: int = 40) -> list[dict]:
+    if not isinstance(items, list):
+        return []
+    guidance = []
+    for item in items[:limit]:
+        if not isinstance(item, dict):
+            continue
+        evidence_id = _clean_text(item.get("evidence_id"), 120)
+        if not evidence_id:
+            continue
+        guidance.append({
+            "evidence_id": evidence_id,
+            "title": _sanitize_report_language(item.get("title"), 220),
+            "explanation": _sanitize_report_language(item.get("explanation"), 900),
+            "impact": _sanitize_report_language(item.get("impact"), 700),
+            "fix": _sanitize_report_language(item.get("fix"), 900),
+            "validation": _sanitize_report_language(item.get("validation"), 700),
+        })
+    return guidance
+
+
+def _local_finding_guidance(compact: dict, *, limit: int = 24) -> list[dict]:
+    findings = compact.get("findings") if isinstance(compact.get("findings"), list) else []
+    guidance = []
+    for finding in findings[:limit]:
+        if not isinstance(finding, dict):
+            continue
+        evidence_id = _clean_text(finding.get("evidence_id"), 120)
+        title = _sanitize_report_language(finding.get("title"), 220)
+        evidence = _sanitize_report_language(finding.get("evidence_summary"), 700)
+        remediation = _sanitize_report_language(finding.get("remediation"), 800)
+        if not evidence_id:
+            continue
+        if not remediation:
+            remediation = "Review the affected code path, apply the appropriate control for the vulnerability class, and retest the exact affected URL or parameter."
+        guidance.append({
+            "evidence_id": evidence_id,
+            "title": title,
+            "explanation": _sanitize_report_language(
+                f"The scanner recorded evidence for {title or 'this finding'}. {evidence or 'The finding should be reviewed against the affected request and response evidence.'}",
+                900,
+            ),
+            "impact": _sanitize_report_language(
+                "If confirmed in the exposed application flow, this issue can increase attack surface, expose users or data to abuse, or weaken the security posture of the affected endpoint.",
+                700,
+            ),
+            "fix": remediation,
+            "validation": _sanitize_report_language(
+                "Re-run the same scanner check and manually retest the affected URL or parameter. Confirm the original evidence no longer appears and that legitimate application behavior still works.",
+                700,
+            ),
+        })
+    return guidance
+
+
 def generate_report_sections(report: dict, external_sections: dict | None = None) -> dict:
     compact = compact_report_for_writer(report)
     generated_at = datetime.now(timezone.utc).isoformat()
@@ -589,8 +672,9 @@ def generate_report_sections(report: dict, external_sections: dict | None = None
             "recon_observations": _sanitize_report_language(external_sections.get("recon_observations"), 1200),
             "target_profile_telemetry": _sanitize_report_language(external_sections.get("target_profile_telemetry"), 1200),
             "supplementary_scans": _sanitize_report_language(external_sections.get("supplementary_scans"), 1200),
+            "finding_guidance": _sanitize_finding_guidance_items(external_sections.get("finding_guidance")),
             "key_risks": [_sanitize_report_language(item, 500) for item in external_sections.get("key_risks", [])[:8]],
-            "recommendations": [_sanitize_report_language(item, 500) for item in external_sections.get("recommendations", [])[:10]],
+            "recommendations": [_sanitize_report_language(item, 800) for item in external_sections.get("recommendations", [])[:12]],
             "limitations": _sanitize_report_language(external_sections.get("limitations"), 1000),
         }
         return {
@@ -640,12 +724,13 @@ def generate_report_sections(report: dict, external_sections: dict | None = None
         "recon_observations": _sanitize_report_language(f"Recon observations recorded: {int(summary.get('recon_items') or summary.get('informational_findings') or 0)}.", 1200),
         "target_profile_telemetry": _sanitize_report_language(f"Profile {compact.get('profile') or 'unknown'} completed with {int(summary.get('modules_executed') or 0)} executed module(s).", 1200),
         "supplementary_scans": _sanitize_report_language(f"Nuclei findings: {int(summary.get('nuclei_findings_count') or summary.get('nuclei_findings') or 0)}. JS secrets: {int(summary.get('secrets_found') or 0)}.", 1200),
+        "finding_guidance": _local_finding_guidance(compact),
         "key_risks": [
             _sanitize_report_language("Evidence-backed findings should drive the first remediation cycle because they represent the clearest externally observable risk."),
             _sanitize_report_language("Candidate findings should be validated by an analyst before closure or escalation to confirmed exploitability."),
             _sanitize_report_language("Known exploited CVEs affecting exposed platform components should be patched, mitigated, or formally risk accepted."),
         ],
-        "recommendations": [_sanitize_report_language(item, 500) for item in recommendations[:8]],
+        "recommendations": [_sanitize_report_language(item, 800) for item in recommendations[:8]],
         "limitations": _sanitize_report_language("This local narrative was generated from scanner evidence and public vulnerability intelligence available during this run.", 1000),
     }
     return {

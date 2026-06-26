@@ -295,10 +295,25 @@ SAMPLE_REPORT_TEMPLATE = """\
 <h2>2. Confirmed Application Vulnerabilities</h2>
 {% if confirmed_cards %}
 {% for finding in confirmed_cards %}
-<div class="finding-line">
-<p><span class="severity severity-{{ finding.severity | lower }}">{{ finding.severity | upper }}</span> <strong>{{ finding.title | e }}</strong> <code>{{ finding.evidence_id | e }}</code></p>
-<p>At {{ finding.url or 'N/A' }}{% if finding.parameter %} - parameter {{ finding.parameter }}{% endif %} - status {{ finding.status }} - confidence {{ finding.confidence_text }}</p>
-<p>{{ finding.evidence_summary | e }}</p>
+<div class="finding-card">
+<div class="finding-card-header">
+<span class="severity severity-{{ finding.severity | lower }}">{{ finding.severity | upper }}</span>
+<div>
+<h3 class="finding-title">{{ finding.title | e }}</h3>
+<p class="finding-meta"><code>{{ finding.evidence_id | e }}</code> · Source: {{ finding.module_name | e }}{% if finding.source_tool %} / {{ finding.source_tool | e }}{% endif %} · Status: {{ finding.status | e }} · Confidence: {{ finding.confidence_text | e }}</p>
+</div>
+</div>
+<p class="finding-url"><span class="finding-label">Location</span> {{ finding.url or 'N/A' }}{% if finding.parameter %} <span class="finding-chip">parameter {{ finding.parameter | e }}</span>{% endif %}</p>
+<p class="finding-detail"><span class="finding-label">Evidence</span> {{ finding.evidence_summary | e }}</p>
+<p class="finding-detail"><span class="finding-label">Remediation</span> {{ finding.remediation | e }}</p>
+{% if finding.guidance %}
+<div class="finding-guidance">
+{% if finding.guidance.explanation %}<p><span class="finding-label">Explanation</span> {{ finding.guidance.explanation | e }}</p>{% endif %}
+{% if finding.guidance.impact %}<p><span class="finding-label">Impact</span> {{ finding.guidance.impact | e }}</p>{% endif %}
+{% if finding.guidance.fix %}<p><span class="finding-label">Fix</span> {{ finding.guidance.fix | e }}</p>{% endif %}
+{% if finding.guidance.validation %}<p><span class="finding-label">Verify</span> {{ finding.guidance.validation | e }}</p>{% endif %}
+</div>
+{% endif %}
 </div>
 {% endfor %}
 {% else %}
@@ -309,10 +324,25 @@ SAMPLE_REPORT_TEMPLATE = """\
 {% set candidate_cards = strong_candidate_cards + weak_candidate_cards %}
 {% if candidate_cards %}
 {% for finding in candidate_cards[:24] %}
-<div class="finding-line">
-<p><span class="severity severity-{{ finding.severity | lower }}">{{ finding.severity | upper }}</span> <strong>{{ finding.title | e }}</strong> <code>{{ finding.evidence_id | e }}</code></p>
-<p>{% if finding.parameter %}Parameter {{ finding.parameter | e }} at {% else %}At {% endif %}{{ finding.url or 'N/A' }} - confidence {{ finding.confidence_text }}{% if finding.examples_count > 1 %} - grouped examples: {{ finding.examples_count }}{% endif %}</p>
-<p>{{ finding.evidence_summary | e }}</p>
+<div class="finding-card finding-card-candidate">
+<div class="finding-card-header">
+<span class="severity severity-{{ finding.severity | lower }}">{{ finding.severity | upper }}</span>
+<div>
+<h3 class="finding-title">{{ finding.title | e }}</h3>
+<p class="finding-meta"><code>{{ finding.evidence_id | e }}</code> · Source: {{ finding.module_name | e }}{% if finding.source_tool %} / {{ finding.source_tool | e }}{% endif %} · Confidence: {{ finding.confidence_text | e }}{% if finding.examples_count > 1 %} · Grouped examples: {{ finding.examples_count }}{% endif %}</p>
+</div>
+</div>
+<p class="finding-url"><span class="finding-label">Location</span> {{ finding.url or 'N/A' }}{% if finding.parameter %} <span class="finding-chip">parameter {{ finding.parameter | e }}</span>{% endif %}</p>
+<p class="finding-detail"><span class="finding-label">Why triage</span> {{ finding.evidence_summary | e }}</p>
+<p class="finding-detail"><span class="finding-label">Next step</span> {{ finding.remediation | e }}</p>
+{% if finding.guidance %}
+<div class="finding-guidance">
+{% if finding.guidance.explanation %}<p><span class="finding-label">Explanation</span> {{ finding.guidance.explanation | e }}</p>{% endif %}
+{% if finding.guidance.impact %}<p><span class="finding-label">Impact</span> {{ finding.guidance.impact | e }}</p>{% endif %}
+{% if finding.guidance.fix %}<p><span class="finding-label">Fix</span> {{ finding.guidance.fix | e }}</p>{% endif %}
+{% if finding.guidance.validation %}<p><span class="finding-label">Verify</span> {{ finding.guidance.validation | e }}</p>{% endif %}
+</div>
+{% endif %}
 </div>
 {% endfor %}
 {% else %}
@@ -322,10 +352,25 @@ SAMPLE_REPORT_TEMPLATE = """\
 <h2>4. Security Header &amp; Configuration Findings</h2>
 {% if security_header_cards %}
 {% for finding in security_header_cards[:20] %}
-<div class="finding-line">
-<p><span class="severity severity-{{ finding.severity | lower }}">{{ finding.severity | upper }}</span> <strong>{{ finding.title | e }}</strong> <code>{{ finding.evidence_id | e }}</code></p>
-<p>At {{ finding.url or domain }} - status {{ finding.status }} - confidence {{ finding.confidence_text }}</p>
-<p>{{ finding.evidence_summary | e }}</p>
+<div class="finding-card finding-card-config">
+<div class="finding-card-header">
+<span class="severity severity-{{ finding.severity | lower }}">{{ finding.severity | upper }}</span>
+<div>
+<h3 class="finding-title">{{ finding.title | e }}</h3>
+<p class="finding-meta"><code>{{ finding.evidence_id | e }}</code> · Source: {{ finding.module_name | e }}{% if finding.source_tool %} / {{ finding.source_tool | e }}{% endif %} · Status: {{ finding.status | e }} · Confidence: {{ finding.confidence_text | e }}</p>
+</div>
+</div>
+<p class="finding-url"><span class="finding-label">Location</span> {{ finding.url or domain }}</p>
+<p class="finding-detail"><span class="finding-label">Configuration issue</span> {{ finding.evidence_summary | e }}</p>
+<p class="finding-detail"><span class="finding-label">Remediation</span> {{ finding.remediation | e }}</p>
+{% if finding.guidance %}
+<div class="finding-guidance">
+{% if finding.guidance.explanation %}<p><span class="finding-label">Explanation</span> {{ finding.guidance.explanation | e }}</p>{% endif %}
+{% if finding.guidance.impact %}<p><span class="finding-label">Impact</span> {{ finding.guidance.impact | e }}</p>{% endif %}
+{% if finding.guidance.fix %}<p><span class="finding-label">Fix</span> {{ finding.guidance.fix | e }}</p>{% endif %}
+{% if finding.guidance.validation %}<p><span class="finding-label">Verify</span> {{ finding.guidance.validation | e }}</p>{% endif %}
+</div>
+{% endif %}
 </div>
 {% endfor %}
 {% else %}
@@ -483,10 +528,13 @@ def _candidate_strength(finding: dict) -> str:
 def _compact_finding(finding: dict) -> dict:
     raw = finding.get("raw", {}) if isinstance(finding.get("raw"), dict) else {}
     confidence = finding.get("confidence") or 0
-    try:
-        confidence_text = f"{float(confidence):.2f}"
-    except (TypeError, ValueError):
-        confidence_text = "0.00"
+    if isinstance(confidence, str) and confidence.strip():
+        confidence_text = confidence.strip()
+    else:
+        try:
+            confidence_text = f"{float(confidence):.2f}"
+        except (TypeError, ValueError):
+            confidence_text = "unknown"
     evidence_summary = (
         finding.get("evidence_summary")
         or raw.get("ai_ready_evidence_summary")
@@ -498,7 +546,7 @@ def _compact_finding(finding: dict) -> dict:
     reproduction = " ".join(finding.get("reproduction_steps") or []) or "See normalized evidence."
     return {
         "evidence_id": finding.get("evidence_id") or raw.get("evidence_id") or finding.get("id", ""),
-        "title": finding.get("name") or finding.get("id") or "Finding",
+        "title": finding.get("title") or finding.get("name") or finding.get("id") or "Finding",
         "status": finding.get("status", ""),
         "severity": finding.get("severity", "info"),
         "confidence_text": confidence_text,
@@ -513,6 +561,52 @@ def _compact_finding(finding: dict) -> dict:
         "remediation": _redact_text(finding.get("remediation") or "Review and remediate according to the finding type."),
         "candidate_strength": _candidate_strength(finding),
     }
+
+
+def _finding_guidance_lookup(report_sections: dict) -> dict:
+    guidance_items = report_sections.get("finding_guidance") if isinstance(report_sections, dict) else []
+    if not isinstance(guidance_items, list):
+        return {}
+    lookup = {}
+    for item in guidance_items:
+        if not isinstance(item, dict):
+            continue
+        evidence_id = str(item.get("evidence_id") or "").strip()
+        if not evidence_id:
+            continue
+        lookup[evidence_id] = {
+            "explanation": _redact_text(item.get("explanation"), 900),
+            "impact": _redact_text(item.get("impact"), 700),
+            "fix": _redact_text(item.get("fix"), 900),
+            "validation": _redact_text(item.get("validation"), 700),
+        }
+    return lookup
+
+
+def _attach_finding_guidance(cards: list[dict], guidance_lookup: dict) -> list[dict]:
+    for card in cards:
+        if not isinstance(card, dict):
+            continue
+        guidance = guidance_lookup.get(str(card.get("evidence_id") or "").strip())
+        if guidance:
+            card["guidance"] = guidance
+        elif card.get("evidence_summary") or card.get("remediation"):
+            card["guidance"] = {
+                "explanation": _redact_text(
+                    f"{card.get('title') or 'This finding'} was recorded from scanner evidence at the affected location. {card.get('evidence_summary') or ''}",
+                    900,
+                ),
+                "impact": _redact_text(
+                    "This issue can increase the likelihood of abuse against the affected endpoint or weaken the target's defensive posture if left unresolved.",
+                    700,
+                ),
+                "fix": _redact_text(card.get("remediation") or "Apply the appropriate control for the vulnerability class and retest the affected request.", 900),
+                "validation": _redact_text(
+                    "After remediation, re-run the scan and manually repeat the affected request to confirm the original evidence no longer appears.",
+                    700,
+                ),
+            }
+    return cards
 
 
 def _telemetry_line(module_name: str, telemetry) -> str:
@@ -629,6 +723,7 @@ def _render_context(report_data: dict) -> dict:
     summary = report_data.get("summary", {}) if isinstance(report_data.get("summary"), dict) else {}
     report_sections = report_data.get("report_sections", {})
     report_sections = report_sections if isinstance(report_sections, dict) else {}
+    guidance_lookup = _finding_guidance_lookup(report_sections)
     known_summary = report_data.get("known_vulnerability_summary", {})
     known_summary = known_summary if isinstance(known_summary, dict) else {}
     targeted_known = ((report_data.get("known_vulnerabilities") or {}).get("targeted") or {}).get("items", [])
@@ -676,6 +771,23 @@ def _render_context(report_data: dict) -> dict:
     ai_narrative_label = "DeepSeek Pro" if "DeepSeek" in generated_by else "Threat Hunters local fallback"
     if model:
         ai_narrative_label = f"{ai_narrative_label} ({model})"
+    confirmed_cards = _attach_finding_guidance(
+        [_compact_finding(item) for item in report_data.get("confirmed_app_vulns", report_data.get("findings", []))],
+        guidance_lookup,
+    )
+    strong_candidate_cards = _attach_finding_guidance(
+        [_compact_finding(item) for item in report_data.get("strong_app_candidates", (strong_candidates or []))],
+        guidance_lookup,
+    )
+    weak_candidate_cards = _attach_finding_guidance(
+        [_compact_finding(item) for item in report_data.get("weak_app_candidates", (weak_candidates or []))],
+        guidance_lookup,
+    )
+    security_header_cards = _attach_finding_guidance(
+        [_compact_finding(item) for item in report_data.get("security_headers", [])],
+        guidance_lookup,
+    )
+
     return {
         "domain": report_data.get("domain", "Unknown"),
         "scan_time": report_data.get("scan_time", "N/A"),
@@ -690,10 +802,10 @@ def _render_context(report_data: dict) -> dict:
         },
         "summary": summary,
         "stages": report_data.get("stages", {}),
-        "confirmed_cards": [_compact_finding(item) for item in report_data.get("confirmed_app_vulns", report_data.get("findings", []))],
-        "strong_candidate_cards": [_compact_finding(item) for item in report_data.get("strong_app_candidates", (strong_candidates or []))],
-        "weak_candidate_cards": [_compact_finding(item) for item in report_data.get("weak_app_candidates", (weak_candidates or []))],
-        "security_header_cards": [_compact_finding(item) for item in report_data.get("security_headers", [])],
+        "confirmed_cards": confirmed_cards,
+        "strong_candidate_cards": strong_candidate_cards,
+        "weak_candidate_cards": weak_candidate_cards,
+        "security_header_cards": security_header_cards,
         "recon_cards": [_compact_finding(item) for item in report_data.get("recon", [])],
         "inconclusive_cards": [_compact_finding(item) for item in report_data.get("inconclusive", [])],
         "blocked_cards": [_compact_finding(item) for item in report_data.get("blocked_tests", [])],
@@ -762,7 +874,19 @@ def _render_html_document(report_data: dict) -> str:
         strong {{ color: #1f2a37; }}
         .finding-line {{ margin: 10px 0 13px; break-inside: avoid; }}
         .finding-line p {{ margin: 3px 0; }}
-        .severity {{ display: inline-block; min-width: 46px; padding: 2px 6px; border-radius: 3px; color: #ffffff; background: #6b7280; font-size: 10px; font-weight: 800; text-align: center; letter-spacing: 0.02em; }}
+        .finding-card {{ margin: 16px 0 20px; padding: 16px 18px 17px; border: 1px solid #cbd7e4; border-left: 5px solid #1753a5; border-radius: 7px; background: #ffffff; box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04); break-inside: avoid; page-break-inside: avoid; }}
+        .finding-card-candidate {{ border-left-color: #b45309; }}
+        .finding-card-config {{ border-left-color: #2563eb; }}
+        .finding-card-header {{ display: flex; gap: 12px; align-items: flex-start; margin-bottom: 11px; }}
+        .finding-title {{ margin: 0 0 5px; color: #172033; font-size: 18px; line-height: 1.25; }}
+        .finding-meta {{ margin: 0; color: #536173; font-size: 14px; line-height: 1.45; }}
+        .finding-url {{ margin: 10px 0 10px; padding: 10px 12px; border-radius: 5px; background: #f3f7fb; color: #1d2c3d; font-size: 15px; line-height: 1.48; overflow-wrap: anywhere; }}
+        .finding-detail {{ margin: 9px 0 0; color: #26384f; font-size: 15.2px; line-height: 1.55; }}
+        .finding-guidance {{ margin-top: 12px; padding: 11px 12px; border-radius: 6px; background: #f8fbff; border: 1px solid #d8e4f2; }}
+        .finding-guidance p {{ margin: 7px 0; color: #203047; font-size: 15.1px; line-height: 1.55; }}
+        .finding-label {{ display: inline-block; margin-right: 8px; color: #0d4493; font-weight: 800; text-transform: uppercase; font-size: 12px; letter-spacing: 0.04em; }}
+        .finding-chip {{ display: inline-block; margin-left: 8px; padding: 3px 8px; border-radius: 999px; background: #e7eef8; color: #23344d; font-size: 12.6px; font-weight: 700; }}
+        .severity {{ display: inline-block; min-width: 52px; padding: 4px 8px; border-radius: 4px; color: #ffffff; background: #6b7280; font-size: 11.5px; font-weight: 800; text-align: center; letter-spacing: 0.02em; flex: 0 0 auto; }}
         .severity-critical {{ background: #7f1d1d; }}
         .severity-high {{ background: #b91c1c; }}
         .severity-medium {{ background: #b45309; }}

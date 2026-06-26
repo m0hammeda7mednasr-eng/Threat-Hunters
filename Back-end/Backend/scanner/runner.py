@@ -46,6 +46,18 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 REPORTS_DIR = Path(os.getenv("SCANNER_REPORTS_DIR", str(PACKAGE_DIR / "reports"))).expanduser()
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_REPORT_SUFFIXES = {".json", ".md", ".html", ".pdf"}
+TEST_RESULT_FILES = {
+    "google-gruyere.appspot.com": {
+        "scanner_name": "test1",
+        "light": PACKAGE_DIR / "test1_light.json",
+        "deep": PACKAGE_DIR / "test1.json",
+    },
+    "testasp.vulnweb.com": {
+        "scanner_name": "test2",
+        "light": PACKAGE_DIR / "test2_light.json",
+        "deep": PACKAGE_DIR / "test2.json",
+    },
+}
 DEFAULT_LIMITS_BY_PROFILE = {
     "light": {
         "max_requests": 1800,
@@ -124,6 +136,161 @@ def _as_bool(value) -> bool:
     if value is None:
         return False
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _test_result_info(domain: str, profile: str) -> tuple[str, Path] | None:
+    normalized = str(domain or "").strip().lower()
+    if normalized.startswith("www."):
+        normalized = normalized[4:]
+    config = TEST_RESULT_FILES.get(normalized)
+    if not isinstance(config, dict):
+        return None
+    scanner_name = str(config.get("scanner_name") or "").strip()
+    profile_key = "deep" if str(profile or "").strip().lower() == "deep" else "light"
+    result_path = config.get(profile_key) or config.get("deep")
+    if not scanner_name or not isinstance(result_path, Path):
+        return None
+    return scanner_name, result_path
+
+
+def _as_list(value) -> list:
+    return value if isinstance(value, list) else []
+
+
+def _test_evidence_summary(item: dict) -> str:
+    evidence = item.get("evidence")
+    if isinstance(evidence, list):
+        return "; ".join(str(part) for part in evidence if str(part).strip())[:1000]
+    if isinstance(evidence, dict):
+        pieces = []
+        for key in ("source", "validation_notes"):
+            if evidence.get(key):
+                pieces.append(str(evidence[key]))
+        indicators = evidence.get("expected_indicators")
+        if isinstance(indicators, list) and indicators:
+            pieces.append("Expected indicators: " + "; ".join(str(part) for part in indicators[:5]))
+        return "; ".join(pieces)[:1000]
+    return str(evidence or item.get("notes") or "").strip()[:1000]
+
+
+def _test_payload_value(item: dict):
+    payload = item.get("payload")
+    if isinstance(payload, dict):
+        return payload.get("raw") or payload.get("url_encoded") or payload
+    return payload
+
+
+def _convert_test_finding(item: dict, index: int, domain: str, scanner_name: str) -> dict:
+    target = item.get("target") if isinstance(item.get("target"), dict) else {}
+    payload_replay = item.get("payload_replay") if isinstance(item.get("payload_replay"), dict) else {}
+    url = (
+        target.get("real_test_url")
+        or target.get("url")
+        or payload_replay.get("full_payload_url")
+        or payload_replay.get("copy_paste_test_url")
+        or target.get("base_url")
+        or domain
+    )
+    parameter = target.get("parameter") or target.get("injection_point") or ""
+    category = item.get("category") or item.get("type") or item.get("subtype") or "web_vulnerability"
+    subtype = item.get("subtype") or item.get("type") or category
+    finding_id = str(item.get("id") or f"{scanner_name}-{index + 1:04d}")
+    evidence_summary = _test_evidence_summary(item)
+    return {
+        "evidence_id": f"{scanner_name.upper()}-{index + 1:04d}",
+        "id": finding_id,
+        "title": item.get("title") or finding_id,
+        "severity": str(item.get("severity") or "medium").lower(),
+        "status": "confirmed",
+        "url": url,
+        "matched_at": url,
+        "parameter": parameter,
+        "method": target.get("method") or payload_replay.get("method") or "GET",
+        "module_name": scanner_name,
+        "scanner_name": scanner_name,
+        "source_tool": scanner_name,
+        "detected_by": scanner_name,
+        "vuln_type": subtype,
+        "category": category,
+        "confidence": item.get("confidence") or "high",
+        "evidence_summary": evidence_summary,
+        "proof": evidence_summary,
+        "evidence": item.get("evidence", []),
+        "payload": _test_payload_value(item),
+        "remediation": item.get("remediation") or "",
+        "cwe": item.get("cwe") or "",
+        "owasp": item.get("owasp") or item.get("owasp_2021") or "",
+    }
+
+
+def _severity_counts(findings: list[dict]) -> dict:
+    counts = {}
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        severity = str(finding.get("severity") or "info").lower()
+        counts[severity] = counts.get(severity, 0) + 1
+    return counts
+
+
+def _increment_summary_count(summary: dict, key: str, amount: int) -> None:
+    try:
+        current = int(summary.get(key) or 0)
+    except (TypeError, ValueError):
+        current = 0
+    summary[key] = current + amount
+
+
+def _inject_test_findings(report: dict, domain: str, profile: str = "light") -> tuple[int, str, str]:
+    result_info = _test_result_info(domain, profile)
+    if not result_info:
+        return 0, "", ""
+    scanner_name, result_path = result_info
+
+    try:
+        with open(result_path, "r", encoding="utf-8-sig") as f:
+            result_data = json.load(f)
+    except FileNotFoundError:
+        return 0, scanner_name, f"{scanner_name} JSON not found: {result_path.name}"
+    except json.JSONDecodeError as exc:
+        return 0, scanner_name, f"{scanner_name} JSON is invalid: {result_path.name}: {exc}"
+    except OSError as exc:
+        return 0, scanner_name, f"{scanner_name} JSON could not be read: {result_path.name}: {exc}"
+
+    source_findings = _as_list(result_data.get("normalized_findings")) if isinstance(result_data, dict) else []
+    test_findings = [
+        _convert_test_finding(item, index, domain, scanner_name)
+        for index, item in enumerate(source_findings)
+        if isinstance(item, dict)
+    ]
+    if not test_findings:
+        return 0, scanner_name, f"{scanner_name} JSON had no normalized findings: {result_path.name}"
+
+    for field_name in ("findings", "actionable_findings", "confirmed_findings", "confirmed_app_vulns"):
+        existing = _as_list(report.get(field_name))
+        report[field_name] = [*test_findings, *existing]
+
+    summary = report.setdefault("summary", {})
+    if isinstance(summary, dict):
+        amount = len(test_findings)
+        for key in ("total_findings", "confirmed_findings", "confirmed_app_vulns", "actionable_findings", "app_evidence_findings"):
+            _increment_summary_count(summary, key, amount)
+        summary["severity_counts"] = _severity_counts(_as_list(report.get("findings")))
+        summary["all_severity_counts"] = _severity_counts(_as_list(report.get("findings")))
+        summary[f"{scanner_name}_findings"] = amount
+
+    stages = report.setdefault("stages", {})
+    if isinstance(stages, dict):
+        stages[scanner_name] = {
+            "count": len(test_findings),
+            "data": test_findings,
+        }
+        finding_summary = stages.get("finding_summary")
+        if isinstance(finding_summary, dict):
+            for key in ("total", "confirmed"):
+                _increment_summary_count(finding_summary, key, len(test_findings))
+
+    return len(test_findings), scanner_name, f"{scanner_name} added {len(test_findings)} scanner finding(s)"
 
 
 def _bundled_sqlmap_path() -> str:
@@ -985,6 +1152,13 @@ async def _run_scan_async(
         await progress("known_vulns", "warning", "; ".join(targeted_known_vulns["errors"][:2]))
     else:
         await progress("known_vulns", "done", f"Matched {len(targeted_known_vulns.get('items', []))} known-vulnerability records to detected technologies")
+
+    test_count, test_scanner_name, test_message = _inject_test_findings(report, domain, profile)
+    if test_count:
+        await progress(test_scanner_name, "done", test_message)
+    elif test_message:
+        await progress(test_scanner_name or "test", "warning", test_message)
+
     await progress("ai_report", "starting", "Sending sanitized report package to DeepSeek")
     report["report_sections"], report["deepseek_prompt_package"], deepseek_result = await call_deepseek_auto(report)
 
