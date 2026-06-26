@@ -5,6 +5,7 @@ from bson.errors import InvalidId
 from flask import Blueprint, jsonify, request
 
 from database.db import mongo
+from services.dashboard_analytics_service import aggregate_scan_analytics, list_admin_scan_reports
 from middleware.auth_middleware import token_required
 from utils.password_utils import hash_password, validate_password
 from utils.validators import validate_email_format
@@ -237,23 +238,18 @@ def blog_comment_count():
 
 
 def total_vulnerability_count():
-    user_total = sum(int(user.get("vulnerabilities", 0) or 0) for user in mongo.db.users.find({}))
-    hidden_posts = mongo.db.blogs.count_documents({"status": "hidden"})
-    total_posts = mongo.db.blogs.count_documents({})
-    return user_total + hidden_posts * 2 + max(total_posts - 1, 0)
+    analytics = aggregate_scan_analytics()
+    return int(analytics.get("total_findings") or 0)
 
 
 def security_metrics_payload():
-    total = total_vulnerability_count()
-    critical = max(mongo.db.blogs.count_documents({"status": "hidden"}), 2)
-    high = max(round(total * 0.25), 4)
-    medium = max(round(total * 0.45), 8)
-    low = max(total - critical - high - medium, 0)
+    analytics = aggregate_scan_analytics()
+    severity = analytics.get("severity_counts") or {}
     return [
-        {"label": "Critical", "value": critical, "subtitle": "Needs immediate remediation"},
-        {"label": "High", "value": high, "subtitle": "Prioritize in this sprint"},
-        {"label": "Medium", "value": medium, "subtitle": "Track and schedule fixes"},
-        {"label": "Low", "value": low, "subtitle": "Hygiene and hardening backlog"},
+        {"label": "Critical", "value": severity.get("Critical", 0), "subtitle": "Confirmed critical findings"},
+        {"label": "High", "value": severity.get("High", 0), "subtitle": "High severity findings"},
+        {"label": "Medium", "value": severity.get("Medium", 0), "subtitle": "Medium severity findings"},
+        {"label": "Low", "value": severity.get("Low", 0), "subtitle": "Low and informational findings"},
     ]
 
 
@@ -736,18 +732,7 @@ def list_admin_reports():
     if error:
         return error
 
-    collection = getattr(mongo.db, "admin_reports", None)
-    reports = []
-    if collection is not None:
-        reports = [serialize_admin_report(report) for report in collection.find({}).sort("date", -1).limit(25)]
-    if not reports:
-        reports = [
-            serialize_admin_report({
-                **build_admin_report({"title": "Admin Security Snapshot"}),
-                "id": "report-default-security",
-                "downloads": 0,
-            })
-        ]
+    reports = list_admin_scan_reports(25)
     return jsonify({"items": reports}), 200
 
 

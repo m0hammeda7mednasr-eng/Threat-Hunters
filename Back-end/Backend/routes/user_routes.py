@@ -17,7 +17,9 @@ def serialize_profile(user):
         "phone": user.get("phone", ""),
         "bio": user.get("bio", ""),
         "createdAt": str(user.get("created_at", "")),
-        "lastLogin": user.get("last_login").isoformat() if user.get("last_login") else None
+        "lastLogin": user.get("last_login").isoformat() if user.get("last_login") else None,
+        "scans": int(user.get("scans") or 0),
+        "vulnerabilities": int(user.get("vulnerabilities") or 0),
     }
 
 

@@ -16,7 +16,6 @@ import {
   Settings,
   Shield,
   ShieldAlert,
-  ShieldCheck,
   Sun,
   Users,
 } from 'lucide-react';
@@ -24,116 +23,12 @@ import { useTheme } from '../context/ThemeContext';
 import { adminAPI, dashboardAPI } from '../services/api';
 import './AdminDashboardPage.css';
 
-const fallbackTopMetrics = [
-  {
-    label: 'Overall Risk Score',
-    value: 'D',
-    detail: 'Based on active vulnerabilities',
-    breakdown: ['Critical: High', '12', 'Medium: 30'],
-    icon: ShieldAlert,
-    tone: 'admin-tone-orange',
-    change: null,
-  },
-  {
-    label: 'Active Vulnerabilities',
-    value: '47',
-    detail: '5 new in last 24h',
-    breakdown: ['Critical: High', '12', 'Medium: 30'],
-    icon: AlertTriangle,
-    tone: 'admin-tone-red',
-    change: '+12',
-  },
-  {
-    label: 'Vulnerable Assets',
-    value: '3 of 10',
-    detail: 'Targets with critical / high issues',
-    breakdown: ['Targets with Critical', 'High issues'],
-    icon: SearchX,
-    tone: 'admin-tone-cyan',
-    change: null,
-  },
-  {
-    label: '30-Day Trend',
-    value: '',
-    detail: '',
-    breakdown: [],
-    icon: Activity,
-    tone: 'admin-tone-indigo',
-    change: null,
-    trend: {
-      found: [8, 22, 15, 10, 7],
-      fixed: [7, 8, 9, 10, 11],
-    },
-  },
-];
-
 const quickActions = [
   { title: 'Manage Users', subtitle: 'Review roles and access', icon: Users, route: 'admin-users', colors: ['#7b7eff', '#9ba8ff'] },
   { title: 'Edit Content', subtitle: 'Update the website copy', icon: PenSquare, route: 'admin-web-edit', colors: ['#00d9ff', '#6d7cff'] },
   { title: 'Open Reports', subtitle: 'Inspect exported reports', icon: FileText, route: 'admin-reports', colors: ['#34c759', '#00d9ff'] },
   { title: 'Open Settings', subtitle: 'Tune the admin workspace', icon: Settings, route: 'admin-settings', colors: ['#ff9500', '#ffd60a'] },
 ];
-
-const fallbackSecurityMetrics = [
-  { label: 'Total Scans', value: '5', detail: '3 in progress', icon: Activity, tone: 'admin-tone-indigo' },
-  { label: 'Success Rate', value: '80%', detail: 'Scan completion rate', icon: CheckCircle2, tone: 'admin-tone-green' },
-  { label: 'Total Vulnerabilities', value: '8', detail: 'Found across all scans', icon: AlertTriangle, tone: 'admin-tone-orange' },
-  { label: 'Avg. per Scan', value: '1.6', detail: 'Vulnerabilities per scan', icon: BarChart3, tone: 'admin-tone-indigo' },
-];
-
-const chartBars = [
-  { label: 'Jun', value: 21 },
-  { label: 'Jul', value: 26 },
-  { label: 'Aug', value: 23 },
-  { label: 'Sep', value: 13 },
-  { label: 'Oct', value: 7 },
-];
-
-const severityLegend = [
-  { label: 'High', value: 19, color: '#fb2c36' },
-  { label: 'Critical', value: 8, color: '#ff9500' },
-  { label: 'Medium', value: 48, color: '#ffd60a' },
-  { label: 'Low', value: 24, color: '#34c759' },
-];
-
-const fallbackAlerts = [
-  {
-    title: 'Critical SQL Injection Found',
-    detail: 'Found in https://example.com/login. Immediate action required',
-    time: '2 hours ago',
-    icon: AlertTriangle,
-    tone: 'danger',
-  },
-  {
-    title: 'SSL Certificate Expiring Soon',
-    detail: '3 certificates will expire within 30 days',
-    time: '5 hours ago',
-    icon: Shield,
-    tone: 'warning',
-  },
-  {
-    title: 'XSS Vulnerability Fixed',
-    detail: 'Verified fix on https://test-site.org/search',
-    time: '1 day ago',
-    icon: ShieldCheck,
-    tone: 'success',
-  },
-];
-
-const scanRows = {
-  recent: [
-    { target: 'https://example.com', date: 'Oct 28, 2025', status: 'Completed', vulnerabilities: 2 },
-    { target: 'https://test-site.org', date: 'Oct 25, 2025', status: 'Completed', vulnerabilities: 0 },
-  ],
-  vulnerable: [
-    { target: 'https://legacy-payments.app', date: 'Oct 27, 2025', status: 'Critical', vulnerabilities: 9 },
-    { target: 'https://partner-portal.net', date: 'Oct 24, 2025', status: 'Needs review', vulnerabilities: 6 },
-  ],
-  oldest: [
-    { target: 'https://archive.example.org', date: 'Aug 09, 2025', status: 'Pending fix', vulnerabilities: 3 },
-    { target: 'https://staging.test-site.org', date: 'Aug 03, 2025', status: 'Pending fix', vulnerabilities: 1 },
-  ],
-};
 
 const sidebarItems = [
   { id: 'admin-dashboard', label: 'Admin Dashboard', icon: LayoutDashboard, route: 'admin-dashboard' },
@@ -265,15 +160,12 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
   }, []);
 
   const topMetrics = useMemo(() => {
-    if (!dashboardStats.length) {
-      return fallbackTopMetrics;
-    }
-
     const icons = [ShieldAlert, AlertTriangle, SearchX, Activity];
     const tones = ['admin-tone-orange', 'admin-tone-red', 'admin-tone-cyan', 'admin-tone-indigo'];
 
     return dashboardStats.map((metric, index) => ({
       ...metric,
+      detail: metric.subtitle || metric.detail || 'Live scan metric',
       icon: icons[index % icons.length],
       tone: tones[index % tones.length],
       change: null,
@@ -282,14 +174,15 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
   }, [dashboardStats]);
 
   const liveSecurityMetrics = useMemo(() => {
-    if (!securityMetrics.length) {
-      return fallbackSecurityMetrics;
-    }
+    const preferredLabels = ['Total Scans', 'Success Rate', 'Total Vulnerabilities', 'Avg. per Scan'];
+    const selected = preferredLabels
+      .map((label) => securityMetrics.find((metric) => metric.label === label))
+      .filter(Boolean);
 
-    const icons = [AlertTriangle, ShieldCheck, BarChart3, Activity];
-    const tones = ['admin-tone-red', 'admin-tone-orange', 'admin-tone-indigo', 'admin-tone-green'];
+    const icons = [Activity, CheckCircle2, AlertTriangle, BarChart3];
+    const tones = ['admin-tone-indigo', 'admin-tone-green', 'admin-tone-orange', 'admin-tone-indigo'];
 
-    return securityMetrics.map((metric, index) => ({
+    return selected.map((metric, index) => ({
       label: metric.label,
       value: metric.value,
       detail: metric.subtitle || 'Current security metric',
@@ -299,42 +192,32 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
   }, [securityMetrics]);
 
   const activityCards = useMemo(() => {
-    if (!recentActivities.length) {
-      return fallbackAlerts;
-    }
-
-    const icons = [Activity, FileText, CheckCircle2];
-    const tones = ['warning', 'success', 'danger'];
+    const icons = [Activity, FileText, CheckCircle2, AlertTriangle];
+    const tones = ['warning', 'success', 'danger', 'warning'];
 
     return recentActivities.map((activity, index) => ({
-      title: cleanDashboardText(activity.title, 'Workspace activity updated'),
-      detail: cleanDashboardText(
-        activity.detail,
-        activity.title === 'Blog content updated'
-          ? 'A blog post is published and ready for moderation.'
-          : 'Activity synced from backend.',
-      ),
-      time: 'Just now',
+      title: cleanDashboardText(activity.title, 'Scan activity updated'),
+      detail: cleanDashboardText(activity.detail, 'Activity synced from stored scan results.'),
+      time: activity.time || 'Recently',
       icon: icons[index % icons.length],
       tone: tones[index % tones.length],
     }));
   }, [recentActivities]);
 
   const issueRows = useMemo(() => {
-    if (!adminReports.length) {
-      return scanRows;
-    }
-
     const rows = adminReports.map((report) => {
       const date = new Date(report.date);
+      const vulnerabilities = Number(report.vulnerabilities || 0);
+      const critical = Number(report.critical || 0);
+      const high = Number(report.high || 0);
       return {
-        target: report.title,
+        target: report.target || report.title,
         date: Number.isNaN(date.getTime())
           ? 'Recent'
           : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         rawDate: Number.isNaN(date.getTime()) ? 0 : date.getTime(),
-        status: Number(report.score || 0) < 70 || Number(report.critical || 0) > 5 ? 'Critical' : 'Completed',
-        vulnerabilities: Number(report.critical || report.vulnerabilities || 0),
+        status: critical > 0 || high > 0 || Number(report.score || 0) >= 60 ? 'Critical' : 'Completed',
+        vulnerabilities,
       };
     });
 
@@ -347,34 +230,38 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
 
   const liveChartBars = useMemo(() => {
     if (!adminReports.length) {
-      return chartBars;
+      return [];
     }
 
-    return adminReports.slice(0, 5).reverse().map((report) => {
+    return adminReports.slice(0, 6).reverse().map((report) => {
       const date = new Date(report.date);
       return {
-        label: Number.isNaN(date.getTime()) ? 'Now' : date.toLocaleDateString('en-US', { month: 'short' }),
-        value: Math.max(Number(report.vulnerabilities || report.critical || 0), 1),
+        label: Number.isNaN(date.getTime()) ? 'Scan' : date.toLocaleDateString('en-US', { month: 'short' }),
+        value: Math.max(Number(report.vulnerabilities || report.critical || 0), 0),
       };
     });
   }, [adminReports]);
 
   const liveSeverityLegend = useMemo(() => {
-    if (!securityMetrics.length) {
-      return severityLegend;
+    const severityMetrics = securityMetrics.filter((metric) =>
+      ['Critical', 'High', 'Medium', 'Low'].includes(metric.label),
+    );
+
+    if (!severityMetrics.length) {
+      return [];
     }
 
     const colors = {
-      High: '#fb2c36',
       Critical: '#ff9500',
+      High: '#fb2c36',
       Medium: '#ffd60a',
       Low: '#34c759',
     };
-    const total = securityMetrics.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
+    const total = severityMetrics.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
 
-    return securityMetrics.map((item) => ({
+    return severityMetrics.map((item) => ({
       label: item.label,
-      value: Math.max(Math.round((Number(item.value || 0) / total) * 100), 1),
+      value: Math.max(Math.round((Number(item.value || 0) / total) * 100), 0),
       color: colors[item.label] || '#7b7eff',
       count: Number(item.value || 0),
     }));
@@ -557,7 +444,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
               </div>
 
               <div className="admin-bar-chart" aria-label="Vulnerability trend">
-                {liveChartBars.map((bar, index) => (
+                {liveChartBars.length ? liveChartBars.map((bar, index) => (
                   <div key={`${bar.label}-${index}`} className="admin-bar-group">
                     <span className="admin-bar-value">{bar.value}</span>
                     <div className="admin-bar-track">
@@ -565,7 +452,9 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
                     </div>
                     <span className="admin-bar-label">{bar.label}</span>
                   </div>
-                ))}
+                )) : (
+                  <div className="admin-empty-state">No scan trend data yet. Completed scans will populate this chart.</div>
+                )}
               </div>
             </article>
 
@@ -576,23 +465,29 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
               </div>
 
               <div className="admin-donut-layout">
-                <div
-                  className="admin-donut-chart"
-                  style={{ '--donut-gradient': getSeverityGradient(liveSeverityLegend) }}
-                  aria-label="Severity distribution"
-                />
+                {liveSeverityLegend.length ? (
+                  <>
+                    <div
+                      className="admin-donut-chart"
+                      style={{ '--donut-gradient': getSeverityGradient(liveSeverityLegend) }}
+                      aria-label="Severity distribution"
+                    />
 
-                <div className="admin-donut-legend">
-                  {liveSeverityLegend.map((item) => (
-                    <div key={item.label} className="admin-donut-legend-row">
-                      <span className="admin-donut-label">
-                        <i style={{ backgroundColor: item.color }} />
-                        {item.label}
-                      </span>
-                      <strong>{item.count ?? item.value}</strong>
+                    <div className="admin-donut-legend">
+                      {liveSeverityLegend.map((item) => (
+                        <div key={item.label} className="admin-donut-legend-row">
+                          <span className="admin-donut-label">
+                            <i style={{ backgroundColor: item.color }} />
+                            {item.label}
+                          </span>
+                          <strong>{item.count ?? item.value}</strong>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </>
+                ) : (
+                  <div className="admin-empty-state">No severity data yet. Run scans to populate real findings.</div>
+                )}
               </div>
             </article>
           </section>
@@ -604,7 +499,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
             </div>
 
             <div className="admin-alert-grid">
-              {activityCards.map((alert, index) => {
+              {activityCards.length ? activityCards.map((alert, index) => {
                 const Icon = alert.icon;
 
                 return (
@@ -617,7 +512,9 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
                     <span>{alert.time}</span>
                   </article>
                   );
-              })}
+              }) : (
+                <div className="admin-empty-state admin-card">No scan activity yet. Completed scans will appear here automatically.</div>
+              )}
             </div>
           </section>
 
@@ -665,7 +562,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
                   </tr>
                 </thead>
                 <tbody>
-                  {issueRows[activeTab].map((row) => (
+                  {issueRows[activeTab].length ? issueRows[activeTab].map((row) => (
                     <tr key={`${activeTab}-${row.target}`}>
                       <td className="admin-table-target">{row.target}</td>
                       <td>{row.date}</td>
@@ -682,7 +579,13 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={5}>
+                        <div className="admin-empty-state">No stored scan reports yet. User scans will populate this table automatically.</div>
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

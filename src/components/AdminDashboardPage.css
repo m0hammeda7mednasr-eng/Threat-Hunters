@@ -747,6 +747,9 @@
 
 .admin-table-target {
   color: #ffffff;
+  max-width: 320px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .admin-table-status,

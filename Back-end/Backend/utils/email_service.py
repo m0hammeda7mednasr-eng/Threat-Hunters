@@ -6,11 +6,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _env_value(name, default=""):
+    value = os.getenv(name, default)
+    if not value:
+        return default
+    return value.strip().strip("'\"")
+
+
 def send_email(to_email, subject, body):
     print("SEND_EMAIL CALLED")
     print("TO:", to_email)
 
-    api_key = os.getenv("RESEND_API_KEY")
+    api_key = _env_value("RESEND_API_KEY")
+    from_address = _env_value(
+        "RESEND_FROM",
+        "Threat Hunters <noreply@threathunterseg.com>",
+    )
 
     if not api_key:
         print("RESEND_API_KEY not found")
@@ -25,7 +36,7 @@ def send_email(to_email, subject, body):
                 "Content-Type": "application/json",
             },
             json={
-                "from": "noreply@threathunterseg.com",
+                "from": from_address,
                 "to": [to_email],
                 "subject": subject,
                 "text": body,

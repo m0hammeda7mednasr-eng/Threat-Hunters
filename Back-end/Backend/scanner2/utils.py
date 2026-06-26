@@ -585,6 +585,18 @@ def _severity_counts(findings: list[dict]) -> dict:
     return counts
 
 
+def _highest_severity_label(findings: list[dict]) -> str:
+    rank = {"Critical": 5, "High": 4, "Medium": 3, "Low": 2, "Info": 1}
+    highest = "Info"
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        label = _severity_label(finding.get("severity") or finding.get("status"))
+        if rank.get(label, 0) > rank.get(highest, 0):
+            highest = label
+    return highest
+
+
 def _report_finding_key(finding: dict) -> tuple[str, str, str, str]:
     return (
         str(finding.get("module_name") or finding.get("scanner_name") or finding.get("scanner") or "").lower(),
@@ -674,6 +686,7 @@ def _build_report_checks(
         "archive_cdx": "Archive URL collection",
     }
     finding_modules = {}
+    module_findings = {}
     for finding in all_findings:
         if not isinstance(finding, dict):
             continue
@@ -681,6 +694,7 @@ def _build_report_checks(
         if module_name == "targeted_vulns":
             module_name = "targeted"
         finding_modules[module_name] = finding_modules.get(module_name, 0) + 1
+        module_findings.setdefault(module_name, []).append(finding)
 
     modules = telemetry.get("modules", {}) if isinstance(telemetry, dict) else {}
     for module_name, module_data in modules.items():
@@ -691,6 +705,7 @@ def _build_report_checks(
         checks.append({
             "name": module_labels.get(normalized_name, normalized_name.replace("_", " ").title() or "Scanner module"),
             "status": _status_for_module_check(module_data.get("status"), finding_count),
+            "severity": _highest_severity_label(module_findings.get(normalized_name, [])) if finding_count else "Low",
             "details": module_data.get("message") or f"Module status: {module_data.get('status', 'unknown')}",
             "evidence": f"findings={finding_count}; duration={module_data.get('duration_seconds', 'n/a')}",
         })

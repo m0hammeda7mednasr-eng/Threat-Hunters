@@ -3,6 +3,7 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   Gauge,
   Globe,
   Download,
@@ -1189,41 +1190,78 @@ const MoreToolsPage = ({
                         Found in: {resultView.breachLocationSummary}
                       </p>
 
-                      {resultView.breachSources.slice(0, 5).map((source) => (
-                        <article className="more-tools-source-card" key={source.id}>
-                          <div>
-                            <strong>{source.title}</strong>
-                            <span>{source.domain}</span>
+                      {resultView.breachSources.map((source) => (
+                        <details className="more-tools-source-item" key={source.id}>
+                          <summary className="more-tools-source-item-summary">
+                            <div className="more-tools-source-item-summary-copy">
+                              <strong>{source.title}</strong>
+                              <span>{source.domain || 'Unknown source'}</span>
+                            </div>
+                            <div className="more-tools-source-item-summary-meta">
+                              <span>{source.date}</span>
+                              <ChevronDown size={14} aria-hidden="true" />
+                            </div>
+                          </summary>
+
+                          <div className="more-tools-source-item-body">
+                            <div className="more-tools-source-card-meta">
+                              <span>{source.date}</span>
+                              {source.pwnCount ? <span>{formatCount(source.pwnCount)} accounts</span> : null}
+                              {source.verified ? <span>verified</span> : null}
+                              {source.stealerLog ? <span>stealer log</span> : null}
+                            </div>
+                            {source.data.length > 0 && (
+                              <p>{source.data.join(', ')}</p>
+                            )}
                           </div>
-                          <small>
-                            {source.date}
-                            {source.pwnCount ? ` | ${formatCount(source.pwnCount)} accounts` : ''}
-                            {source.verified ? ' | verified' : ''}
-                            {source.stealerLog ? ' | stealer log' : ''}
-                          </small>
-                          {source.data.length > 0 && (
-                            <p>{source.data.join(', ')}</p>
-                          )}
-                        </article>
+                        </details>
                       ))}
                     </div>
                   )}
 
-                  <div className="more-tools-insight-list">
-                    {resultView.insights.map((item) => (
-                      <article className={`more-tools-insight-card tone-${item.tone}`} key={item.title}>
-                        <div className="more-tools-insight-head">
-                          {item.tone === 'safe' ? (
-                            <ShieldCheck aria-hidden="true" size={16} />
-                          ) : (
-                            <AlertTriangle aria-hidden="true" size={16} />
-                          )}
-                          <strong>{item.title}</strong>
+                  {activeTab === 'email' ? (
+                    <details className="more-tools-insight-accordion">
+                      <summary className="more-tools-insight-accordion-summary">
+                        <div>
+                          <strong>More breach details</strong>
+                          <span>Exposed services, latest match, and data classes</span>
                         </div>
-                        <p>{item.copy}</p>
-                      </article>
-                    ))}
-                  </div>
+                        <ChevronDown aria-hidden="true" size={14} />
+                      </summary>
+
+                      <div className="more-tools-insight-list compact">
+                        {resultView.insights.map((item) => (
+                          <article className={`more-tools-insight-card tone-${item.tone}`} key={item.title}>
+                            <div className="more-tools-insight-head">
+                              {item.tone === 'safe' ? (
+                                <ShieldCheck aria-hidden="true" size={16} />
+                              ) : (
+                                <AlertTriangle aria-hidden="true" size={16} />
+                              )}
+                              <strong>{item.title}</strong>
+                            </div>
+                            <p>{item.copy}</p>
+                          </article>
+                        ))}
+                      </div>
+                    </details>
+                  ) : (
+                    <div className="more-tools-insight-list">
+                      {resultView.insights.map((item) => (
+                        <article className={`more-tools-insight-card tone-${item.tone}`} key={item.title}>
+                          <div className="more-tools-insight-head">
+                            {item.tone === 'safe' ? (
+                              <ShieldCheck aria-hidden="true" size={16} />
+                            ) : (
+                              <AlertTriangle aria-hidden="true" size={16} />
+                            )}
+                            <strong>{item.title}</strong>
+                          </div>
+                          <p>{item.copy}</p>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </div>

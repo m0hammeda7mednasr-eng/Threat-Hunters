@@ -1,9 +1,20 @@
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = BASE_DIR.parents[1]
 
-from flask import Flask
+for env_path in (
+    BASE_DIR / ".env",
+    BASE_DIR.parent / ".env",
+    PROJECT_DIR / ".env",
+    PROJECT_DIR / ".env.local",
+    PROJECT_DIR / ".vercel" / ".env.development.local",
+):
+    load_dotenv(env_path, override=False)
+
+from flask import Flask, request
 from flask_cors import CORS
 
 from config import Config
@@ -24,24 +35,29 @@ from routes.user_routes import user_bp
 app = Flask(__name__)
 app.config.from_object(Config)
 
+LOCAL_DEV_ORIGINS = {
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+}
+
 CORS(
     app,
-    resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}},
+    resources={
+        r"/api/*": {
+            "origins": list(LOCAL_DEV_ORIGINS)
+        }
+    },
     supports_credentials=True,
 )
 
 
 @app.after_request
 def add_cors_headers(response):
-    origin = request_origin = None
-    try:
-        from flask import request
+    request_origin = request.headers.get("Origin")
 
-        request_origin = request.headers.get("Origin")
-    except Exception:
-        request_origin = None
-
-    if request_origin in {"http://localhost:5173", "http://127.0.0.1:5173"}:
+    if request_origin in LOCAL_DEV_ORIGINS:
         response.headers["Access-Control-Allow-Origin"] = request_origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
@@ -89,4 +105,4 @@ app.register_blueprint(scanner_bp, url_prefix="/api")
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)

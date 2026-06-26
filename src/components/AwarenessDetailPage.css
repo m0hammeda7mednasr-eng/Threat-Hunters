@@ -167,6 +167,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  min-width: 0;
 }
 
 .awareness-detail-metric,
@@ -175,6 +176,8 @@
   border: 1px solid var(--primary-border-20);
   border-radius: 14px;
   background: var(--awareness-surface-soft);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .awareness-detail-metric span,
@@ -194,6 +197,21 @@
   font-size: 15px;
   line-height: 1.45;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.awareness-detail-field-link {
+  display: inline-block;
+  max-width: 100%;
+  color: var(--awareness-link);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.awareness-detail-field-link:hover {
+  text-decoration: underline;
 }
 
 .awareness-detail-list {
@@ -239,6 +257,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  min-width: 0;
 }
 
 .awareness-detail-source {

@@ -150,9 +150,30 @@ const detailChecklist = {
   ],
 };
 
+const HIDDEN_CAPTURED_FIELD_KEYS = new Set(['link', 'url']);
+
+const isUrlValue = (value) => /^https?:\/\//i.test(String(value || '').trim());
+
+const renderCapturedFieldValue = (value) => {
+  const text = String(value || '');
+  if (isUrlValue(text)) {
+    return (
+      <a className="awareness-detail-field-link" href={text} target="_blank" rel="noreferrer">
+        {text}
+      </a>
+    );
+  }
+  return text;
+};
+
 const buildRawEntries = (item) =>
   Object.entries(item || {})
-    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .filter(([key, value]) => (
+      !HIDDEN_CAPTURED_FIELD_KEYS.has(String(key || '').trim().toLowerCase()) &&
+      value !== undefined &&
+      value !== null &&
+      value !== ''
+    ))
     .map(([key, value]) => ({
       key,
       value: Array.isArray(value) ? value.join(', ') : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value),
@@ -261,7 +282,10 @@ const AwarenessDetailPage = ({
   const summary = selectedItem?.description || selectedItem?.summary || selectedItem?.short_description || selectedItem?.content || 'A full detail view for this security item.';
   const sourceLabel = kindSources[routeKind] || 'Security Intelligence';
   const label = kindLabels[routeKind] || 'Security Item';
-  const fields = selectedItem ? (detailFieldGroups[routeKind] ? detailFieldGroups[routeKind](selectedItem) : []) : [];
+  const fields = selectedItem
+    ? (detailFieldGroups[routeKind] ? detailFieldGroups[routeKind](selectedItem) : [])
+        .filter((field) => String(field.label || '').toLowerCase() !== 'link')
+    : [];
   const checklist = detailChecklist[routeKind] || [];
   const rawEntries = selectedItem ? buildRawEntries(selectedItem) : [];
 
@@ -347,7 +371,7 @@ const AwarenessDetailPage = ({
                 {rawEntries.map((entry) => (
                   <div key={entry.key} className="awareness-detail-field">
                     <span>{entry.key}</span>
-                    <strong>{entry.value}</strong>
+                    <strong>{renderCapturedFieldValue(entry.value)}</strong>
                   </div>
                 ))}
               </div>

@@ -39,55 +39,6 @@ const sidebarItems = [
   { id: 'settings', label: 'Settings', icon: Settings, route: 'admin-settings' },
 ];
 
-const fallbackScanActivity = [
-  { label: 'Jan', value: 4.2 },
-  { label: 'Feb', value: 5.1 },
-  { label: 'Mar', value: 6.3 },
-  { label: 'Apr', value: 5.9 },
-  { label: 'May', value: 7.4 },
-  { label: 'Jun', value: 7.2 },
-];
-
-const fallbackVulnerabilityTrends = [
-  { label: 'Jan', value: 8 },
-  { label: 'Feb', value: 7 },
-  { label: 'Mar', value: 8.4 },
-  { label: 'Apr', value: 6.2 },
-  { label: 'May', value: 7.4 },
-  { label: 'Jun', value: 5.4 },
-];
-
-const fallbackReports = [
-  {
-    id: 'fallback-monthly-security',
-    title: 'Monthly Security Report',
-    subtitle: 'Comprehensive security analysis for June 2025',
-    date: '2026-06-14T12:00:00.000Z',
-    size: '2.4 MB',
-    type: 'PDF',
-    scanCount: 135,
-    vulnerabilities: 168,
-    critical: 12,
-    score: 82,
-    downloads: 0,
-    findings: ['Backend report endpoint is unavailable, using local fallback.'],
-  },
-  {
-    id: 'fallback-vulnerability-assessment',
-    title: 'Vulnerability Assessment Q2',
-    subtitle: 'Quarterly vulnerability trends and analysis',
-    date: '2026-06-11T10:00:00.000Z',
-    size: '5.1 MB',
-    type: 'PDF',
-    scanCount: 42,
-    vulnerabilities: 36,
-    critical: 2,
-    score: 91,
-    downloads: 0,
-    findings: ['Review API connectivity to generate a fresh report.'],
-  },
-];
-
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
 
 function formatReportDate(value) {
@@ -114,9 +65,9 @@ function buildMonthlyPoints(items, field) {
     base[visibleIndex].value += Number(item[field] || 0);
   });
 
-  return base.map((item, index) => ({
+  return base.map((item) => ({
     ...item,
-    value: item.value || fallbackScanActivity[index]?.value || 1,
+    value: item.value || 0,
   }));
 }
 
@@ -222,7 +173,7 @@ function BarChart({ bars }) {
 
 function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' }) {
   const { theme, toggleTheme } = useTheme();
-  const [reportItems, setReportItems] = useState(fallbackReports);
+  const [reportItems, setReportItems] = useState([]);
   const [notice, setNotice] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -231,11 +182,11 @@ function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' 
       setNotice('Loading reports from backend...');
       const payload = await adminAPI.getReports();
       const items = payload.items || payload.reports || [];
-      setReportItems(items.length ? items.map((report) => ({ ...report, type: 'PDF' })) : fallbackReports);
-      setNotice('');
+      setReportItems(items.map((report) => ({ ...report, type: report.type || 'Scan' })));
+      setNotice(items.length ? '' : 'No stored scan reports yet. User scans will appear here automatically.');
     } catch (error) {
-      setReportItems(fallbackReports);
-      setNotice(error.message || 'Using local report data until the backend is available.');
+      setReportItems([]);
+      setNotice(error.message || 'Unable to load scan reports from the backend.');
     }
   }, []);
 
@@ -264,13 +215,10 @@ function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' 
   }, [reportItems]);
 
   const scanActivity = useMemo(() => buildMonthlyPoints(reportItems, 'scanCount'), [reportItems]);
-  const vulnerabilityTrends = useMemo(() => {
-    const points = buildMonthlyPoints(reportItems, 'vulnerabilities');
-    return points.map((point, index) => ({
-      ...point,
-      value: point.value || fallbackVulnerabilityTrends[index]?.value || 1,
-    }));
-  }, [reportItems]);
+  const vulnerabilityTrends = useMemo(
+    () => buildMonthlyPoints(reportItems, 'vulnerabilities'),
+    [reportItems],
+  );
 
   const handleGenerateReport = async () => {
     try {
@@ -291,9 +239,7 @@ function AdminReportsPage({ onNavigate, onLogout, currentPage = 'admin-reports' 
 
   const handleDownloadReport = async (report) => {
     try {
-      const updatedReport = report.id?.startsWith('fallback-')
-        ? report
-        : await adminAPI.recordReportDownload(report.id);
+      const updatedReport = await adminAPI.recordReportDownload(report.id);
       setReportItems((prev) => prev.map((item) => (item.id === report.id ? updatedReport : item)));
       const safeTitle = report.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'admin-report';
       downloadPdfBlob(buildAdminReportPdf(updatedReport), `${safeTitle}.pdf`);
