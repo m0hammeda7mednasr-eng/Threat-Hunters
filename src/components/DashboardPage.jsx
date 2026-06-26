@@ -205,6 +205,26 @@ const deriveThreatSeverity = (vulnerability = {}) => {
   return { label, tone: label.toLowerCase() };
 };
 
+const summarizeSectionValue = (value) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => summarizeSectionValue(item))
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value)
+      .map((item) => summarizeSectionValue(item))
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  }
+
+  return String(value || "").trim();
+};
+
 const getSeverityRank = (value) => SEVERITY_RANK[severityKey(value)] || 0;
 
 const getHighestSeverityFinding = (findings = []) =>
@@ -410,10 +430,13 @@ const buildThreatIntelligenceItems = (report) => {
   const targetedItems = Array.isArray(knownVulnerabilities?.targeted?.items)
     ? knownVulnerabilities.targeted.items
     : [];
+  const startupItems = Array.isArray(knownVulnerabilities?.startup?.items)
+    ? knownVulnerabilities.startup.items
+    : [];
   const seenIds = new Set();
   const intelligenceItems = [];
 
-  targetedItems.forEach((vulnerability, index) => {
+  [...targetedItems, ...startupItems].forEach((vulnerability) => {
     const cveId = String(vulnerability?.id || "").trim();
     if (!cveId || seenIds.has(cveId)) {
       return;
@@ -439,7 +462,9 @@ const buildThreatIntelligenceItems = (report) => {
       severity: threatSeverity.label,
       severityTone: threatSeverity.tone,
       description: description || "No CVE description was returned by the scanner.",
-      source: vulnerability.kev ? "CISA KEV" : (vulnerability.source || "NVD / report intelligence"),
+      source: vulnerability.kev
+        ? "CISA KEV"
+        : vulnerability.source || (vulnerability.matched_keyword ? "Targeted technology match" : "NVD / report intelligence"),
       canExpand: description.length > 120,
     });
   });
@@ -453,7 +478,35 @@ const buildAwarenessItemsFromReport = (report) => {
   }
 
   const normalizedReport = normalizeScanReport(report);
+  const reportSections =
+    normalizedReport.report_sections &&
+    typeof normalizedReport.report_sections === "object"
+      ? normalizedReport.report_sections
+      : {};
+  const securityHeaders = Array.isArray(normalizedReport.security_headers)
+    ? normalizedReport.security_headers
+    : [];
+  const checks = Array.isArray(normalizedReport.checks)
+    ? normalizedReport.checks
+    : [];
   const awarenessItems = [];
+
+  const executiveSummary =
+    summarizeSectionValue(
+      reportSections.executive_summary ||
+        reportSections.reader_summary ||
+        reportSections.bottom_line,
+    ) ||
+    summarizeSectionValue(normalizedReport.recommendations?.[0]) ||
+    "";
+
+  if (executiveSummary) {
+    awarenessItems.push({
+      title: "Executive summary",
+      description: executiveSummary,
+      icon: Sparkles,
+    });
+  }
 
   if (Array.isArray(normalizedReport.recommendations)) {
     normalizedReport.recommendations.slice(0, 3).forEach((recommendation, index) => {
@@ -461,6 +514,41 @@ const buildAwarenessItemsFromReport = (report) => {
         title: `Scan recommendation ${index + 1}`,
         description: recommendation,
         icon: BookOpen,
+      });
+    });
+  }
+
+  if (Array.isArray(reportSections.recommendations)) {
+    reportSections.recommendations.slice(0, 2).forEach((recommendation, index) => {
+      awarenessItems.push({
+        title: `Report guidance ${index + 1}`,
+        description: summarizeSectionValue(recommendation),
+        icon: BookOpen,
+      });
+    });
+  }
+
+  if (securityHeaders.length) {
+    const headerSnapshots = securityHeaders
+      .slice(0, 2)
+      .map((header, index) => buildFindingSnapshot(header, index))
+      .filter(Boolean);
+
+    headerSnapshots.forEach((snapshot, index) => {
+      awarenessItems.push({
+        title: snapshot.title || `Security header ${index + 1}`,
+        description: snapshot.avoidance || snapshot.fix || snapshot.cause,
+        icon: Shield,
+      });
+    });
+  }
+
+  if (checks.length) {
+    checks.slice(0, 2).forEach((check, index) => {
+      awarenessItems.push({
+        title: `Module check ${index + 1}`,
+        description: formatScannerCheckDetail(check),
+        icon: AlertTriangle,
       });
     });
   }
@@ -622,10 +710,27 @@ const normalizeScanReport = (report) => {
     recommendations: Array.isArray(mergedReport.recommendations)
       ? mergedReport.recommendations
       : [],
+    security_headers: Array.isArray(mergedReport.security_headers)
+      ? mergedReport.security_headers
+      : [],
+    report_sections:
+      mergedReport.report_sections &&
+      typeof mergedReport.report_sections === "object"
+        ? mergedReport.report_sections
+        : {},
+    deepseek_prompt_package:
+      mergedReport.deepseek_prompt_package &&
+      typeof mergedReport.deepseek_prompt_package === "object"
+        ? mergedReport.deepseek_prompt_package
+        : {},
     known_vulnerabilities:
       mergedReport.known_vulnerabilities &&
       typeof mergedReport.known_vulnerabilities === "object"
         ? mergedReport.known_vulnerabilities
+        : {},
+    report_owner:
+      mergedReport.report_owner && typeof mergedReport.report_owner === "object"
+        ? mergedReport.report_owner
         : {},
     known_vulnerability_summary:
       mergedReport.known_vulnerability_summary &&
@@ -1929,6 +2034,11 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
         return stop;
       })
       .join(", ");
+    const reportSections =
+      latestReport?.report_sections &&
+      typeof latestReport.report_sections === "object"
+        ? latestReport.report_sections
+        : {};
     const recommendationItems = latestReport?.findings?.length
       ? latestReport.findings.slice(0, 4).map((finding) => ({
           title: finding.title || finding.name,
@@ -1937,9 +2047,42 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           aiRecommendation: finding.recommendation || finding.remediation,
           steps: [finding.recommendation, finding.remediation].filter(Boolean),
         }))
-      : [];
+      : Array.isArray(reportSections.recommendations) &&
+          reportSections.recommendations.length
+        ? reportSections.recommendations.slice(0, 4).map((recommendation, index) => ({
+            title: `Report recommendation ${index + 1}`,
+            severity: "Medium",
+            description: summarizeSectionValue(recommendation),
+            aiRecommendation: summarizeSectionValue(recommendation),
+            steps: [summarizeSectionValue(recommendation)].filter(Boolean),
+          }))
+        : [];
     const intelligenceItems = buildThreatIntelligenceItems(latestReport);
     const awarenessItems = buildAwarenessItemsFromReport(latestReport);
+    const summaryLead =
+      summarizeSectionValue(
+        reportSections.reader_summary ||
+          reportSections.executive_summary ||
+          reportSections.bottom_line,
+      ) ||
+      (latestReport
+        ? `The scanner checked ${latestReport.target} and found ${latestReport.findings?.length || 0} issue(s). The current score is ${latestReport.score}, with ${latestReport.risk_label}.`
+        : "Run a scan to replace this placeholder with a live report summary.");
+    const summarySupport =
+      summarizeSectionValue(
+        reportSections.bottom_line ||
+          reportSections.executive_summary ||
+          reportSections.reader_summary,
+      ) ||
+      (latestReport
+        ? `HTTP ${latestReport.http_status || "unknown"} · Duration ${latestReport.duration || "0.0s"} · Coverage ${latestScanCoverage}%`
+        : "Run a scan to generate a detailed executive summary and remediation notes.");
+    const summaryNotes = [
+      latestReport?.recommendations?.[0],
+      latestReport?.recommendations?.[1],
+    ]
+      .map((item) => summarizeSectionValue(item))
+      .filter(Boolean);
     const activitySummaryStats = [
       {
         label: "Average",
@@ -2270,20 +2413,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           </div>
 
           <div className="db-summary-body">
-            {(latestReport
-              ? [
-                  `${latestReport.target} returned HTTP ${latestReport.http_status || "unknown"} and completed in ${latestReport.duration}.`,
-                  `Risk score is ${latestReport.score}; total findings detected: ${latestReport.findings?.length || 0}.`,
-                  ...(latestReport.recommendations?.length
-                    ? latestReport.recommendations
-                    : [
-                        "No urgent recommendations were generated by the selected checks.",
-                      ]),
-                ]
-              : [
-                  "Run a scan to replace this placeholder with a live report summary.",
-                ]
-            ).map((line, index) => (
+            {[summaryLead, summarySupport, ...summaryNotes].map((line, index) => (
               <p key={`${index}-${line}`}>{line}</p>
             ))}
           </div>
