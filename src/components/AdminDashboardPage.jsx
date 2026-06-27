@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { adminAPI, dashboardAPI } from '../services/api';
+import { formatEgyptDate } from '../utils/egyptTime';
 import './AdminDashboardPage.css';
 
 const quickActions = [
@@ -214,7 +215,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
         target: report.target || report.title,
         date: Number.isNaN(date.getTime())
           ? 'Recent'
-          : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          : formatEgyptDate(date, { month: 'short', day: 'numeric', year: 'numeric' }),
         rawDate: Number.isNaN(date.getTime()) ? 0 : date.getTime(),
         status: critical > 0 || high > 0 || Number(report.score || 0) >= 60 ? 'Critical' : 'Completed',
         vulnerabilities,
@@ -236,7 +237,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
     return adminReports.slice(0, 6).reverse().map((report) => {
       const date = new Date(report.date);
       return {
-        label: Number.isNaN(date.getTime()) ? 'Scan' : date.toLocaleDateString('en-US', { month: 'short' }),
+        label: Number.isNaN(date.getTime()) ? 'Scan' : formatEgyptDate(date, { month: 'short' }),
         value: Math.max(Number(report.vulnerabilities || report.critical || 0), 0),
       };
     });

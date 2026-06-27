@@ -20,6 +20,7 @@ import { blogAPI } from "../services/api";
 import "./BlogPage.css";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import { formatEgyptDate } from "../utils/egyptTime";
 
 const emptyComposer = {
   title: "",
@@ -51,14 +52,11 @@ const isValidImageSource = (value) => {
 
 const formatDate = (value) => {
   if (!value) return "Today";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "Today"
-    : date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+  return formatEgyptDate(value, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 };
 
 const formatReadTime = (content = "") => {

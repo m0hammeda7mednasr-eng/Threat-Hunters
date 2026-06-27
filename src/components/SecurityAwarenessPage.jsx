@@ -24,6 +24,7 @@ import './SecurityAwarenessPage.css';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { securityAPI } from '../services/api';
+import { formatEgyptDateTime } from '../utils/egyptTime';
 import { buildBrandedPdfBlob, downloadPdfBlob } from '../utils/pdfBuilder';
 
 const securityTips = [
@@ -482,11 +483,12 @@ const SecurityAwarenessPage = ({
     if (newsResult.status === 'rejected') failedFeeds.push('security news');
 
     setLiveFeed(nextFeed);
-    setLiveUpdatedAt(new Date().toLocaleString('en-US', {
+    setLiveUpdatedAt(formatEgyptDateTime(new Date(), {
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
+      timeZone: 'Africa/Cairo',
     }));
     setLiveError(
       failedFeeds.length

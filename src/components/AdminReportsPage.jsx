@@ -18,6 +18,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { adminAPI } from '../services/api';
+import { formatEgyptDate } from '../utils/egyptTime';
 import { buildBrandedPdfBlob, downloadPdfBlob } from '../utils/pdfBuilder';
 import './AdminDashboardPage.css';
 import './AdminReportsPage.css';
@@ -42,13 +43,11 @@ const sidebarItems = [
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
 
 function formatReportDate(value) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
+  if (!value) {
     return 'Recently generated';
   }
 
-  return date.toLocaleDateString('en-US', {
+  return formatEgyptDate(value, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',

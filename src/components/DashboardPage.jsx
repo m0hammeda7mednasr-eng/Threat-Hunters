@@ -35,6 +35,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import AuthNavbar from "./AuthNavbar";
 import { scannerAPI } from "../services/api";
+import { formatEgyptDate, formatEgyptTime } from "../utils/egyptTime";
 import "./DashboardPage.css";
 
 const SIDEBAR_ITEMS = [
@@ -123,6 +124,30 @@ const ADVANCED_SCAN_DEFAULTS = ADVANCED_SCAN_MODULES.reduce(
   (defaults, moduleItem) => ({ ...defaults, [moduleItem.key]: true }),
   {},
 );
+
+const getScanTimestampValue = (report = {}) => {
+  const directTimestamp =
+    report.scan_time || report.created_at || report.updated_at || null;
+  if (directTimestamp) {
+    return directTimestamp;
+  }
+
+  const date = String(report.date || "").trim();
+  const time = String(report.time || "").trim();
+  if (!date || !time) {
+    return null;
+  }
+
+  if (/^\d{2}:\d{2}$/.test(time)) {
+    return `${date}T${time}:00Z`;
+  }
+
+  if (/^\d{2}:\d{2}:\d{2}$/.test(time)) {
+    return `${date}T${time}Z`;
+  }
+
+  return `${date} ${time}`;
+};
 
 const toDashOffset = (percent) => {
   const radius = 34;
@@ -234,45 +259,6 @@ const getHighestSeverityFinding = (findings = []) =>
     const highestRank = getSeverityRank(highest?.severity || highest?.status);
     return currentRank > highestRank ? finding : highest;
   }, null);
-
-const normalizeModuleName = (value = "") => {
-  const normalized = String(value || "")
-    .trim()
-    .toLowerCase();
-  if (normalized === "targeted_vulns") return "targeted";
-  if (normalized === "js_checks") return "js_secrets";
-  return normalized;
-};
-
-const getCheckSeverityFromReport = (check = {}, findings = []) => {
-  if (check.severity) {
-    return normalizeSeverityLabel(check.severity);
-  }
-
-  const checkName = String(check.name || "")
-    .trim()
-    .toLowerCase();
-  const matchingFindings = (Array.isArray(findings) ? findings : []).filter(
-    (finding) => {
-      const moduleName = normalizeModuleName(
-        finding?.module_name || finding?.scanner_name || finding?.scanner,
-      );
-      return (
-        moduleName &&
-        (checkName.includes(moduleName.replace(/_/g, " ")) ||
-          checkName.includes(moduleName))
-      );
-    },
-  );
-  const highestFinding = getHighestSeverityFinding(matchingFindings);
-  if (highestFinding) {
-    return normalizeSeverityLabel(
-      highestFinding.severity || highestFinding.status,
-    );
-  }
-
-  return formatScannerCheckSeverity(check);
-};
 
 const countFindingsBySeverity = (report, severity) => {
   const summaryCounts = report?.summary?.severity_counts || {};
@@ -640,6 +626,10 @@ const normalizeScanReport = (report) => {
     mergedReport.scan_mode || mergedReport.profile || mergedReport.mode,
   );
   const scoreText = mergedReport.score || `${riskScore}/100`;
+  const scanTimestamp =
+    getScanTimestampValue(mergedReport) ||
+    getScanTimestampValue(report) ||
+    getScanTimestampValue(nestedReport);
 
   return {
     ...mergedReport,
@@ -653,15 +643,22 @@ const normalizeScanReport = (report) => {
       mergedReport.scan_id ||
       mergedReport.report_id ||
       "LIVE",
-    date:
-      mergedReport.date ||
-      String(scanTime).slice(0, 10) ||
-      new Date().toISOString().slice(0, 10),
-    time:
-      mergedReport.time ||
-      (String(scanTime).includes("T")
-        ? String(scanTime).split("T")[1].slice(0, 5)
-        : new Date().toTimeString().slice(0, 5)),
+    date: scanTimestamp
+      ? formatEgyptDate(scanTimestamp, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : mergedReport.date ||
+        String(scanTime).slice(0, 10) ||
+        formatEgyptDate(new Date(), {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }),
+    time: scanTimestamp
+      ? formatEgyptTime(scanTimestamp)
+      : mergedReport.time || formatEgyptTime(new Date()),
     target: mergedReport.target || mergedReport.domain || report.target,
     url: mergedReport.url || firstHost.url || report.target,
     final_url:
@@ -744,6 +741,8 @@ const normalizeScanReport = (report) => {
 
 const reportToCard = (report) => {
   const normalizedReport = normalizeScanReport(report);
+  const scanTimestamp =
+    getScanTimestampValue(normalizedReport) || getScanTimestampValue(report);
 
   return {
     id: normalizedReport.id || "RPT-LIVE",
@@ -751,8 +750,21 @@ const reportToCard = (report) => {
     riskTone: riskToneFromReport(normalizedReport),
     url: normalizedReport.url || normalizedReport.target,
     reference: normalizedReport.reference || normalizedReport.id || "LIVE",
-    date: normalizedReport.date || new Date().toISOString().slice(0, 10),
-    time: normalizedReport.time || new Date().toTimeString().slice(0, 5),
+    date: scanTimestamp
+      ? formatEgyptDate(scanTimestamp, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : normalizedReport.date ||
+        formatEgyptDate(new Date(), {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }),
+    time: scanTimestamp
+      ? formatEgyptTime(scanTimestamp)
+      : normalizedReport.time || formatEgyptTime(new Date()),
     duration: normalizedReport.duration || "0.0s",
     score: normalizedReport.score || `${normalizedReport.risk_score || 0}/100`,
     scoreTone: riskToneFromReport(normalizedReport),
@@ -897,19 +909,6 @@ const formatScannerCheckDetail = (check = {}) => {
   );
 };
 
-const formatScannerCheckSeverity = (check = {}) => {
-  if (check.severity) {
-    return normalizeSeverityLabel(check.severity);
-  }
-
-  const status = String(check.status || "")
-    .trim()
-    .toLowerCase();
-  if (status === "review") return "Medium";
-  if (status === "failed" || status === "error") return "High";
-  return "Low";
-};
-
 const getGeneratedReportFormat = (report) => {
   const reportFiles =
     report?.report_files ||
@@ -982,7 +981,7 @@ let scanSessionCache = {
 
 const createScanLogEntry = (message, tone = "info") => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-  time: new Date().toLocaleTimeString("en-US", {
+  time: formatEgyptTime(new Date(), {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -997,7 +996,7 @@ const normalizeScanLogEntry = (entry, fallbackTone = "info") => ({
   ),
   time:
     entry?.time ||
-    new Date().toLocaleTimeString("en-US", {
+    formatEgyptTime(new Date(), {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
@@ -1701,7 +1700,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   const profileInitial =
     profileDisplayName.trim().charAt(0).toUpperCase() || "U";
   const memberSince = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString("en-US", {
+    ? formatEgyptDate(user.createdAt, {
         month: "long",
         year: "numeric",
       })
@@ -1737,9 +1736,11 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   const profileScanRows = scanReports.slice(0, 5).map((report) => ({
     website: report.url || report.target,
     risk: riskLevelFromReport(report),
-    date:
-      report.date ||
-      new Date(report.created_at || Date.now()).toLocaleDateString("en-US"),
+    date: formatEgyptDate(report.created_at || report.date || Date.now(), {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
   }));
   const recentScanRows = scanReports.length
     ? scanReports.map((report) => {
@@ -1761,11 +1762,16 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
               "Security finding"
             : "No issues found",
           risk: riskLevelFromReport(normalizedReport),
-          date:
-            normalizedReport.date ||
-            new Date(
-              normalizedReport.created_at || Date.now(),
-            ).toLocaleDateString("en-US"),
+          date: formatEgyptDate(
+            normalizedReport.created_at ||
+              normalizedReport.date ||
+              Date.now(),
+            {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            },
+          ),
           raw: normalizedReport,
         };
       })

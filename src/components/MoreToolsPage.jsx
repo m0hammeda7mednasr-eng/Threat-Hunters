@@ -21,6 +21,7 @@ import Navbar from './Navbar';
 import Footer from './Footer';
 import { securityAPI } from '../services/api';
 import { buildBrandedPdfBlob, downloadPdfBlob } from '../utils/pdfBuilder';
+import { formatEgyptDateTime } from '../utils/egyptTime';
 
 const tabContent = {
   password: {
@@ -450,10 +451,7 @@ const buildPasswordAnalysisPdf = (password, resultView, rawResult) => {
     eyebrow: 'Password Analysis Report',
     title: 'Password Review Summary',
     subtitle: analysisSummary,
-    generatedAt: new Date().toLocaleString('en-US', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }),
+    generatedAt: formatEgyptDateTime(new Date(), { dateStyle: 'medium', timeStyle: 'short' }),
     classification: 'CONFIDENTIAL PASSWORD REVIEW',
     metrics: [
       { label: 'Score', value: `${score}/100`, fill: '#eef6ff', valueColor: score >= 80 ? '#11855d' : '#b35d00' },
@@ -717,10 +715,7 @@ const buildEmailAnalysisPdf = (emailValue, resultView, rawResult) => {
     subtitle: breached
       ? 'The address appears in breach data and needs immediate review.'
       : 'The lookup did not return a live breach hit, but the hygiene review remains useful.',
-    generatedAt: new Date().toLocaleString('en-US', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }),
+    generatedAt: formatEgyptDateTime(new Date(), { dateStyle: 'medium', timeStyle: 'short' }),
     classification: 'CONFIDENTIAL EMAIL REVIEW',
     metrics: [
       { label: 'Risk', value: riskLevel, fill: '#fff5f6', valueColor: breached ? '#c62828' : '#11855d' },

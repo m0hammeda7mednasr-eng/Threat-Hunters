@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { userAPI } from '../services/api';
+import { formatEgyptDate } from '../utils/egyptTime';
 import './AdminDashboardPage.css';
 import './AdminUsersPage.css';
 
@@ -151,7 +152,7 @@ function AdminUsersPage({ onNavigate, onLogout, currentPage = 'admin-users' }) {
         plan: user.plan || 'Free',
         scans: user.scans || 0,
         vulnerabilities: user.vulnerabilities || 0,
-        joined: user.joined ? new Date(user.joined).toLocaleDateString('en-US', {
+        joined: user.joined ? formatEgyptDate(user.joined, {
           month: 'short',
           day: 'numeric',
           year: 'numeric',

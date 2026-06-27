@@ -20,6 +20,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { adminAPI } from '../services/api';
+import { formatEgyptDate } from '../utils/egyptTime';
 import './AdminDashboardPage.css';
 import './AdminPricingPage.css';
 
@@ -152,13 +153,11 @@ function getPlanTone(plan) {
 }
 
 function formatPricingDate(value) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
+  if (!value) {
     return value || 'Recently';
   }
 
-  return date.toLocaleDateString('en-US', {
+  return formatEgyptDate(value, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
