@@ -318,6 +318,41 @@ const normalizeList = (payload) => {
   return [];
 };
 
+const LIVE_FEED_STORAGE_KEY = 'threatHuntersSecurityAwarenessLiveFeed';
+const AWARENESS_CONTENT_STORAGE_KEY = 'threatHuntersSecurityAwarenessContent';
+
+const readStoredJson = (key) => {
+  try {
+    const rawValue = window.localStorage.getItem(key);
+    return rawValue ? JSON.parse(rawValue) : null;
+  } catch {
+    return null;
+  }
+};
+
+const storeJson = (key, value) => {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Cache is best-effort only.
+  }
+};
+
+const withTimeout = (promise, timeoutMs = 7000) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error('Request timed out.')), timeoutMs);
+    }),
+  ]);
+
+const normalizeAwarenessContent = (content) => ({
+  tips: normalizeList(content?.tips).length ? normalizeList(content.tips) : securityTips,
+  threats: normalizeList(content?.threats).length ? normalizeList(content.threats) : cyberThreats,
+  resources: normalizeList(content?.resources).length ? normalizeList(content.resources) : learningResources,
+  downloads: normalizeList(content?.downloads).length ? normalizeList(content.downloads) : downloadableResources,
+});
+
 const resolveIcon = (icon) => {
   if (typeof icon === 'function') {
     return icon;
@@ -380,22 +415,32 @@ const SecurityAwarenessPage = ({
   onOpenAwarenessDetail,
   isLoggedIn,
 }) => {
+  const cachedLiveFeed =
+    typeof window !== 'undefined' ? readStoredJson(LIVE_FEED_STORAGE_KEY) : null;
+  const cachedAwarenessContent =
+    typeof window !== 'undefined' ? readStoredJson(AWARENESS_CONTENT_STORAGE_KEY) : null;
+  const initialAwarenessContent = normalizeAwarenessContent(cachedAwarenessContent);
+  const initialLiveFeed = {
+    latestCves: normalizeList(cachedLiveFeed?.latestCves),
+    criticalCves: normalizeList(cachedLiveFeed?.criticalCves),
+    kev: normalizeList(cachedLiveFeed?.kev),
+    news: normalizeList(cachedLiveFeed?.news),
+  };
   const [searchQuery, setSearchQuery] = useState('');
-  const [awarenessContent, setAwarenessContent] = useState({
-    tips: securityTips,
-    threats: cyberThreats,
-    resources: learningResources,
-    downloads: downloadableResources,
-  });
-  const [liveFeed, setLiveFeed] = useState({
-    latestCves: [],
-    criticalCves: [],
-    kev: [],
-    news: [],
-  });
-  const [liveLoading, setLiveLoading] = useState(true);
+  const [awarenessContent, setAwarenessContent] = useState(initialAwarenessContent);
+  const [liveFeed, setLiveFeed] = useState(initialLiveFeed);
+  const [liveLoading, setLiveLoading] = useState(
+    !(
+      initialLiveFeed.latestCves.length ||
+      initialLiveFeed.criticalCves.length ||
+      initialLiveFeed.kev.length ||
+      initialLiveFeed.news.length
+    ),
+  );
   const [liveError, setLiveError] = useState('');
-  const [liveUpdatedAt, setLiveUpdatedAt] = useState('');
+  const [liveUpdatedAt, setLiveUpdatedAt] = useState(
+    typeof cachedLiveFeed?.updatedAt === 'string' ? cachedLiveFeed.updatedAt : '',
+  );
   const badgeTrack = [...knowledgeBadges, ...knowledgeBadges];
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
@@ -463,10 +508,10 @@ const SecurityAwarenessPage = ({
     setLiveError('');
 
     const [latestResult, criticalResult, kevResult, newsResult] = await Promise.allSettled([
-      securityAPI.getLatestCVEs(),
-      securityAPI.getCriticalCVEs(),
-      securityAPI.getKEV(),
-      securityAPI.getSecurityNews(),
+      withTimeout(securityAPI.getLatestCVEs()),
+      withTimeout(securityAPI.getCriticalCVEs()),
+      withTimeout(securityAPI.getKEV()),
+      withTimeout(securityAPI.getSecurityNews()),
     ]);
 
     const nextFeed = {
@@ -483,13 +528,18 @@ const SecurityAwarenessPage = ({
     if (newsResult.status === 'rejected') failedFeeds.push('security news');
 
     setLiveFeed(nextFeed);
-    setLiveUpdatedAt(formatEgyptDateTime(new Date(), {
+    const updatedAt = formatEgyptDateTime(new Date(), {
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
       timeZone: 'Africa/Cairo',
-    }));
+    });
+    storeJson(LIVE_FEED_STORAGE_KEY, {
+      ...nextFeed,
+      updatedAt,
+    });
+    setLiveUpdatedAt(updatedAt);
     setLiveError(
       failedFeeds.length
         ? `Some live security feeds failed to load: ${failedFeeds.join(', ')}.`
@@ -499,26 +549,30 @@ const SecurityAwarenessPage = ({
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => {
+    let cancelled = false;
+    const timerId = window.setTimeout(() => {
+      if (cancelled) {
+        return;
+      }
+
       void loadLiveFeed();
-      securityAPI.getAwarenessContent()
+      withTimeout(securityAPI.getAwarenessContent())
         .then((content) => {
-          setAwarenessContent({
-            tips: normalizeList(content?.tips).length ? normalizeList(content.tips) : securityTips,
-            threats: normalizeList(content?.threats).length ? normalizeList(content.threats) : cyberThreats,
-            resources: normalizeList(content?.resources).length ? normalizeList(content.resources) : learningResources,
-            downloads: normalizeList(content?.downloads).length ? normalizeList(content.downloads) : downloadableResources,
-          });
+          if (cancelled) {
+            return;
+          }
+
+          const nextContent = normalizeAwarenessContent(content);
+          setAwarenessContent(nextContent);
+          storeJson(AWARENESS_CONTENT_STORAGE_KEY, nextContent);
         })
-        .catch(() => {
-          setAwarenessContent({
-            tips: securityTips,
-            threats: cyberThreats,
-            resources: learningResources,
-            downloads: downloadableResources,
-          });
-        });
-    });
+        .catch(() => {});
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
   }, [loadLiveFeed]);
 
   return (
