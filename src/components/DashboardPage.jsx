@@ -1143,6 +1143,34 @@ const storeScanReports = (reports) => {
   }
 };
 
+const getScanReportIdentity = (report) =>
+  String(
+    report?.report_id ||
+      report?.id ||
+      report?.scan_id ||
+      report?.reference ||
+      `${report?.target || ""}|${report?.date || ""}|${report?.time || ""}`,
+  );
+
+const mergeScanReports = (primaryReports, fallbackReports = []) => {
+  const merged = [];
+  const seen = new Set();
+
+  [...(Array.isArray(primaryReports) ? primaryReports : []), ...(Array.isArray(fallbackReports) ? fallbackReports : [])].forEach((report) => {
+    const normalizedReport = normalizeScanReport(report);
+    const identity = getScanReportIdentity(normalizedReport);
+
+    if (seen.has(identity)) {
+      return;
+    }
+
+    seen.add(identity);
+    merged.push(normalizedReport);
+  });
+
+  return merged.slice(0, 12);
+};
+
 function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
   const {
     user,
@@ -1325,8 +1353,11 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
           ? payload.items.map(normalizeScanReport)
           : [];
         if (!ignore) {
-          setScanReports(items);
-          storeScanReports(items);
+          setScanReports((currentReports) => {
+            const mergedReports = mergeScanReports(items, currentReports);
+            storeScanReports(mergedReports);
+            return mergedReports;
+          });
         }
       } catch {
         // Local reports remain available when the authenticated report endpoint is unavailable.
@@ -1489,7 +1520,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
         error: "",
         updatedAt: new Date().toISOString(),
       });
-      const nextReports = [normalizedResult, ...scanReports].slice(0, 12);
+      const nextReports = mergeScanReports([normalizedResult], scanReports);
       storeScanReports(nextReports);
       if (mountedRef.current) {
         setScanReports(nextReports);
