@@ -73,6 +73,10 @@ def ensure_mongo_indexes():
     try:
         mongo.db.blogs.create_index("slug", unique=True, name="uq_blogs_slug")
         mongo.db.scan_reports.create_index(
+            [("created_at", -1)],
+            name="idx_scan_reports_created",
+        )
+        mongo.db.scan_reports.create_index(
             [("user_id", 1), ("created_at", -1)],
             name="idx_scan_reports_user_created",
         )

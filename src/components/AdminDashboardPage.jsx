@@ -109,6 +109,37 @@ function cleanDashboardText(value, fallback) {
   return !text || looksCorruptedText(text) ? fallback : text;
 }
 
+function summarizeAdminReports(reports) {
+  const items = Array.isArray(reports) ? reports : [];
+  const totalScans = items.length;
+  const totalVulnerabilities = items.reduce((sum, report) => sum + Number(report.vulnerabilities || 0), 0);
+  const critical = items.reduce((sum, report) => sum + Number(report.critical || 0), 0);
+  const high = items.reduce((sum, report) => sum + Number(report.high || 0), 0);
+  const medium = items.reduce((sum, report) => sum + Number(report.medium || 0), 0);
+  const low = items.reduce((sum, report) => sum + Number(report.low || 0), 0);
+  const uniqueTargets = new Set(
+    items.map((report) => report.target || report.title).filter(Boolean),
+  ).size;
+  const vulnerableTargets = items.filter(
+    (report) => Number(report.critical || 0) > 0 || Number(report.high || 0) > 0,
+  ).length;
+  const averageScore = totalScans
+    ? Math.round(items.reduce((sum, report) => sum + Number(report.score || 0), 0) / totalScans)
+    : 0;
+
+  return {
+    totalScans,
+    totalVulnerabilities,
+    critical,
+    high,
+    medium,
+    low,
+    uniqueTargets,
+    vulnerableTargets,
+    averageScore,
+  };
+}
+
 function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboard' }) {
   const [activeTab, setActiveTab] = useState('recent');
   const [dashboardStats, setDashboardStats] = useState([]);
@@ -126,31 +157,50 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
       setDashboardLoading(true);
       setDashboardError('');
 
-      try {
-        const [stats, activities, metrics, reportsPayload] = await Promise.all([
+      const [statsResult, activitiesResult, metricsResult, reportsResult] = await Promise.allSettled([
           dashboardAPI.getStats(),
           dashboardAPI.getRecentActivities(),
           dashboardAPI.getSecurityMetrics(),
           adminAPI.getReports().catch(() => ({ items: [] })),
-        ]);
+      ]);
 
-        if (cancelled) {
-          return;
-        }
-
-        setDashboardStats(Array.isArray(stats) ? stats : []);
-        setRecentActivities(Array.isArray(activities) ? activities : []);
-        setSecurityMetrics(Array.isArray(metrics) ? metrics : []);
-        setAdminReports(Array.isArray(reportsPayload.items) ? reportsPayload.items : []);
-      } catch (error) {
-        if (!cancelled) {
-          setDashboardError(error.message || 'Unable to load dashboard data.');
-        }
-      } finally {
-        if (!cancelled) {
-          setDashboardLoading(false);
-        }
+      if (cancelled) {
+        return;
       }
+
+      setDashboardStats(
+        statsResult.status === 'fulfilled' && Array.isArray(statsResult.value)
+          ? statsResult.value
+          : [],
+      );
+      setRecentActivities(
+        activitiesResult.status === 'fulfilled' && Array.isArray(activitiesResult.value)
+          ? activitiesResult.value
+          : [],
+      );
+      setSecurityMetrics(
+        metricsResult.status === 'fulfilled' && Array.isArray(metricsResult.value)
+          ? metricsResult.value
+          : [],
+      );
+      setAdminReports(
+        reportsResult.status === 'fulfilled' && Array.isArray(reportsResult.value?.items)
+          ? reportsResult.value.items
+          : [],
+      );
+
+      const failedSections = [
+        statsResult.status === 'rejected' ? 'stats' : null,
+        activitiesResult.status === 'rejected' ? 'activity' : null,
+        metricsResult.status === 'rejected' ? 'security metrics' : null,
+        reportsResult.status === 'rejected' ? 'reports' : null,
+      ].filter(Boolean);
+
+      if (failedSections.length) {
+        setDashboardError(`Some admin sections are still syncing: ${failedSections.join(', ')}.`);
+      }
+
+      setDashboardLoading(false);
     };
 
     loadDashboardData();
@@ -161,10 +211,39 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
   }, []);
 
   const topMetrics = useMemo(() => {
+    const reportSummary = summarizeAdminReports(adminReports);
     const icons = [ShieldAlert, AlertTriangle, SearchX, Activity];
     const tones = ['admin-tone-orange', 'admin-tone-red', 'admin-tone-cyan', 'admin-tone-indigo'];
+    const sourceMetrics = dashboardStats.length
+      ? dashboardStats
+      : [
+          {
+            label: 'Overall Risk Score',
+            value: `${reportSummary.averageScore}/100`,
+            subtitle: reportSummary.totalScans
+              ? 'Average score across stored backend reports'
+              : 'No scans recorded yet',
+          },
+          {
+            label: 'Active Vulnerabilities',
+            value: String(reportSummary.totalVulnerabilities),
+            subtitle: `Critical: ${reportSummary.critical} | High: ${reportSummary.high}`,
+          },
+          {
+            label: 'Vulnerable Assets',
+            value: `${reportSummary.vulnerableTargets} of ${reportSummary.uniqueTargets}`,
+            subtitle: 'Targets with critical or high findings',
+          },
+          {
+            label: 'Total Scans',
+            value: String(reportSummary.totalScans),
+            subtitle: reportSummary.totalScans
+              ? 'Recovered from stored backend reports'
+              : 'Waiting for the first completed scan',
+          },
+        ];
 
-    return dashboardStats.map((metric, index) => ({
+    return sourceMetrics.map((metric, index) => ({
       ...metric,
       detail: metric.subtitle || metric.detail || 'Live scan metric',
       icon: icons[index % icons.length],
@@ -172,38 +251,74 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
       change: null,
       breakdown: metric.subtitle ? [metric.subtitle] : [],
     }));
-  }, [dashboardStats]);
+  }, [adminReports, dashboardStats]);
 
   const liveSecurityMetrics = useMemo(() => {
+    const reportSummary = summarizeAdminReports(adminReports);
     const preferredLabels = ['Total Scans', 'Success Rate', 'Total Vulnerabilities', 'Avg. per Scan'];
     const selected = preferredLabels
       .map((label) => securityMetrics.find((metric) => metric.label === label))
       .filter(Boolean);
+    const sourceMetrics = selected.length
+      ? selected
+      : [
+          {
+            label: 'Total Scans',
+            value: String(reportSummary.totalScans),
+            subtitle: 'Recovered from stored backend reports',
+          },
+          {
+            label: 'Success Rate',
+            value: reportSummary.totalScans ? '100%' : '0%',
+            subtitle: 'Stored reports loaded successfully',
+          },
+          {
+            label: 'Total Vulnerabilities',
+            value: String(reportSummary.totalVulnerabilities),
+            subtitle: 'Summed across stored admin-visible reports',
+          },
+          {
+            label: 'Avg. per Scan',
+            value: reportSummary.totalScans
+              ? String(Math.round((reportSummary.totalVulnerabilities / reportSummary.totalScans) * 10) / 10)
+              : '0',
+            subtitle: 'Calculated from stored report findings',
+          },
+        ];
 
     const icons = [Activity, CheckCircle2, AlertTriangle, BarChart3];
     const tones = ['admin-tone-indigo', 'admin-tone-green', 'admin-tone-orange', 'admin-tone-indigo'];
 
-    return selected.map((metric, index) => ({
+    return sourceMetrics.map((metric, index) => ({
       label: metric.label,
       value: metric.value,
       detail: metric.subtitle || 'Current security metric',
       icon: icons[index % icons.length],
       tone: tones[index % tones.length],
     }));
-  }, [securityMetrics]);
+  }, [adminReports, securityMetrics]);
 
   const activityCards = useMemo(() => {
     const icons = [Activity, FileText, CheckCircle2, AlertTriangle];
     const tones = ['warning', 'success', 'danger', 'warning'];
+    const sourceActivities = recentActivities.length
+      ? recentActivities
+      : adminReports.slice(0, 4).map((report) => ({
+          title: `Stored report ready for ${report.target || report.title || 'scan target'}`,
+          detail: `${report.subtitle || 'Backend report recovered'} | Score ${report.score || 0}/100`,
+          time: report.date
+            ? formatEgyptDate(new Date(report.date), { month: 'short', day: 'numeric', year: 'numeric' })
+            : 'Recently',
+        }));
 
-    return recentActivities.map((activity, index) => ({
+    return sourceActivities.map((activity, index) => ({
       title: cleanDashboardText(activity.title, 'Scan activity updated'),
       detail: cleanDashboardText(activity.detail, 'Activity synced from stored scan results.'),
       time: activity.time || 'Recently',
       icon: icons[index % icons.length],
       tone: tones[index % tones.length],
     }));
-  }, [recentActivities]);
+  }, [adminReports, recentActivities]);
 
   const issueRows = useMemo(() => {
     const rows = adminReports.map((report) => {
@@ -247,8 +362,17 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
     const severityMetrics = securityMetrics.filter((metric) =>
       ['Critical', 'High', 'Medium', 'Low'].includes(metric.label),
     );
+    const reportSummary = summarizeAdminReports(adminReports);
+    const sourceMetrics = severityMetrics.length
+      ? severityMetrics
+      : [
+          { label: 'Critical', value: reportSummary.critical },
+          { label: 'High', value: reportSummary.high },
+          { label: 'Medium', value: reportSummary.medium },
+          { label: 'Low', value: reportSummary.low },
+        ];
 
-    if (!severityMetrics.length) {
+    if (!sourceMetrics.some((metric) => Number(metric.value || 0) > 0)) {
       return [];
     }
 
@@ -258,15 +382,15 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
       Medium: '#ffd60a',
       Low: '#34c759',
     };
-    const total = severityMetrics.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
+    const total = sourceMetrics.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
 
-    return severityMetrics.map((item) => ({
+    return sourceMetrics.map((item) => ({
       label: item.label,
       value: Math.max(Math.round((Number(item.value || 0) / total) * 100), 0),
       color: colors[item.label] || '#7b7eff',
       count: Number(item.value || 0),
     }));
-  }, [securityMetrics]);
+  }, [adminReports, securityMetrics]);
 
   return (
     <div className="admin-dashboard-page">
@@ -454,7 +578,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
                     <span className="admin-bar-label">{bar.label}</span>
                   </div>
                 )) : (
-                  <div className="admin-empty-state">No scan trend data yet. Completed scans will populate this chart.</div>
+                  <div className="admin-empty-state admin-chart-empty-state">No scan trend data yet. Completed scans will populate this chart.</div>
                 )}
               </div>
             </article>
@@ -465,7 +589,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
                 <p>Breakdown by vulnerability severity</p>
               </div>
 
-              <div className="admin-donut-layout">
+              <div className={`admin-donut-layout ${liveSeverityLegend.length ? '' : 'is-empty'}`}>
                 {liveSeverityLegend.length ? (
                   <>
                     <div
@@ -487,7 +611,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
                     </div>
                   </>
                 ) : (
-                  <div className="admin-empty-state">No severity data yet. Run scans to populate real findings.</div>
+                  <div className="admin-empty-state admin-chart-empty-state">No severity data yet. Run scans to populate real findings.</div>
                 )}
               </div>
             </article>

@@ -1,8 +1,28 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from threading import Lock
 
 from database.db import mongo
+
+SCAN_REPORTS_LIST_PROJECTION = {
+    "_id": 1,
+    "report_id": 1,
+    "scan_id": 1,
+    "target": 1,
+    "url": 1,
+    "risk_score": 1,
+    "risk_label": 1,
+    "scan_status": 1,
+    "created_at": 1,
+    "summary": 1,
+    "findings": {"$slice": 3},
+}
+
+ANALYTICS_CACHE_TTL_SECONDS = 30
+_analytics_cache_lock = Lock()
+_analytics_cache = {"expires_at": None, "payload": None}
+_admin_reports_cache = {"expires_at": None, "payload": None, "limit": None}
 
 
 def _empty_payload():
@@ -16,43 +36,8 @@ def _empty_payload():
         "total_findings": 0,
         "recent_scans": [],
         "monthly_trend": [],
+        "scans_last_7_days": 0,
     }
-
-
-def _normalize_severity(value: str) -> str:
-    severity = str(value or "").strip().lower()
-    if severity == "critical":
-        return "Critical"
-    if severity == "high":
-        return "High"
-    if severity == "medium":
-        return "Medium"
-    if severity in {"low", "info", "informational", "recon"}:
-        return "Low"
-    return ""
-
-
-def _count_severities(findings: list) -> dict[str, int]:
-    counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0}
-    for finding in findings:
-        if not isinstance(finding, dict):
-            continue
-        label = _normalize_severity(finding.get("severity") or finding.get("status"))
-        if label:
-            counts[label] += 1
-    return counts
-
-
-def _scan_documents(limit: int = 500) -> list[dict]:
-    if getattr(mongo, "db", None) is None:
-        return []
-
-    cursor = (
-        mongo.db.scan_reports.find({})
-        .sort("created_at", -1)
-        .limit(max(1, min(limit, 500)))
-    )
-    return list(cursor)
 
 
 def _risk_grade(score: int) -> str:
@@ -88,92 +73,188 @@ def _format_relative_time(value) -> str:
     return f"{minutes} minute(s) ago"
 
 
-def aggregate_scan_analytics(limit: int = 500) -> dict:
-    scans = _scan_documents(limit)
-    if not scans:
-        return _empty_payload()
-
-    severity_counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0}
-    total_findings = 0
-    risk_scores: list[int] = []
-    targets: set[str] = set()
-    vulnerable_targets: set[str] = set()
-    completed_scans = 0
-    recent_scans: list[dict] = []
-    now = datetime.now(timezone.utc)
-    last_7_days = 0
-
-    for document in scans:
-        findings = document.get("findings") if isinstance(document.get("findings"), list) else []
-        counts = _count_severities(findings)
-        for key, value in counts.items():
-            severity_counts[key] += value
-        total_findings += len(findings)
-
-        target = str(document.get("target") or document.get("url") or "").strip()
-        if target:
-            targets.add(target)
-            if counts["Critical"] or counts["High"]:
-                vulnerable_targets.add(target)
-
-        risk_score = document.get("risk_score")
-        if isinstance(risk_score, (int, float)):
-            risk_scores.append(max(0, min(100, int(round(float(risk_score))))))
-
-        status = str(document.get("scan_status") or "completed").strip().lower()
-        if status in {"completed", "done", "success"}:
-            completed_scans += 1
-
-        created_at = document.get("created_at")
-        if hasattr(created_at, "tzinfo"):
-            if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
-            if created_at >= now - timedelta(days=7):
-                last_7_days += 1
-
-        recent_scans.append(
-            {
-                "report_id": document.get("report_id") or document.get("scan_id"),
-                "target": target or "Unknown target",
-                "risk_label": document.get("risk_label") or "No Risk",
-                "risk_score": int(document.get("risk_score") or 0),
-                "findings_count": len(findings),
-                "critical_count": counts["Critical"],
-                "high_count": counts["High"],
-                "scan_status": document.get("scan_status") or "completed",
-                "created_at": created_at.isoformat() if hasattr(created_at, "isoformat") else None,
-            }
-        )
-
-    monthly_buckets: dict[str, int] = {}
-    for document in scans:
-        created_at = document.get("created_at")
-        if not hasattr(created_at, "strftime"):
-            continue
-        label = created_at.strftime("%b")
-        findings = document.get("findings") if isinstance(document.get("findings"), list) else []
-        monthly_buckets[label] = monthly_buckets.get(label, 0) + len(findings)
-
-    monthly_trend = [
-        {"label": label, "value": monthly_buckets[label]}
-        for label in sorted(monthly_buckets.keys(), key=lambda item: datetime.strptime(item, "%b"))
-    ][-6:]
-
-    average_risk_score = round(sum(risk_scores) / len(risk_scores)) if risk_scores else 0
-
+def _summary_severity_counts(summary: dict | None) -> dict[str, int]:
+    payload = summary if isinstance(summary, dict) else {}
+    severity = payload.get("severity_counts") if isinstance(payload.get("severity_counts"), dict) else {}
     return {
-        "total_scans": len(scans),
-        "completed_scans": completed_scans,
-        "unique_targets": len(targets),
-        "vulnerable_targets": len(vulnerable_targets),
-        "average_risk_score": average_risk_score,
-        "risk_grade": _risk_grade(average_risk_score),
-        "severity_counts": severity_counts,
-        "total_findings": total_findings,
-        "recent_scans": recent_scans[:25],
-        "scans_last_7_days": last_7_days,
-        "monthly_trend": monthly_trend,
+        "Critical": int(severity.get("Critical", 0) or 0),
+        "High": int(severity.get("High", 0) or 0),
+        "Medium": int(severity.get("Medium", 0) or 0),
+        "Low": int(severity.get("Low", 0) or 0) + int(severity.get("Info", 0) or 0),
     }
+
+
+def _summary_total_findings(summary: dict | None) -> int:
+    payload = summary if isinstance(summary, dict) else {}
+    return int(payload.get("total_findings", 0) or 0)
+
+
+def _scan_reports_cursor(limit: int = 25):
+    safe_limit = max(1, min(int(limit or 25), 100))
+    cursor = mongo.db.scan_reports.find({}, SCAN_REPORTS_LIST_PROJECTION)
+    if hasattr(cursor, "allow_disk_use"):
+        cursor = cursor.allow_disk_use(True)
+    return cursor.sort("created_at", -1).limit(safe_limit)
+
+
+def _recent_scan_documents(limit: int = 25) -> list[dict]:
+    if getattr(mongo, "db", None) is None:
+        return []
+    return list(_scan_reports_cursor(limit))
+
+
+def _aggregate_totals() -> dict:
+    if getattr(mongo, "db", None) is None:
+        return {}
+
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    pipeline = [
+        {
+            "$project": {
+                "target": {"$ifNull": ["$target", "$url"]},
+                "risk_score": {"$ifNull": ["$risk_score", 0]},
+                "scan_status": {"$toLower": {"$ifNull": ["$scan_status", "completed"]}},
+                "created_at": "$created_at",
+                "total_findings": {"$ifNull": ["$summary.total_findings", 0]},
+                "critical": {"$ifNull": ["$summary.severity_counts.Critical", 0]},
+                "high": {"$ifNull": ["$summary.severity_counts.High", 0]},
+                "medium": {"$ifNull": ["$summary.severity_counts.Medium", 0]},
+                "low": {
+                    "$add": [
+                        {"$ifNull": ["$summary.severity_counts.Low", 0]},
+                        {"$ifNull": ["$summary.severity_counts.Info", 0]},
+                    ]
+                },
+            }
+        },
+        {
+            "$group": {
+                "_id": None,
+                "total_scans": {"$sum": 1},
+                "completed_scans": {
+                    "$sum": {
+                        "$cond": [
+                            {"$in": ["$scan_status", ["completed", "done", "success"]]},
+                            1,
+                            0,
+                        ]
+                    }
+                },
+                "total_findings": {"$sum": "$total_findings"},
+                "critical": {"$sum": "$critical"},
+                "high": {"$sum": "$high"},
+                "medium": {"$sum": "$medium"},
+                "low": {"$sum": "$low"},
+                "risk_score_sum": {"$sum": "$risk_score"},
+                "targets": {"$addToSet": "$target"},
+                "vulnerable_targets_raw": {
+                    "$addToSet": {
+                        "$cond": [
+                            {"$gt": [{"$add": ["$critical", "$high"]}, 0]},
+                            "$target",
+                            None,
+                        ]
+                    }
+                },
+                "scans_last_7_days": {
+                    "$sum": {
+                        "$cond": [
+                            {"$gte": ["$created_at", seven_days_ago]},
+                            1,
+                            0,
+                        ]
+                    }
+                },
+            }
+        },
+    ]
+
+    result = list(mongo.db.scan_reports.aggregate(pipeline, allowDiskUse=True))
+    return result[0] if result else {}
+
+
+def _cache_is_fresh(entry: dict, *, limit: int | None = None) -> bool:
+    expires_at = entry.get("expires_at")
+    if expires_at is None or expires_at <= datetime.now(timezone.utc):
+        return False
+    if limit is not None and entry.get("limit") != limit:
+        return False
+    return entry.get("payload") is not None
+
+
+def aggregate_scan_analytics(limit: int = 25) -> dict:
+    if _cache_is_fresh(_analytics_cache):
+        return _analytics_cache["payload"]
+
+    with _analytics_cache_lock:
+        if _cache_is_fresh(_analytics_cache):
+            return _analytics_cache["payload"]
+
+        totals = _aggregate_totals()
+        if not totals:
+            payload = _empty_payload()
+        else:
+            recent_documents = _recent_scan_documents(limit)
+            recent_scans = []
+            monthly_buckets: dict[str, int] = {}
+
+            for document in recent_documents:
+                summary = document.get("summary")
+                counts = _summary_severity_counts(summary)
+                findings_count = _summary_total_findings(summary)
+                target = str(document.get("target") or document.get("url") or "").strip() or "Unknown target"
+                created_at = document.get("created_at")
+
+                if hasattr(created_at, "strftime"):
+                    label = created_at.strftime("%b")
+                    monthly_buckets[label] = monthly_buckets.get(label, 0) + findings_count
+
+                recent_scans.append(
+                    {
+                        "report_id": document.get("report_id") or document.get("scan_id"),
+                        "target": target,
+                        "risk_label": document.get("risk_label") or "No Risk",
+                        "risk_score": int(document.get("risk_score") or 0),
+                        "findings_count": findings_count,
+                        "critical_count": counts["Critical"],
+                        "high_count": counts["High"],
+                        "scan_status": document.get("scan_status") or "completed",
+                        "created_at": created_at.isoformat() if hasattr(created_at, "isoformat") else None,
+                    }
+                )
+
+            monthly_trend = [
+                {"label": label, "value": monthly_buckets[label]}
+                for label in sorted(monthly_buckets.keys(), key=lambda item: datetime.strptime(item, "%b"))
+            ][-6:]
+
+            total_scans = int(totals.get("total_scans", 0) or 0)
+            average_risk_score = round((totals.get("risk_score_sum", 0) or 0) / total_scans) if total_scans else 0
+            all_targets = [target for target in totals.get("targets", []) if target]
+            vulnerable_targets = [target for target in totals.get("vulnerable_targets_raw", []) if target]
+
+            payload = {
+                "total_scans": total_scans,
+                "completed_scans": int(totals.get("completed_scans", 0) or 0),
+                "unique_targets": len(set(all_targets)),
+                "vulnerable_targets": len(set(vulnerable_targets)),
+                "average_risk_score": average_risk_score,
+                "risk_grade": _risk_grade(average_risk_score),
+                "severity_counts": {
+                    "Critical": int(totals.get("critical", 0) or 0),
+                    "High": int(totals.get("high", 0) or 0),
+                    "Medium": int(totals.get("medium", 0) or 0),
+                    "Low": int(totals.get("low", 0) or 0),
+                },
+                "total_findings": int(totals.get("total_findings", 0) or 0),
+                "recent_scans": recent_scans[:25],
+                "monthly_trend": monthly_trend,
+                "scans_last_7_days": int(totals.get("scans_last_7_days", 0) or 0),
+            }
+
+        _analytics_cache["payload"] = payload
+        _analytics_cache["expires_at"] = datetime.now(timezone.utc) + timedelta(seconds=ANALYTICS_CACHE_TTL_SECONDS)
+        return payload
 
 
 def build_dashboard_stats() -> list[dict]:
@@ -196,7 +277,7 @@ def build_dashboard_stats() -> list[dict]:
         {
             "label": "Active Vulnerabilities",
             "value": str(analytics["total_findings"]),
-            "subtitle": f"Critical: {severity['Critical']} · High: {severity['High']}",
+            "subtitle": f"Critical: {severity['Critical']} | High: {severity['High']}",
         },
         {
             "label": "Vulnerable Assets",
@@ -248,8 +329,8 @@ def build_recent_activities() -> list[dict]:
             {
                 "title": f"Scan completed for {scan['target']}",
                 "detail": (
-                    f"{scan['risk_label']} · {scan['findings_count']} finding(s) · "
-                    f"{scan['critical_count']} critical · {scan['high_count']} high"
+                    f"{scan['risk_label']} | {scan['findings_count']} finding(s) | "
+                    f"{scan['critical_count']} critical | {scan['high_count']} high"
                 ),
                 "time": _format_relative_time(timestamp),
             }
@@ -262,37 +343,55 @@ def build_recent_activities() -> list[dict]:
 
 
 def serialize_scan_as_admin_report(document: dict) -> dict:
-    findings = document.get("findings") if isinstance(document.get("findings"), list) else []
-    severity = _count_severities(findings)
+    summary = document.get("summary")
+    severity = _summary_severity_counts(summary)
+    findings_count = _summary_total_findings(summary)
     created_at = document.get("created_at") or datetime.utcnow()
     report_id = document.get("report_id") or document.get("scan_id") or str(document.get("_id", ""))
+    findings = document.get("findings") if isinstance(document.get("findings"), list) else []
+
+    finding_titles = [
+        str(finding.get("title") or finding.get("name") or finding.get("vuln_type") or "Finding")
+        for finding in findings[:3]
+        if isinstance(finding, dict)
+    ]
+    if not finding_titles:
+        finding_titles = [
+            f"{severity['Critical']} critical finding(s)",
+            f"{severity['High']} high severity finding(s)",
+            f"{findings_count} total finding(s)",
+        ]
 
     return {
         "id": report_id,
         "title": document.get("target") or document.get("url") or "Scan Report",
-        "subtitle": f"{document.get('risk_label') or 'No Risk'} · {len(findings)} finding(s)",
+        "subtitle": f"{document.get('risk_label') or 'No Risk'} | {findings_count} finding(s)",
         "date": created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at),
         "size": "Live scan report",
         "type": "Scan",
         "status": document.get("scan_status") or "completed",
         "scanCount": 1,
-        "vulnerabilities": len(findings),
+        "vulnerabilities": findings_count,
         "critical": severity["Critical"],
         "high": severity["High"],
         "medium": severity["Medium"],
         "low": severity["Low"],
         "score": int(document.get("risk_score") or 0),
         "downloads": 0,
-        "findings": [
-            str(finding.get("title") or finding.get("name") or finding.get("vuln_type") or "Finding")
-            for finding in findings[:8]
-            if isinstance(finding, dict)
-        ],
+        "findings": finding_titles,
         "target": document.get("target") or document.get("url") or "",
         "report_id": report_id,
     }
 
 
 def list_admin_scan_reports(limit: int = 25) -> list[dict]:
-    scans = _scan_documents(limit)
-    return [serialize_scan_as_admin_report(document) for document in scans[:limit]]
+    safe_limit = max(1, min(int(limit or 25), 100))
+    if _cache_is_fresh(_admin_reports_cache, limit=safe_limit):
+        return _admin_reports_cache["payload"]
+
+    scans = _recent_scan_documents(safe_limit)
+    payload = [serialize_scan_as_admin_report(document) for document in scans]
+    _admin_reports_cache["payload"] = payload
+    _admin_reports_cache["limit"] = safe_limit
+    _admin_reports_cache["expires_at"] = datetime.now(timezone.utc) + timedelta(seconds=ANALYTICS_CACHE_TTL_SECONDS)
+    return payload

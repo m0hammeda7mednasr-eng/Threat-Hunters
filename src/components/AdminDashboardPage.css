@@ -464,6 +464,13 @@
   font-size: 0.95rem;
 }
 
+.admin-chart-empty-state {
+  grid-column: 1 / -1;
+  align-self: center;
+  justify-self: stretch;
+  text-align: left;
+}
+
 .admin-action-card {
   min-height: 166px;
   padding: 24px;
@@ -601,6 +608,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
+}
+
+.admin-donut-layout.is-empty {
+  justify-content: flex-start;
 }
 
 .admin-donut-chart {
