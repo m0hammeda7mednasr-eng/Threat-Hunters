@@ -441,6 +441,11 @@ const SecurityAwarenessPage = ({
   const [liveUpdatedAt, setLiveUpdatedAt] = useState(
     typeof cachedLiveFeed?.updatedAt === 'string' ? cachedLiveFeed.updatedAt : '',
   );
+  const hasLiveFeed =
+    liveFeed.latestCves.length > 0 ||
+    liveFeed.criticalCves.length > 0 ||
+    liveFeed.kev.length > 0 ||
+    liveFeed.news.length > 0;
   const badgeTrack = [...knowledgeBadges, ...knowledgeBadges];
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
@@ -621,10 +626,14 @@ const SecurityAwarenessPage = ({
 
             <div className="awareness-live__actions">
               <span className="awareness-live__status">
-                {liveLoading ? 'Refreshing feed...' : `Updated ${liveUpdatedAt || 'just now'}`}
+                {liveLoading && !hasLiveFeed
+                  ? 'Loading live security feed...'
+                  : liveLoading
+                    ? 'Syncing in background'
+                    : `Updated ${liveUpdatedAt || 'just now'}`}
               </span>
-              <button type="button" className="awareness-live__refresh" onClick={loadLiveFeed} disabled={liveLoading}>
-                {liveLoading ? 'Loading...' : 'Refresh feed'}
+              <button type="button" className="awareness-live__refresh" onClick={loadLiveFeed}>
+                Refresh feed
               </button>
             </div>
           </header>

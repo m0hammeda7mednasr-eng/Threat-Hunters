@@ -1800,20 +1800,27 @@
 
 .awareness-live__actions {
   align-items: center;
+  gap: 12px;
 }
 
 .awareness-live__status {
-  padding: 0.55rem 0.8rem;
-  border-radius: 999px;
-  background: var(--surface-soft);
-  border: 1px solid var(--primary-border-20);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  color: var(--awareness-muted);
+  font-size: 14px;
 }
 
 .awareness-live__refresh {
-  min-height: 46px;
-  padding: 0 1.25rem;
-  border-radius: 999px;
+  min-height: 42px;
+  padding: 0 1rem;
+  border-radius: 14px;
   background: var(--surface-panel);
+}
+
+.awareness-live__refresh:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 .awareness-live-card {
