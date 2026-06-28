@@ -1000,6 +1000,30 @@ const SCAN_RUNTIME = {
   timerId: null,
 };
 
+const getActiveStorageOwner = () => {
+  try {
+    const email = window.localStorage.getItem("threatHuntersUserEmail");
+    if (email) {
+      return email.trim().toLowerCase();
+    }
+
+    const userBlob = window.localStorage.getItem("user");
+    if (userBlob) {
+      const parsed = JSON.parse(userBlob);
+      if (parsed?.email) {
+        return String(parsed.email).trim().toLowerCase();
+      }
+    }
+  } catch {
+    // Fall through to the anonymous owner key.
+  }
+
+  return "guest";
+};
+
+const getScopedStorageKey = (baseKey) =>
+  `${baseKey}:${getActiveStorageOwner()}`;
+
 let scanSessionCache = {
   status: "idle",
   target: "",
@@ -1063,7 +1087,9 @@ const normalizeScanSession = (session = {}) => ({
 
 const readStoredScanSession = () => {
   try {
-    const storedSession = window.localStorage.getItem(SCAN_SESSION_STORAGE_KEY);
+    const storedSession = window.localStorage.getItem(
+      getScopedStorageKey(SCAN_SESSION_STORAGE_KEY),
+    );
     const parsedSession = JSON.parse(storedSession || "null");
     const normalizedSession = normalizeScanSession(parsedSession || {});
 
@@ -1107,7 +1133,7 @@ const persistScanSession = (session, notify = true) => {
 
   try {
     window.localStorage.setItem(
-      SCAN_SESSION_STORAGE_KEY,
+      getScopedStorageKey(SCAN_SESSION_STORAGE_KEY),
       JSON.stringify(scanSessionCache),
     );
   } catch {
@@ -1154,7 +1180,9 @@ const subscribeScanSession = (listener) => {
 
 const loadStoredScanReports = () => {
   try {
-    const storedReports = window.localStorage.getItem(SCAN_REPORTS_STORAGE_KEY);
+    const storedReports = window.localStorage.getItem(
+      getScopedStorageKey(SCAN_REPORTS_STORAGE_KEY),
+    );
     const parsedReports = JSON.parse(storedReports || "[]");
     return Array.isArray(parsedReports)
       ? parsedReports.map(normalizeScanReport)
@@ -1167,7 +1195,7 @@ const loadStoredScanReports = () => {
 const storeScanReports = (reports) => {
   try {
     window.localStorage.setItem(
-      SCAN_REPORTS_STORAGE_KEY,
+      getScopedStorageKey(SCAN_REPORTS_STORAGE_KEY),
       JSON.stringify(reports.slice(0, 12)),
     );
   } catch {

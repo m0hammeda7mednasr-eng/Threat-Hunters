@@ -13,6 +13,20 @@ const emitAuthStateChanged = (status) => {
   );
 };
 
+const removeStoredKeysByPrefix = (prefix) => {
+  const keysToRemove = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key && key.startsWith(prefix)) {
+      keysToRemove.push(key);
+    }
+  }
+
+  keysToRemove.forEach((key) => {
+    localStorage.removeItem(key);
+  });
+};
+
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   const contentType = response.headers.get("content-type");
@@ -521,6 +535,8 @@ export const utils = {
     localStorage.removeItem("threatHuntersUserEmail");
     localStorage.removeItem("threatHuntersScanReports");
     localStorage.removeItem("threatHuntersScanSession");
+    removeStoredKeysByPrefix("threatHuntersScanReports:");
+    removeStoredKeysByPrefix("threatHuntersScanSession:");
 
     if (!silent) {
       emitAuthStateChanged("logged-out");
