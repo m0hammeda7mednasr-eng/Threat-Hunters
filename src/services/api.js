@@ -3,6 +3,16 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   "/api";
 
+const AUTH_STATE_EVENT = "threatHunters:auth-state-changed";
+
+const emitAuthStateChanged = (status) => {
+  window.dispatchEvent(
+    new CustomEvent(AUTH_STATE_EVENT, {
+      detail: { status },
+    }),
+  );
+};
+
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   const contentType = response.headers.get("content-type");
@@ -47,6 +57,12 @@ const apiRequest = async (endpoint, options = {}) => {
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+
+  if (response.status === 401 && token) {
+    utils.logout({ silent: true });
+    emitAuthStateChanged("expired");
+  }
+
   return handleResponse(response);
 };
 
@@ -60,6 +76,11 @@ const apiBlobRequest = async (endpoint, options = {}) => {
       ...options.headers,
     },
   });
+
+  if (response.status === 401 && token) {
+    utils.logout({ silent: true });
+    emitAuthStateChanged("expired");
+  }
 
   if (!response.ok) {
     let errorMessage = `HTTP error! status: ${response.status}`;
@@ -491,7 +512,7 @@ export const utils = {
   },
 
   // Logout user (clear local storage)
-  logout: () => {
+  logout: ({ silent = false } = {}) => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("userRole");
@@ -499,6 +520,11 @@ export const utils = {
     localStorage.removeItem("threatHuntersUserRole");
     localStorage.removeItem("threatHuntersUserEmail");
     localStorage.removeItem("threatHuntersScanReports");
+    localStorage.removeItem("threatHuntersScanSession");
+
+    if (!silent) {
+      emitAuthStateChanged("logged-out");
+    }
   },
 
   // Get stored user data
@@ -545,3 +571,5 @@ export default {
   admin: adminAPI,
   utils,
 };
+
+export { AUTH_STATE_EVENT };

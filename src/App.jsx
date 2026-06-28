@@ -4,7 +4,7 @@ import AuthNavbar from './components/AuthNavbar';
 import AdminTopNav from './components/AdminTopNav';
 import BootSplash from './components/BootSplash';
 import Footer from './components/Footer';
-import { blogAPI } from './services/api';
+import { AUTH_STATE_EVENT, blogAPI } from './services/api';
 
 const HomePage = lazy(() => import('./components/HomePage'));
 const SignUpPage = lazy(() => import('./components/SignUpPage'));
@@ -95,9 +95,13 @@ const safeSessionStorage = {
   },
 };
 
-const getInitialLoginState = () => safeStorage.get(STORAGE_KEYS.loginState) === 'true';
-const getInitialUserRole = () => safeStorage.get(STORAGE_KEYS.userRole) || 'user';
-const getInitialUserEmail = () => safeStorage.get(STORAGE_KEYS.userEmail) || '';
+const hasStoredToken = () => Boolean(safeStorage.get('token'));
+const getInitialLoginState = () =>
+  safeStorage.get(STORAGE_KEYS.loginState) === 'true' && hasStoredToken();
+const getInitialUserRole = () =>
+  hasStoredToken() ? safeStorage.get(STORAGE_KEYS.userRole) || 'user' : 'user';
+const getInitialUserEmail = () =>
+  hasStoredToken() ? safeStorage.get(STORAGE_KEYS.userEmail) || '' : '';
 const getInitialSplashState = () => safeSessionStorage.get(SESSION_KEYS.splashSeen) !== 'true';
 
 const normalizeHash = (hashValue) => {
@@ -566,6 +570,24 @@ function App() {
     setCurrentPage('home');
     setDashboardSection('dashboard');
     window.location.hash = '#home';
+  }, []);
+
+  useEffect(() => {
+    const handleAuthStateChanged = () => {
+      setIsLoggedIn(false);
+      setUserRole('user');
+      setUserEmail('');
+      setCurrentPage('signin');
+      setDashboardSection('dashboard');
+      setAwarenessDetail(null);
+      window.location.hash = '#signin';
+    };
+
+    window.addEventListener(AUTH_STATE_EVENT, handleAuthStateChanged);
+
+    return () => {
+      window.removeEventListener(AUTH_STATE_EVENT, handleAuthStateChanged);
+    };
   }, []);
 
   const publicNavigationProps = useMemo(

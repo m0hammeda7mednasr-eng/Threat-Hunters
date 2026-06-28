@@ -16,6 +16,7 @@ for env_path in (
 
 from flask import Flask, request
 from flask_cors import CORS
+from pymongo.errors import PyMongoError
 
 from config import Config
 from database.db import mongo
@@ -92,6 +93,27 @@ def ensure_mongo_indexes():
 
 with app.app_context():
     ensure_mongo_indexes()
+
+
+@app.get("/api/ping")
+def ping():
+    database_name = ""
+    try:
+        if getattr(mongo, "db", None) is not None:
+            mongo.cx.admin.command("ping")
+            database_name = mongo.db.name
+        return {
+            "ok": True,
+            "service": "threat-hunters-backend",
+            "database": database_name,
+        }, 200
+    except PyMongoError:
+        return {
+            "ok": False,
+            "service": "threat-hunters-backend",
+            "database": database_name,
+            "message": "MongoDB is unavailable",
+        }, 503
 
 app.register_blueprint(auth_bp, url_prefix="/api")
 app.register_blueprint(user_bp, url_prefix="/api")

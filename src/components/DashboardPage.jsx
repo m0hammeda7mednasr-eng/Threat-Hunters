@@ -260,8 +260,26 @@ const getHighestSeverityFinding = (findings = []) =>
     return currentRank > highestRank ? finding : highest;
   }, null);
 
+const getSeveritySummaryCounts = (report) => {
+  const summary =
+    report?.summary && typeof report.summary === "object" ? report.summary : {};
+  const sources = [
+    summary.severity_counts,
+    summary.all_severity_counts,
+    summary.severityCounts,
+  ];
+
+  for (const source of sources) {
+    if (source && typeof source === "object") {
+      return source;
+    }
+  }
+
+  return {};
+};
+
 const countFindingsBySeverity = (report, severity) => {
-  const summaryCounts = report?.summary?.severity_counts || {};
+  const summaryCounts = getSeveritySummaryCounts(report);
   const wanted = severityKey(severity);
   const summaryMatch = Object.entries(summaryCounts).find(
     ([key]) => severityKey(key) === wanted,
@@ -275,6 +293,20 @@ const countFindingsBySeverity = (report, severity) => {
       (finding) => severityKey(finding.severity || finding.status) === wanted,
     ).length ?? 0
   );
+};
+
+const countAllFindings = (report) => {
+  const summaryCounts = getSeveritySummaryCounts(report);
+  const summaryTotal = Object.values(summaryCounts).reduce(
+    (total, value) => total + Number(value || 0),
+    0,
+  );
+
+  if (summaryTotal > 0) {
+    return summaryTotal;
+  }
+
+  return Array.isArray(report?.findings) ? report.findings.length : 0;
 };
 
 const normalizeScanMode = (mode) => {
@@ -1833,7 +1865,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
       label: "Vulnerabilities Found",
       value: String(
         scanReports.reduce(
-          (sum, report) => sum + (report.findings?.length || 0),
+          (sum, report) => sum + countAllFindings(report),
           0,
         ),
       ),
@@ -2720,7 +2752,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
       index: index + 1,
       url: report.url || report.target,
       timestamp: `${report.date || ""} at ${report.time || ""}`.trim(),
-      vulnerabilities: report.findings?.length || 0,
+      vulnerabilities: countAllFindings(report),
       score: report.score || `${report.risk_score || 0}/100`,
       scoreTone: severityTone(report.risk),
       raw: report,
@@ -2748,7 +2780,7 @@ function DashboardPage({ onNavigate, onLogout, currentPage, initialSection }) {
         label: "Total Vulnerabilities",
         value: String(
           scanReports.reduce(
-            (sum, report) => sum + (report.findings?.length || 0),
+            (sum, report) => sum + countAllFindings(report),
             0,
           ),
         ),

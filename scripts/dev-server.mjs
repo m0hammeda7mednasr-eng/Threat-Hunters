@@ -73,6 +73,29 @@ function commandWorks(command, args = ['--version']) {
   return check.status === 0;
 }
 
+async function waitForBackendReady({ url, timeoutMs, backend }) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (backend.exitCode !== null) {
+      throw new Error(`Python backend exited early with code ${backend.exitCode}.`);
+    }
+
+    try {
+      const response = await fetch(url, { method: 'GET' });
+      if (response.ok) {
+        return;
+      }
+    } catch {
+      // Keep polling until the backend begins accepting requests.
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  }
+
+  throw new Error(`Timed out waiting for backend readiness at ${url}.`);
+}
+
 function resolvePython() {
   const candidates = [
     process.env.PYTHON,
@@ -109,11 +132,11 @@ if (!canRunPythonBackend()) {
 }
 
 const backend = start(python.command, [...python.argsPrefix, 'Back-end/Backend/app.py'], 'backend');
-const frontend = start(process.execPath, ['node_modules/vite/bin/vite.js'], 'vite');
+var frontend = null;
 
 const shutdown = () => {
   backend.kill();
-  frontend.kill();
+  frontend?.kill();
   process.exit(0);
 };
 
@@ -122,10 +145,23 @@ process.on('SIGTERM', shutdown);
 
 backend.on('exit', (code) => {
   if (code !== 0) {
-    frontend.kill();
+    frontend?.kill();
     process.exit(code ?? 1);
   }
 });
+
+try {
+  await waitForBackendReady({
+    url: 'http://127.0.0.1:5000/api/ping',
+    timeoutMs: 30000,
+    backend,
+  });
+} catch (error) {
+  backend.kill();
+  throw error;
+}
+
+frontend = start(process.execPath, ['node_modules/vite/bin/vite.js'], 'vite');
 
 frontend.on('exit', (code) => {
   if (code !== 0) {

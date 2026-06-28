@@ -321,12 +321,17 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
   }, [adminReports, recentActivities]);
 
   const issueRows = useMemo(() => {
-    const rows = adminReports.map((report) => {
+    const rows = adminReports.map((report, index) => {
       const date = new Date(report.date);
       const vulnerabilities = Number(report.vulnerabilities || 0);
       const critical = Number(report.critical || 0);
       const high = Number(report.high || 0);
       return {
+        key:
+          report.id ||
+          report.report_id ||
+          report.scan_id ||
+          `${report.target || report.title || 'report'}-${report.date || index}-${index}`,
         target: report.target || report.title,
         date: Number.isNaN(date.getTime())
           ? 'Recent'
@@ -688,7 +693,7 @@ function AdminDashboardPage({ onNavigate, onLogout, currentPage = 'admin-dashboa
                 </thead>
                 <tbody>
                   {issueRows[activeTab].length ? issueRows[activeTab].map((row) => (
-                    <tr key={`${activeTab}-${row.target}`}>
+                    <tr key={`${activeTab}-${row.key}`}>
                       <td className="admin-table-target">{row.target}</td>
                       <td>{row.date}</td>
                       <td>
