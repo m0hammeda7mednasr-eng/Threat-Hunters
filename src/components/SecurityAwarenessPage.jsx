@@ -441,6 +441,7 @@ const SecurityAwarenessPage = ({
   const [liveUpdatedAt, setLiveUpdatedAt] = useState(
     typeof cachedLiveFeed?.updatedAt === 'string' ? cachedLiveFeed.updatedAt : '',
   );
+  const [isRefreshingLiveFeed, setIsRefreshingLiveFeed] = useState(false);
   const hasLiveFeed =
     liveFeed.latestCves.length > 0 ||
     liveFeed.criticalCves.length > 0 ||
@@ -508,8 +509,11 @@ const SecurityAwarenessPage = ({
     [onOpenAwarenessDetail],
   );
 
-  const loadLiveFeed = useCallback(async () => {
+  const loadLiveFeed = useCallback(async ({ manual = false } = {}) => {
     setLiveLoading(true);
+    if (manual) {
+      setIsRefreshingLiveFeed(true);
+    }
     setLiveError('');
 
     const [latestResult, criticalResult, kevResult, newsResult] = await Promise.allSettled([
@@ -551,6 +555,9 @@ const SecurityAwarenessPage = ({
         : '',
     );
     setLiveLoading(false);
+    if (manual) {
+      setIsRefreshingLiveFeed(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -626,14 +633,19 @@ const SecurityAwarenessPage = ({
 
             <div className="awareness-live__actions">
               <span className="awareness-live__status">
-                {liveLoading && !hasLiveFeed
+                {isRefreshingLiveFeed
+                  ? 'Refreshing feed...'
+                  : liveLoading && !hasLiveFeed
                   ? 'Loading live security feed...'
-                  : liveLoading
-                    ? 'Syncing in background'
-                    : `Updated ${liveUpdatedAt || 'just now'}`}
+                  : `Updated ${liveUpdatedAt || 'just now'}`}
               </span>
-              <button type="button" className="awareness-live__refresh" onClick={loadLiveFeed}>
-                Refresh feed
+              <button
+                type="button"
+                className="awareness-live__refresh"
+                onClick={() => loadLiveFeed({ manual: true })}
+                disabled={isRefreshingLiveFeed}
+              >
+                {isRefreshingLiveFeed ? 'Refreshing...' : 'Refresh feed'}
               </button>
             </div>
           </header>
